@@ -1,0 +1,108 @@
+// Copyright (c) Lanstack @openclaw. All rights reserved.
+
+using Harness.Models;
+
+namespace Harness.Services;
+
+public sealed partial class ShellSessionCoordinator
+{
+    /// <summary>
+    /// Attaches the coordinator to the required services.
+    /// </summary>
+    public Task AttachAsync(
+        IShellSessionWebView webViewService,
+        IShellSessionBridge bridge,
+        RecoveryPolicyOptions? recoveryOptions = null,
+        HeartbeatOptions? heartbeatOptions = null,
+        IAppLogger? logger = null,
+        bool autoRefresh = true)
+    {
+        if (_isDisposed)
+        {
+            return Task.CompletedTask;
+        }
+
+        DetachServicesCore();
+
+        _webViewService = webViewService;
+        _bridge = bridge;
+        _recoveryOptions = recoveryOptions ?? _recoveryOptions;
+        _heartbeatOptions = heartbeatOptions ?? _heartbeatOptions;
+        _logger = logger ?? _logger;
+        _autoRefresh = autoRefresh;
+
+        AttachServiceSubscriptions();
+        _logger.Info("ShellSessionCoordinator attached.");
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Detaches the current service adapters without disposing the coordinator.
+    /// </summary>
+    public void DetachServices()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        DetachServicesCore();
+    }
+
+    /// <summary>
+    /// Cleans up coordinator resources.
+    /// </summary>
+    public void Dispose()
+    {
+        _isDisposed = true;
+        DetachServicesCore();
+    }
+
+    private void AttachServiceSubscriptions()
+    {
+        if (_webViewService is not null)
+        {
+            _webViewService.ConnectionStateChanged += OnConnectionStateChanged;
+            _webViewService.NavigationErrorOccurred += OnNavigationError;
+            _webViewService.NavigationCompleted += OnNavigationCompleted;
+            _webViewService.ControlUiSnapshotUpdated += OnHostedUiStateUpdated;
+            _webViewService.HeartbeatObserved += OnHeartbeatObserved;
+            _webViewService.HeartbeatFailed += OnHeartbeatFailed;
+        }
+
+        if (_bridge is not null)
+        {
+            _bridge.SessionReady += OnSessionReady;
+            _bridge.EventGapDetected += OnEventGapDetected;
+        }
+    }
+
+    private void DetachServiceSubscriptions()
+    {
+        if (_webViewService is not null)
+        {
+            _webViewService.ConnectionStateChanged -= OnConnectionStateChanged;
+            _webViewService.NavigationErrorOccurred -= OnNavigationError;
+            _webViewService.NavigationCompleted -= OnNavigationCompleted;
+            _webViewService.ControlUiSnapshotUpdated -= OnHostedUiStateUpdated;
+            _webViewService.HeartbeatObserved -= OnHeartbeatObserved;
+            _webViewService.HeartbeatFailed -= OnHeartbeatFailed;
+        }
+
+        if (_bridge is not null)
+        {
+            _bridge.SessionReady -= OnSessionReady;
+            _bridge.EventGapDetected -= OnEventGapDetected;
+        }
+    }
+
+    private void DetachServicesCore()
+    {
+        DetachServiceSubscriptions();
+        CancelObservedOperations();
+        AbortRecoveryOperation();
+        _webViewService = null;
+        _bridge = null;
+    }
+}

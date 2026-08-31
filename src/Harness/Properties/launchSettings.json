@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "Harness (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

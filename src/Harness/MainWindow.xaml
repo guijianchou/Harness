@@ -1,0 +1,425 @@
+<!-- Copyright (c) Lanstack @openclaw. All rights reserved. -->
+<Window
+    x:Class="Harness.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="using:Harness.Helpers"
+    xmlns:local="using:Harness"
+    xmlns:viewModels="using:Harness.ViewModels"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Harness">
+
+    <UserControl x:Name="RootLayout"
+                 Background="Transparent">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ShellModeStates">
+                <VisualState x:Name="FullMode" />
+                <VisualState x:Name="CompactMode">
+                    <VisualState.Setters>
+                        <Setter Target="CommandBarSurface.Padding" Value="{StaticResource CompactTopBarPadding}" />
+                        <Setter Target="EnvironmentSummaryGroup.Visibility" Value="Collapsed" />
+                        <Setter Target="LatencyBadge.Visibility" Value="Collapsed" />
+                        <Setter Target="LoadingRing.Visibility" Value="Collapsed" />
+                        <Setter Target="TopStatusPill.MinWidth" Value="{StaticResource CompactTopStatusPillMinWidth}" />
+                        <Setter Target="TopStatusPill.Margin" Value="{StaticResource CompactTopStatusPillMargin}" />
+                        <Setter Target="TopStatusPill.Padding" Value="{StaticResource CompactTopStatusPillPadding}" />
+                        <Setter Target="TopStatusContent.ColumnSpacing" Value="{StaticResource CompactTopStatusPillColumnSpacing}" />
+                        <Setter Target="HeartbeatSummarySegment.Visibility" Value="Collapsed" />
+                        <Setter Target="HeartbeatIndicatorSegment.Visibility" Value="Collapsed" />
+                        <Setter Target="ModelStatusSegment.MinWidth" Value="{StaticResource CompactTopStatusModelSegmentMinWidth}" />
+                        <Setter Target="ModelStatusSegment.Margin" Value="{StaticResource CompactTopStatusModelSegmentMargin}" />
+                        <Setter Target="AccessStatusSegment.Visibility" Value="Collapsed" />
+                        <Setter Target="RunIndicatorSegment.Visibility" Value="Collapsed" />
+                        <Setter Target="ThemeSwitcherContainer.Visibility" Value="Collapsed" />
+                        <Setter Target="AboutButton.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Grid x:Name="ShellLayout">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="37" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+        <Grid x:Name="AppTitleBar"
+              Grid.Row="0"
+              Height="37"
+              Margin="0,-1,0,0"
+              Background="Transparent"
+              VerticalAlignment="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="LeftInsetColumn" Width="0" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="RightInsetColumn" Width="0" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        VerticalAlignment="Center"
+                        Margin="12,0,0,0">
+                <Image x:Name="AppIcon"
+                       Width="16"
+                       Height="16"
+                       Source="Assets/apple-touch-icon.png" />
+                <TextBlock x:Name="AppTitleText"
+                           Text="Harness"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold" />
+            </StackPanel>
+
+            <Grid x:Name="TitleBarDragRegion"
+                  Grid.Column="2"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch" />
+        </Grid>
+
+        <Grid x:Name="CommandBarSurface"
+              Grid.Row="1"
+              Padding="12,8"
+              Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+              BorderThickness="0,0,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel x:Name="EnvironmentSummaryGroup"
+                        Grid.Column="0"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                <ComboBox x:Name="EnvironmentSelector"
+                          MinWidth="160"
+                          ItemsSource="{x:Bind ViewModel.Environments}"
+                          SelectedItem="{x:Bind ViewModel.SelectedEnvironment, Mode=TwoWay}"
+                          DisplayMemberPath="Name"
+                          VerticalAlignment="Center"
+                          ToolTipService.ToolTip="{x:Bind helpers:StringResources.SelectEnvironment}" />
+
+                <TextBlock x:Name="UrlDisplay"
+                           Margin="8,0,0,0"
+                           MaxWidth="400"
+                           VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           IsTextSelectionEnabled="True"
+                           Text="{x:Bind ViewModel.CurrentUrl, Mode=OneWay}"
+                           TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+
+            <Border x:Name="TopStatusPill"
+                    Grid.Column="1"
+                    Margin="16,0,12,0"
+                    Padding="{StaticResource TopStatusPillPadding}"
+                    MinWidth="{StaticResource TopStatusPillMinWidth}"
+                    MaxWidth="{StaticResource TopStatusPillMaxWidth}"
+                    HorizontalAlignment="Stretch"
+                    Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16">
+                <Grid x:Name="TopStatusContent"
+                      ColumnSpacing="{StaticResource TopStatusPillColumnSpacing}"
+                      VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid x:Name="HeartbeatSummarySegment"
+                          Grid.Column="0"
+                          MinWidth="56"
+                          VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind ViewModel.HeartbeatSummary, Mode=OneWay}"
+                                    Foreground="{x:Bind ViewModel.HeartbeatSummaryBrush, Mode=OneWay}"
+                                    Style="{StaticResource TopStatusValueTextBlockStyle}"
+                                    CharacterSpacing="{StaticResource TopStatusHeartbeatCharacterSpacing}"
+                                    HorizontalAlignment="Center" />
+                    </Grid>
+
+                    <Grid x:Name="HeartbeatIndicatorSegment"
+                          Grid.Column="1"
+                          MinWidth="88"
+                          VerticalAlignment="Center">
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.HeartbeatIndicators, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Horizontal"
+                                             Spacing="{StaticResource TopStatusIndicatorSpacing}" />
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:HeartbeatIndicatorViewModel">
+                                    <Ellipse Width="5"
+                                             Height="5"
+                                             Fill="{x:Bind FillBrush, Mode=OneWay}"
+                                             Opacity="{x:Bind FillOpacity, Mode=OneWay}" />
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </Grid>
+
+                    <Grid x:Name="ModelStatusSegment"
+                          Grid.Column="2"
+                          Margin="{StaticResource TopStatusModelSegmentMargin}"
+                          ColumnSpacing="8"
+                          MinWidth="{StaticResource TopStatusModelSegmentMinWidth}"
+                          MinHeight="24"
+                          VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                    Text="{x:Bind helpers:StringResources.MainModelLabel}"
+                                    Style="{StaticResource TopStatusLabelTextBlockStyle}"
+                                    Foreground="{StaticResource SuccessBrush}" />
+
+                        <TextBlock Grid.Column="1"
+                                    Text="{x:Bind ViewModel.ModelSummaryText, Mode=OneWay}"
+                                    Style="{StaticResource TopStatusModelValueTextBlockStyle}"
+                                    TextTrimming="CharacterEllipsis"
+                                    Foreground="{StaticResource SuccessBrush}" />
+                    </Grid>
+
+                    <Grid x:Name="AccessStatusSegment"
+                          Grid.Column="3"
+                          Margin="{StaticResource TopStatusAccessSegmentMargin}"
+                          MinWidth="76"
+                          VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind ViewModel.AccessSummaryText, Mode=OneWay}"
+                                   Foreground="{x:Bind ViewModel.AccessSummaryBrush, Mode=OneWay}"
+                                   Style="{StaticResource TopStatusValueTextBlockStyle}"
+                                   HorizontalAlignment="Center" />
+                    </Grid>
+
+                    <Grid x:Name="WorkStatusSegment"
+                          Grid.Column="4"
+                          MinWidth="88"
+                          ColumnSpacing="4"
+                          VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                    Text="{x:Bind helpers:StringResources.MainStatusLabel}"
+                                    Style="{StaticResource TopStatusLabelTextBlockStyle}"
+                                    Foreground="{x:Bind ViewModel.WorkStatusBrush, Mode=OneWay}" />
+
+                        <TextBlock Grid.Column="1"
+                                    Text="{x:Bind ViewModel.WorkStatusText, Mode=OneWay}"
+                                    Foreground="{x:Bind ViewModel.WorkStatusBrush, Mode=OneWay}"
+                                    Style="{StaticResource TopStatusValueTextBlockStyle}"
+                                    CharacterSpacing="{StaticResource TopStatusWorkStateCharacterSpacing}"
+                                    HorizontalAlignment="Center" />
+                    </Grid>
+
+                    <Grid x:Name="RunIndicatorSegment"
+                          Grid.Column="5"
+                          MinWidth="64"
+                          Margin="-2,0,0,0"
+                          VerticalAlignment="Center">
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.RunIndicators, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Horizontal"
+                                             Spacing="{StaticResource TopStatusIndicatorSpacing}" />
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:HeartbeatIndicatorViewModel">
+                                    <Ellipse Width="5"
+                                             Height="5"
+                                             Fill="{x:Bind FillBrush, Mode=OneWay}"
+                                             Opacity="{x:Bind FillOpacity, Mode=OneWay}" />
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border x:Name="LatencyBadge"
+                    Grid.Column="2"
+                    Margin="0,0,12,0"
+                    MinWidth="72"
+                    Padding="10,5"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    ToolTipService.ToolTip="{x:Bind ViewModel.LatencyTooltipText, Mode=OneWay}">
+                <TextBlock HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="11"
+                           FontWeight="SemiBold"
+                           Foreground="{x:Bind ViewModel.LatencySummaryBrush, Mode=OneWay}"
+                           Text="{x:Bind ViewModel.LatencySummaryText, Mode=OneWay}" />
+            </Border>
+
+            <StackPanel x:Name="TitleBarActions"
+                        Grid.Column="3"
+                        Orientation="Horizontal"
+                        Spacing="4">
+                <Button x:Name="PinButton"
+                        Click="OnPinClick"
+                        ToolTipService.ToolTip="{x:Bind helpers:StringResources.SettingsAlwaysOnTop}"
+                        Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE718;" FontSize="14" />
+                </Button>
+
+                <Button x:Name="ReloadButton"
+                        Command="{x:Bind ViewModel.ReloadCommand}"
+                        ToolTipService.ToolTip="{x:Bind helpers:StringResources.Reload}"
+                        Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                </Button>
+
+                <Button x:Name="StopButton"
+                        Command="{x:Bind ViewModel.StopCommand}"
+                        ToolTipService.ToolTip="{x:Bind helpers:StringResources.Stop}"
+                        Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE71A;" FontSize="14" />
+                </Button>
+
+                <Border x:Name="ThemeSwitcherContainer"
+                        Padding="2"
+                        Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="2">
+                        <Button x:Name="SystemThemeButton"
+                                Tag="System"
+                                Click="OnThemeSelectionClick"
+                                ToolTipService.ToolTip="{x:Bind helpers:StringResources.ThemeSystem}"
+                                Style="{StaticResource ThemeSegmentButtonStyle}">
+                            <FontIcon Glyph="&#xE7F4;" FontSize="13" />
+                        </Button>
+
+                        <Button x:Name="LightThemeButton"
+                                Tag="Light"
+                                Click="OnThemeSelectionClick"
+                                ToolTipService.ToolTip="{x:Bind helpers:StringResources.ThemeLight}"
+                                Style="{StaticResource ThemeSegmentButtonStyle}">
+                            <FontIcon Glyph="&#xE706;" FontSize="13" />
+                        </Button>
+
+                        <Button x:Name="DarkThemeButton"
+                                Tag="Dark"
+                                Click="OnThemeSelectionClick"
+                                ToolTipService.ToolTip="{x:Bind helpers:StringResources.ThemeDark}"
+                                Style="{StaticResource ThemeSegmentButtonStyle}">
+                            <FontIcon Glyph="&#xE708;" FontSize="13" />
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <Button x:Name="SettingsButton"
+                        Click="OnSettingsClick"
+                        ToolTipService.ToolTip="{x:Bind helpers:StringResources.Settings}"
+                        Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE713;" FontSize="14" />
+                </Button>
+
+                <Button x:Name="AboutButton"
+                        Click="OnAboutClick"
+                        ToolTipService.ToolTip="{x:Bind helpers:StringResources.AboutTitle}"
+                        Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE946;" FontSize="14" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <InfoBar x:Name="ConnectionInfoBar"
+                 Grid.Row="2"
+                 IsOpen="{x:Bind ViewModel.IsErrorVisible, Mode=OneWay}"
+                 Severity="Error"
+                 Title="{x:Bind helpers:StringResources.ConnectionIssue}"
+                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                 IsClosable="True"
+                 Closed="OnInfoBarClosed">
+            <InfoBar.ActionButton>
+                <Button Content="{x:Bind helpers:StringResources.Retry}"
+                        Command="{x:Bind ViewModel.RetryCommand}"
+                        Visibility="{x:Bind ViewModel.RetryButtonVisibility, Mode=OneWay}"
+                        HorizontalAlignment="Right" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+
+        <InfoBar x:Name="DiagnosticInfoBar"
+                 Grid.Row="3"
+                 IsOpen="{x:Bind ViewModel.IsDiagnosticVisible, Mode=OneWay}"
+                 Severity="Informational"
+                 Title="{x:Bind helpers:StringResources.DiagnosticsTitle}"
+                 Message="{x:Bind ViewModel.DiagnosticSummary, Mode=OneWay}"
+                 IsClosable="True"
+                 Closed="OnDiagnosticInfoBarClosed" />
+
+        <Grid Grid.Row="4">
+            <Grid x:Name="WebViewHost" />
+
+            <ProgressRing x:Name="LoadingRing"
+                          Width="48"
+                          Height="48"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                          Visibility="Collapsed" />
+        </Grid>
+
+        <Grid x:Name="StatusBarSurface"
+              Grid.Row="5"
+              Padding="12,6"
+              Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+              BorderThickness="0,1,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
+                        Spacing="6">
+                <Ellipse x:Name="StatusDot"
+                         Width="8"
+                         Height="8"
+                         VerticalAlignment="Center"
+                         Fill="{x:Bind ViewModel.StatusIndicatorBrush, Mode=OneWay}" />
+                <TextBlock x:Name="StatusText"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource StatusBarTextBlockStyle}"
+                            Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
+            </StackPanel>
+
+            <TextBlock Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource StatusBarTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind ViewModel.SelectedEnvironmentName, Mode=OneWay}" />
+        </Grid>
+        </Grid>
+    </UserControl>
+</Window>
