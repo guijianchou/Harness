@@ -169,6 +169,34 @@ public sealed partial class MainWindow
         App.Logger.Error($"UI error displayed: {message}");
     }
 
+    private void OnNotificationRequested(NativeNotificationRequest request)
+    {
+        if (_trayIconService?.IsAvailable != true)
+        {
+            return;
+        }
+
+        var settings = App.Configuration.Settings;
+        if (request.Kind == NativeNotificationKind.RunCompleted)
+        {
+            if (!settings.NotifyOnRunCompleted)
+            {
+                return;
+            }
+
+            if (settings.NotifyOnlyWhenUnfocused && ViewModel.IsWindowFocused)
+            {
+                return;
+            }
+        }
+        else if (request.Kind == NativeNotificationKind.PageForwarded && !settings.ForwardPageNotifications)
+        {
+            return;
+        }
+
+        _trayIconService.ShowBalloon(request.Title, request.Body);
+    }
+
     private void OnWebViewRecreationRequested(string reason)
     {
         ScheduleWebViewRecreation(reason);

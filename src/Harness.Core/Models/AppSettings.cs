@@ -117,6 +117,38 @@ public class AppSettings
     public double CompactWindowTop { get; set; } = -1;
 
     /// <summary>
+    /// Gets or sets whether Harness raises a native notification when a hosted run
+    /// finishes. This is the signal a browser tab cannot deliver on its own, so it
+    /// defaults to on.
+    /// </summary>
+    public bool NotifyOnRunCompleted { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether run-completion notifications are suppressed while the
+    /// window is focused. On by default: if the user is watching the output, the
+    /// notification is redundant.
+    /// </summary>
+    public bool NotifyOnlyWhenUnfocused { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether Web Notifications raised by the hosted page are
+    /// forwarded to the OS. Without forwarding they are silently dropped inside
+    /// the shell, which is worse than the browser it replaces.
+    /// </summary>
+    public bool ForwardPageNotifications { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the remembered WebView2 zoom factor. Persisted so the hosted UI
+    /// does not reset to 100% on every launch.
+    /// </summary>
+    public double ZoomFactor { get; set; } = 1.0;
+
+    /// <summary>
+    /// Gets or sets whether Harness starts when the user signs in.
+    /// </summary>
+    public bool LaunchAtStartup { get; set; } = false;
+
+    /// <summary>
     /// Gets or sets the heartbeat probe interval in seconds. 0 = disabled.
     /// Default is 30s, which works well with Cloudflare Tunnel / reverse proxy idle timeouts (60-100s).
     /// </summary>

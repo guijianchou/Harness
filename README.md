@@ -2,7 +2,7 @@
 
 **Language:** English | [简体中文](readme_zh.md)
 
-**Current version:** 5.3.3
+**Current version:** 5.3.4
 
 Lightweight Windows-native shell for hosted agent Control UIs, built with WinUI 3 and WebView2.
 
@@ -11,7 +11,7 @@ Harness is a thin desktop shell for a remote agent gateway's web Control UI. It 
 | Backend | Status |
 |---|---|
 | OpenClaw Gateway | Supported and verified |
-| DeepSeek Harness | Planned — not implemented yet |
+| DeepSeek Harness | Web UI test passed |
 
 ---
 
@@ -21,7 +21,7 @@ This project began as **OpenClaw Manager**, a WebView2 + WinUI 3 client written 
 
 Renaming the app to **Harness** marks the shift from "an OpenClaw client" to "a general client for hosted agent Control UIs", with OpenClaw and DeepSeek Harness as the first two intended backends.
 
-This release does the rename only. Backend abstraction — a pluggable bridge so a non-OpenClaw Control UI can be hosted — is the next step, not part of this change. OpenClaw remains the only working backend today.
+This release does the rename only. Backend abstraction — a pluggable bridge so a non-OpenClaw Control UI can be hosted — is the next step, not part of this change. The hosted shell has since also passed a manual test with the DeepSeek Harness Web UI.
 
 ### What the rename covers
 
@@ -63,12 +63,14 @@ This project keeps the existing hosted web experience, but wraps it in a native 
 
 It is best suited for users who:
 
-- run an OpenClaw Gateway remotely
+- run an OpenClaw Gateway or DeepSeek Harness remotely
 - access it through Cloudflare Tunnel or a reverse proxy
 - want a lightweight Windows-native client instead of keeping a browser tab open
 
-## Current 5.3.3 Notes
+## Current 5.3.4 Notes
 
+- `5.3.4` adds native run completion notifications. When a hosted run finishes (busy→idle transition), Harness raises a Windows balloon notification through the system tray. This is the signal a browser tab cannot deliver on its own. Settings: `Notify when a run finishes` (default on), `Only when Harness is not focused` (default on, suppresses redundant notifications while you are watching), and `Forward notifications from the page` (default on, passes web notifications raised by the hosted UI through to Windows). The notification system respects Focus Assist (quiet hours).
+- `5.3.4` adds multi-backend support with `HostedBackendKind` (OpenClaw, DeepSeekWeb, Generic) and `HostedBackendProfile`. Each backend defines its own latency probe path, app state selectors, and vocabularies (busy/abort text matching). OpenClaw uses `__openclaw__/a2ui/` probe and English stop words; DeepSeek uses gateway root probe and CJK + English vocabularies. DOM probing and command dispatch now support both OpenClaw-specific methods and generic CustomEvent fallback. Backend selection is available in Settings under Environments, with automatic topology detection requiring WebView recreation on backend changes.
 - `5.3.3` adds an `Auto refresh` switch under General. When disabled, automatic session recovery, navigation retries, heartbeat-triggered reloads, and timeout-triggered WebView recreation stop; manual Reload/Retry, startup, and environment changes remain available.
 - `5.3.2` merges the separate Minimize to tray and Close to tray options into one System tray setting. Minimizing always stays on the taskbar; when System tray is enabled, closing hides Harness to the system tray, and when disabled, closing exits the app.
 - `5.3.1` shows `N/A` instead of `ERR` in the top status bar's latency badge when the Control UI latency probe fails.
@@ -111,7 +113,7 @@ It is best suited for users who:
 ### This project is
 
 - A WinUI 3 + WebView2 remote management shell
-- A Windows-native entry point for hosted agent Control UI sessions (OpenClaw today)
+- A Windows-native entry point for hosted agent Control UI sessions, verified with OpenClaw Gateway and DeepSeek Harness Web UI
 - A thin client that enhances the existing web UI with native UX
 
 ### This project is not
@@ -283,6 +285,8 @@ Bridge script verification is the active behavior check for the split hosted bri
 
 VS2026 manual debug remains required for real WebView2, Gateway, Cloudflare Tunnel, tray, hotkey, and compact-mode behavior.
 
+The DeepSeek Harness Web UI has passed the current manual web test.
+
 Manual debug should explicitly cover:
 
 - real hosted Gateway load, task submission, streaming output, and completion without manual reload
@@ -327,7 +331,7 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 
 1. The app starts with a placeholder environment and does not navigate WebView2 until a real Control UI URL is configured.
 2. Open Settings from the top bar.
-3. Add your public OpenClaw Control UI URL, for example `https://your-gateway.example.com`.
+3. Add your public hosted Control UI URL, for example `https://your-gateway.example.com`.
 4. Save settings and the embedded WebView2 shell will load the remote UI.
 
 ### Cloudflare Tunnel / VPS Notes

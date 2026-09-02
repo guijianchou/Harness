@@ -173,6 +173,33 @@ public partial class MainViewModel
         WorkStatusText = presentation.Text;
         WorkStatusBrush = presentation.Brush;
         SetRunIndicatorMode(presentation.Mode);
+        RaiseRunCompletionIfFinished(snapshot);
+    }
+
+    private void RaiseRunCompletionIfFinished(ControlUiProbeSnapshot snapshot)
+    {
+        var settings = _runtime.Configuration.Settings;
+        if (!_runCompletionNotifier.ShouldNotifyOnObservation(
+                snapshot.IsBusy,
+                snapshot.Phase == ControlUiPhase.Connected,
+                IsWindowFocused,
+                settings.NotifyOnRunCompleted,
+                settings.NotifyOnlyWhenUnfocused))
+        {
+            return;
+        }
+
+        NotificationRequested?.Invoke(new NativeNotificationRequest
+        {
+            Kind = NativeNotificationKind.RunCompleted,
+            Title = StringResources.NotificationRunCompletedTitle,
+            Body = string.IsNullOrWhiteSpace(_selectedEnvironment?.Name)
+                ? StringResources.NotificationRunCompletedBody
+                : string.Format(
+                    StringResources.NotificationRunCompletedBodyFormat,
+                    _selectedEnvironment.Name),
+            EnvironmentName = _selectedEnvironment?.Name ?? string.Empty,
+        });
     }
 
     private void ApplySnapshotErrorState(ControlUiProbeSnapshot snapshot)

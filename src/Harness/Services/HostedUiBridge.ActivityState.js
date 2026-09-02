@@ -1,8 +1,10 @@
 const openClawActivityState = (() => {
   const BUSY_STALE_THRESHOLD_MS = 30000;
 
-  const createActivityTracker = ({ dom, mutationFilter }) => {
+  const createActivityTracker = ({ dom, mutationFilter, profile }) => {
     const isStatusProbeExcludedElement = mutationFilter.isStatusProbeExcludedElement;
+    const appStateElement = profile?.appStateElement || '';
+    const commandGlobals = Array.isArray(profile?.commandGlobals) ? profile.commandGlobals : [];
     let lastBusyActivitySignature = '';
     let lastBusyActivityChangedAt = Date.now();
 
@@ -47,7 +49,8 @@ const openClawActivityState = (() => {
     };
 
     const readOpenClawAppStateStatus = () => {
-      const app = document.querySelector('openclaw-app');
+      // Backends with no app-state custom element fall through to DOM heuristics.
+      const app = appStateElement ? document.querySelector(appStateElement) : null;
       if (!app) return null;
 
       const tab = dom.compactText(app.tab || '');
@@ -83,8 +86,8 @@ const openClawActivityState = (() => {
 
     const detectBusyFromApi = () => {
       const candidates = [
-        window.chat, window.__openclaw?.chat, window.__OPENCLAW__?.chat,
-        window.__APP__?.chat, window.app?.chat
+        window.chat,
+        ...commandGlobals.map((name) => window[name]?.chat)
       ];
       const busyKeys = ['isRunning', 'running', 'isBusy', 'busy', 'isStreaming', 'streaming', 'isGenerating', 'generating'];
       return candidates.some((candidate) =>

@@ -2,6 +2,7 @@
 
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Harness.Services;
 
 namespace Harness.ViewModels;
 
@@ -30,6 +31,18 @@ public partial class MainViewModel
     /// Raised when a navigation error occurs, for display to the user.
     /// </summary>
     public event Action<string>? ErrorOccurred;
+
+    /// <summary>
+    /// Raised when the view model decides a native notification is warranted.
+    /// </summary>
+    public event Action<NativeNotificationRequest>? NotificationRequested;
+
+    /// <summary>
+    /// Gets or sets whether the shell window is currently focused. Set by the
+    /// view so the notification logic can suppress completion notices while the
+    /// user is watching.
+    /// </summary>
+    public bool IsWindowFocused { get; set; } = true;
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
     {

@@ -212,6 +212,17 @@
                                  PlaceholderText="{x:Bind helpers:StringResources.SettingsControlUiUrlPlaceholder}"
                                  Text="{x:Bind ViewModel.EditUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
+                        <ComboBox x:Name="BackendComboBox"
+                                  Header="{x:Bind helpers:StringResources.SettingsBackend}"
+                                  HorizontalAlignment="Stretch"
+                                  ItemsSource="{x:Bind ViewModel.BackendOptions}"
+                                  SelectedIndex="{x:Bind ViewModel.EditBackendIndex, Mode=TwoWay}" />
+
+                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsBackendHint}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
+
                         <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint1}"
                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                      FontSize="12"

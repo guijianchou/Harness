@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using Harness.Helpers;
+using Harness.Models;
 
 namespace Harness.Services;
 
@@ -17,8 +18,11 @@ internal static class HostedUiBridgeScript
     private const string PhaseClassifierResourceName = "Harness.Services.HostedUiBridge.PhaseClassifier.js";
     private const string StatusInspectionResourceName = "Harness.Services.HostedUiBridge.StatusInspection.js";
     private const string CommandDispatchResourceName = "Harness.Services.HostedUiBridge.CommandDispatch.js";
+    private const string LabelVocabularyResourceName = "Harness.Services.HostedUiBridge.LabelVocabulary.js";
     private const string StringsPlaceholder = "__OPENCLAW_BRIDGE_STRINGS_JSON__";
     private const string OwnerTokenPlaceholder = "__OPENCLAW_OWNER_TOKEN_JSON__";
+    private const string BackendProfilePlaceholder = "__HARNESS_BACKEND_PROFILE_JSON__";
+    private const string LabelVocabularyPlaceholder = "__HARNESS_LABEL_VOCABULARY_SCRIPT__";
     private const string HostMessagingPlaceholder = "__OPENCLAW_HOST_MESSAGING_SCRIPT__";
     private const string MutationFilterPlaceholder = "__OPENCLAW_MUTATION_FILTER_SCRIPT__";
     private const string ModelResolverPlaceholder = "__OPENCLAW_MODEL_RESOLVER_SCRIPT__";
@@ -39,9 +43,11 @@ internal static class HostedUiBridgeScript
     private static readonly Lazy<string> PhaseClassifierScript = new(() => LoadEmbeddedResource(PhaseClassifierResourceName));
     private static readonly Lazy<string> StatusInspectionScript = new(() => LoadEmbeddedResource(StatusInspectionResourceName));
     private static readonly Lazy<string> CommandDispatchScript = new(() => LoadEmbeddedResource(CommandDispatchResourceName));
+    private static readonly Lazy<string> LabelVocabularyScript = new(() => LoadEmbeddedResource(LabelVocabularyResourceName));
 
-    public static string Build(string ownerToken)
+    public static string Build(string ownerToken, HostedBackendProfile backendProfile)
     {
+        ArgumentNullException.ThrowIfNull(backendProfile);
         var strings = new Dictionary<string, string>
         {
             ["bridgeGatewayUiLoaded"] = StringResources.BridgeGatewayUiLoaded,
@@ -78,10 +84,19 @@ internal static class HostedUiBridgeScript
         };
 
         var stringsJson = JsonSerializer.Serialize(strings);
+        var backendProfileJson = JsonSerializer.Serialize(new
+        {
+            kind = backendProfile.Kind.ToString(),
+            appStateElement = backendProfile.AppStateElement,
+            hostCommandEventPrefix = backendProfile.HostCommandEventPrefix,
+            commandGlobals = backendProfile.CommandGlobals,
+        });
 
         return BridgeScriptTemplate.Value
             .Replace(StringsPlaceholder, stringsJson, StringComparison.Ordinal)
             .Replace(OwnerTokenPlaceholder, JsonSerializer.Serialize(ownerToken), StringComparison.Ordinal)
+            .Replace(BackendProfilePlaceholder, backendProfileJson, StringComparison.Ordinal)
+            .Replace(LabelVocabularyPlaceholder, LabelVocabularyScript.Value, StringComparison.Ordinal)
             .Replace(HostMessagingPlaceholder, HostMessagingScript.Value, StringComparison.Ordinal)
             .Replace(MutationFilterPlaceholder, MutationFilterScript.Value, StringComparison.Ordinal)
             .Replace(ModelResolverPlaceholder, ModelResolverScript.Value, StringComparison.Ordinal)

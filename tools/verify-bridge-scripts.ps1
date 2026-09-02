@@ -12,6 +12,7 @@ $activityStatePath = Join-Path $servicesRoot 'HostedUiBridge.ActivityState.js'
 $phaseClassifierPath = Join-Path $servicesRoot 'HostedUiBridge.PhaseClassifier.js'
 $statusInspectionPath = Join-Path $servicesRoot 'HostedUiBridge.StatusInspection.js'
 $commandDispatchPath = Join-Path $servicesRoot 'HostedUiBridge.CommandDispatch.js'
+$labelVocabularyPath = Join-Path $servicesRoot 'HostedUiBridge.LabelVocabulary.js'
 $bridgeScriptPath = Join-Path $servicesRoot 'HostedUiBridge.Script.js'
 
 $bridgeScriptTemplate = Get-Content -LiteralPath $bridgeScriptPath -Raw
@@ -94,9 +95,18 @@ $bridgeStrings = @{
 } | ConvertTo-Json -Compress
 
 $assembledBridgeScript = $bridgeScriptTemplate
+$backendProfileJson = @{
+    kind = 'OpenClaw'
+    appStateElement = 'openclaw-app'
+    hostCommandEventPrefix = 'openclaw'
+    commandGlobals = @('__openclaw', '__OPENCLAW__', '__APP__', 'app')
+} | ConvertTo-Json -Compress
+
 $scriptReplacements = [ordered]@{
     '__OPENCLAW_BRIDGE_STRINGS_JSON__' = $bridgeStrings
     '__OPENCLAW_OWNER_TOKEN_JSON__' = '"owner-token-test"'
+    '__HARNESS_BACKEND_PROFILE_JSON__' = $backendProfileJson
+    '__HARNESS_LABEL_VOCABULARY_SCRIPT__' = Get-Content -LiteralPath $labelVocabularyPath -Raw
     '__OPENCLAW_HOST_MESSAGING_SCRIPT__' = Get-Content -LiteralPath $hostMessagingPath -Raw
     '__OPENCLAW_MUTATION_FILTER_SCRIPT__' = Get-Content -LiteralPath $mutationFilterPath -Raw
     '__OPENCLAW_MODEL_RESOLVER_SCRIPT__' = Get-Content -LiteralPath $resolverPath -Raw
@@ -115,6 +125,7 @@ foreach ($entry in $scriptReplacements.GetEnumerator()) {
 $assembledBridgeScriptLiteral = $assembledBridgeScript | ConvertTo-Json -Compress
 
 $runner = @(
+    Get-Content -LiteralPath $labelVocabularyPath -Raw
     Get-Content -LiteralPath $hostMessagingPath -Raw
     Get-Content -LiteralPath $mutationFilterPath -Raw
     Get-Content -LiteralPath $resolverPath -Raw
@@ -339,10 +350,24 @@ globalThis.window = {
 };
 globalThis.document = { dispatchEvent: () => false };
 
+const openClawBackendProfile = {
+  kind: 'OpenClaw',
+  appStateElement: 'openclaw-app',
+  hostCommandEventPrefix: 'openclaw',
+  commandGlobals: ['__openclaw', '__OPENCLAW__', '__APP__', 'app']
+};
+const genericBackendProfile = {
+  kind: 'Generic',
+  appStateElement: null,
+  hostCommandEventPrefix: null,
+  commandGlobals: ['__APP__', 'app']
+};
+
 let commandHandler = openClawCommandDispatch.createCommandHandler({
   inspectControlUi: () => ({ phase: 'connected', shellDetected: true }),
   postStatus: (snapshot) => { postedSnapshot = snapshot; },
-  checkSessionReady: (snapshot) => { readySnapshot = snapshot; }
+  checkSessionReady: (snapshot) => { readySnapshot = snapshot; },
+  backendProfile: openClawBackendProfile
 });
 
 let handled = await commandHandler({ command: 'refresh_session', payload: { id: 42 } });
@@ -355,7 +380,8 @@ globalThis.document = { dispatchEvent: (event) => { dispatchedEvents.push(event.
 commandHandler = openClawCommandDispatch.createCommandHandler({
   inspectControlUi: () => ({ phase: 'page_loaded', shellDetected: false }),
   postStatus: () => {},
-  checkSessionReady: () => {}
+  checkSessionReady: () => {},
+  backendProfile: openClawBackendProfile
 });
 handled = await commandHandler({ command: 'refresh_session', payload: { fallback: true } });
 assertTrue('command dispatch dispatches CustomEvent but returns unhandled when method missing',
@@ -403,6 +429,47 @@ const includedTarget = {
 assertTrue('mutation filter ignores settings/config/cron/sidebar mutations',
   openClawMutationFilter.isStatusRelevantMutation({ target: excludedTarget, type: 'childList' }) === false &&
   openClawMutationFilter.isStatusRelevantMutation({ target: includedTarget, type: 'attributes', attributeName: 'data-state' }) === true);
+
+// Bug guard: /\b(stop|abort)\b/ never fires on CJK labels because \b is not a
+// word boundary between CJK codepoints. A Chinese Control UI's stop button must
+// still register, or WORK state stays stuck at idle and stale-stream recovery
+// loses its only input.
+assertTrue('vocabulary matches CJK stop labels',
+  harnessLabelVocabulary.matchesStop('停止') === true &&
+  harnessLabelVocabulary.matchesStop('中止') === true &&
+  harnessLabelVocabulary.matchesStop('取消') === true &&
+  harnessLabelVocabulary.matchesStop('生成を停止') === true);
+
+assertTrue('vocabulary still matches Latin stop labels on word boundaries',
+  harnessLabelVocabulary.matchesStop('Stop') === true &&
+  harnessLabelVocabulary.matchesStop('Abort run') === true &&
+  harnessLabelVocabulary.matchesStop('nonstop') === false &&
+  harnessLabelVocabulary.matchesStop('') === false);
+
+assertTrue('vocabulary matches CJK auth and connecting phrases',
+  harnessLabelVocabulary.matchesAuth('请登录后继续') === true &&
+  harnessLabelVocabulary.matchesAuth('会话已过期') === true &&
+  harnessLabelVocabulary.matchesConnecting('正在连接...') === true &&
+  harnessLabelVocabulary.matchesGatewayError('无法连接到服务器') === true);
+
+assertTrue('vocabulary rejects unrelated text',
+  harnessLabelVocabulary.matchesStop('send message') === false &&
+  harnessLabelVocabulary.matchesAuth('hello world') === false);
+
+// A backend with no event contract must not report a silent CustomEvent
+// dispatch as a handled command.
+const genericDispatched = [];
+globalThis.window = { dispatchEvent: (event) => { genericDispatched.push(event.type); return true; } };
+globalThis.document = { dispatchEvent: (event) => { genericDispatched.push(event.type); return true; } };
+const genericHandler = openClawCommandDispatch.createCommandHandler({
+  inspectControlUi: () => ({ phase: 'connected', shellDetected: true }),
+  postStatus: () => {},
+  checkSessionReady: () => {},
+  backendProfile: genericBackendProfile
+});
+const genericHandled = await genericHandler({ command: 'refresh_session', payload: {} });
+assertTrue('generic backend dispatches no host-command events and reports unhandled',
+  genericHandled === false && genericDispatched.length === 0);
 
 process.exit(failed === 0 ? 0 : 1);
 '@

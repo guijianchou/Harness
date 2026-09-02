@@ -149,6 +149,7 @@ public sealed partial class MainWindow
         ViewModel.NavigationTimeoutRecoveryNoLongerNeeded -= OnNavigationTimeoutRecoveryNoLongerNeeded;
         ViewModel.ViewLogsRequested -= OnViewLogsRequested;
         ViewModel.ErrorOccurred -= OnError;
+        ViewModel.NotificationRequested -= OnNotificationRequested;
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         CloseSettingsWindow();
         ViewModel.Dispose();
@@ -173,6 +174,7 @@ public sealed partial class MainWindow
     private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
     {
         _isWindowActive = args.WindowActivationState != WindowActivationState.Deactivated;
+        ViewModel.IsWindowFocused = _isWindowActive;
 
         if (this.Content is FrameworkElement rootElement)
         {

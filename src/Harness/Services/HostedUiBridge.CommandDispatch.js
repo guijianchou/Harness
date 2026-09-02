@@ -1,18 +1,15 @@
 const openClawCommandDispatch = (() => {
-  const bridgeTargets = () => [
-    window.chat,
-    window.__openclaw?.chat,
-    window.__OPENCLAW__?.chat,
-    window.__APP__?.chat,
-    window.app?.chat,
-    window.__openclaw,
-    window.__OPENCLAW__,
-    window.__APP__,
-    window.app
-  ].filter(Boolean);
+  const bridgeTargets = (commandGlobals) => {
+    const globals = Array.isArray(commandGlobals) ? commandGlobals : [];
+    return [
+      window.chat,
+      ...globals.map((name) => window[name]?.chat),
+      ...globals.map((name) => window[name])
+    ].filter(Boolean);
+  };
 
-  const invokeBridgeMethod = async (methodNames, payload) => {
-    for (const target of bridgeTargets()) {
+  const invokeBridgeMethod = async (methodNames, payload, commandGlobals) => {
+    for (const target of bridgeTargets(commandGlobals)) {
       for (const methodName of methodNames) {
         const method = target?.[methodName];
         if (typeof method !== 'function') continue;
@@ -31,71 +28,102 @@ const openClawCommandDispatch = (() => {
     return false;
   };
 
-  const dispatchBridgeEvent = (command, payload) => {
+  // The CustomEvent contract is backend-specific. Dispatching a prefix the page
+  // does not listen for is a silent no-op, so a backend without a prefix reports
+  // "not dispatched" and lets the caller fall back to a DOM affordance instead.
+  const dispatchBridgeEvent = (command, payload, eventPrefix) => {
+    if (!eventPrefix) return false;
+
     const detail = { command, payload };
     let dispatched = false;
 
     for (const target of [window, document]) {
       if (!target?.dispatchEvent) continue;
-      target.dispatchEvent(new CustomEvent('openclaw:host-command', { detail }));
-      target.dispatchEvent(new CustomEvent(`openclaw:${command}`, { detail }));
+      target.dispatchEvent(new CustomEvent(`${eventPrefix}:host-command`, { detail }));
+      target.dispatchEvent(new CustomEvent(`${eventPrefix}:${command}`, { detail }));
       dispatched = true;
     }
 
     return dispatched;
   };
 
-  const runCommand = async (command, payload, methodNames, { inspectControlUi, postStatus, checkSessionReady }) => {
-    const handled = await invokeBridgeMethod(methodNames, payload);
-    if (!handled) {
-      dispatchBridgeEvent(command, payload);
-    }
+  // Last resort for backends with neither a scriptable API nor an event contract:
+  // click the visible affordance a user would click. Multilingual by vocabulary,
+  // so a Chinese or Japanese Control UI is reachable too.
+  const clickAffordance = (matcher) => {
+    const dom = openClawDomUtilities;
+    const candidates = Array.from(
+      document.querySelectorAll('button, [role="button"], a[href="#"], [aria-label], [title]'));
+    const target = candidates.find((el) => dom.isVisible(el) && matcher(dom.labelOf(el)));
+    if (!target) return false;
 
-    const snapshot = inspectControlUi();
-    postStatus(snapshot);
-    if (checkSessionReady) {
-      checkSessionReady(snapshot);
+    try {
+      target.click();
+      return true;
+    } catch {
+      return false;
     }
-
-    return handled;
   };
 
-  const createCommandHandler = ({ inspectControlUi, postStatus, checkSessionReady }) => {
+  const COMMAND_METHODS = {
+    refresh_session: ['refreshSession', 'reloadSession', 'reconnect', 'connect', 'resume'],
+    fetch_recent_messages: ['fetchRecentMessages', 'loadRecentMessages', 'syncMessages', 'sync'],
+    lightweight_sync: ['sync', 'refresh', 'refreshSession', 'fetchRecentMessages', 'loadRecentMessages'],
+    reconnect_intent: ['reconnect', 'connect', 'resume', 'refreshSession'],
+    abort_run: ['abort', 'stop', 'cancel', 'abortRun', 'stopRun']
+  };
+
+  const createCommandHandler = ({ inspectControlUi, postStatus, checkSessionReady, backendProfile }) => {
+    const commandGlobals = backendProfile?.commandGlobals || [];
+    const eventPrefix = backendProfile?.hostCommandEventPrefix || '';
+
+    const runCommand = async (command, payload, { replayReady, domFallback }) => {
+      const methodNames = COMMAND_METHODS[command] || [];
+      let handled = await invokeBridgeMethod(methodNames, payload, commandGlobals);
+
+      // Event dispatch stays best-effort and does NOT count as handled: a page
+      // that never registered a listener consumes the event silently, so treating
+      // dispatch as success would report a no-op as a completed command.
+      if (!handled) {
+        dispatchBridgeEvent(command, payload, eventPrefix);
+      }
+
+      // Clicking the affordance a user would click IS observable, so it counts.
+      if (!handled && domFallback) {
+        handled = domFallback();
+      }
+
+      const snapshot = inspectControlUi();
+      postStatus(snapshot);
+      if (replayReady && checkSessionReady) {
+        checkSessionReady(snapshot);
+      }
+
+      return handled;
+    };
+
     return async (message) => {
       const command = message?.command || '';
       const payload = message?.payload;
 
       switch (command) {
         case 'refresh_session':
-          return await runCommand(
-            command,
-            payload,
-            ['refreshSession', 'reloadSession', 'reconnect', 'connect', 'resume'],
-            { inspectControlUi, postStatus, checkSessionReady });
-        case 'fetch_recent_messages':
-          return await runCommand(
-            command,
-            payload,
-            ['fetchRecentMessages', 'loadRecentMessages', 'syncMessages', 'sync'],
-            { inspectControlUi, postStatus });
         case 'lightweight_sync':
-          return await runCommand(
-            command,
-            payload,
-            ['sync', 'refresh', 'refreshSession', 'fetchRecentMessages', 'loadRecentMessages'],
-            { inspectControlUi, postStatus, checkSessionReady });
+          return await runCommand(command, payload, { replayReady: true });
+        case 'fetch_recent_messages':
         case 'reconnect_intent':
-          return await runCommand(
-            command,
-            payload,
-            ['reconnect', 'connect', 'resume', 'refreshSession'],
-            { inspectControlUi, postStatus });
+          return await runCommand(command, payload, { replayReady: false });
+        case 'abort_run':
+          return await runCommand(command, payload, {
+            replayReady: false,
+            domFallback: () => clickAffordance(harnessLabelVocabulary.matchesStop)
+          });
         default:
-          dispatchBridgeEvent(command, payload);
+          dispatchBridgeEvent(command, payload, eventPrefix);
           return false;
       }
     };
   };
 
-  return { createCommandHandler, dispatchBridgeEvent, invokeBridgeMethod };
+  return { createCommandHandler, dispatchBridgeEvent, invokeBridgeMethod, clickAffordance };
 })();

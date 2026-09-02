@@ -1,6 +1,7 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
 using System.Diagnostics;
+using Harness.Models;
 
 namespace Harness.Services;
 
@@ -21,6 +22,7 @@ public sealed class ControlUiLatencyService : IDisposable
     private Task? _probeTask;
     private string? _currentHost;
     private string? _currentUrl;
+    private Uri? _resolvedProbeUri;
     private ControlUiLatencySnapshot _lastSuccessSnapshot = ControlUiLatencySnapshot.Unknown;
     private ControlUiLatencySnapshot _lastPublishedSnapshot = ControlUiLatencySnapshot.Unknown;
     private int _probeRunId;
@@ -59,11 +61,13 @@ public sealed class ControlUiLatencyService : IDisposable
     public event Action<ControlUiLatencySnapshot>? LatencyUpdated;
 
     /// <summary>
-    /// Starts probing the supplied Control UI URL.
+    /// Starts probing the supplied Control UI URL using the backend's probe path.
     /// </summary>
-    public void Start(string? controlUiUrl)
+    public void Start(string? controlUiUrl, HostedBackendProfile? backendProfile = null)
     {
-        var probeUri = TryGetProbeUri(controlUiUrl);
+        var profile = backendProfile ?? HostedBackendProfile.For(HostedBackendKind.Auto);
+        var probeUri = TryGetProbeUri(controlUiUrl, profile);
+        var rootUri = profile.AllowsRootLatencyFallback ? TryGetProbeUri(controlUiUrl, null) : null;
         var host = TryGetProbeHost(probeUri);
         lock (_probeGate)
         {
@@ -83,6 +87,7 @@ public sealed class ControlUiLatencyService : IDisposable
         {
             _currentUrl = controlUiUrl;
             _currentHost = host;
+            _resolvedProbeUri = null;
             _lastSuccessSnapshot = ControlUiLatencySnapshot.Unknown;
             _lastPublishedSnapshot = ControlUiLatencySnapshot.Unknown;
         }
@@ -94,7 +99,7 @@ public sealed class ControlUiLatencyService : IDisposable
             return;
         }
 
-        _logger.Info("control_ui.latency.start", new { host, probeUri });
+        _logger.Info("control_ui.latency.start", new { host, probeUri, backend = profile.Kind.ToString() });
         var cancellation = new CancellationTokenSource();
         var timer = new PeriodicTimer(_probeInterval);
 
@@ -102,7 +107,7 @@ public sealed class ControlUiLatencyService : IDisposable
         {
             _probeCts = cancellation;
             _probeTimer = timer;
-            _probeTask = Task.Run(() => RunProbeLoopAsync(probeUri, host, timer, cancellation, runId));
+            _probeTask = Task.Run(() => RunProbeLoopAsync(probeUri, rootUri, host, timer, cancellation, runId));
         }
     }
 
@@ -120,6 +125,7 @@ public sealed class ControlUiLatencyService : IDisposable
             _probeRunId++;
             _currentUrl = null;
             _currentHost = null;
+            _resolvedProbeUri = null;
             _lastSuccessSnapshot = ControlUiLatencySnapshot.Unknown;
             _lastPublishedSnapshot = ControlUiLatencySnapshot.Unknown;
 
@@ -158,6 +164,7 @@ public sealed class ControlUiLatencyService : IDisposable
 
     private async Task RunProbeLoopAsync(
         Uri probeUri,
+        Uri? rootFallbackUri,
         string host,
         PeriodicTimer timer,
         CancellationTokenSource cancellation,
@@ -166,7 +173,7 @@ public sealed class ControlUiLatencyService : IDisposable
         var cancellationToken = cancellation.Token;
         try
         {
-            await PublishLatencyAsync(probeUri, host, cancellationToken, runId).ConfigureAwait(false);
+            await PublishLatencyAsync(probeUri, rootFallbackUri, host, cancellationToken, runId).ConfigureAwait(false);
 
             if (cancellationToken.IsCancellationRequested || !IsCurrentProbeRun(runId))
             {
@@ -175,7 +182,7 @@ public sealed class ControlUiLatencyService : IDisposable
 
             while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
-                await PublishLatencyAsync(probeUri, host, cancellationToken, runId).ConfigureAwait(false);
+                await PublishLatencyAsync(probeUri, rootFallbackUri, host, cancellationToken, runId).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -230,11 +237,28 @@ public sealed class ControlUiLatencyService : IDisposable
 
     private async Task PublishLatencyAsync(
         Uri probeUri,
+        Uri? rootFallbackUri,
         string host,
         CancellationToken cancellationToken,
         int runId)
     {
-        var snapshot = await ProbeAsync(probeUri, host, cancellationToken).ConfigureAwait(false);
+        var effectiveUri = Volatile.Read(ref _resolvedProbeUri) ?? probeUri;
+        var snapshot = await ProbeAsync(effectiveUri, host, cancellationToken).ConfigureAwait(false);
+
+        // An Auto-backend environment that has no backend-specific probe path
+        // answers 404/405 there forever. Fall back to the environment root once so
+        // the badge reports real latency instead of a permanent failure.
+        if (snapshot.IsPathAbsent &&
+            rootFallbackUri is not null &&
+            !ReferenceEquals(effectiveUri, rootFallbackUri))
+        {
+            _logger.Info(
+                "control_ui.latency.probe_fallback",
+                new { host, from = effectiveUri, to = rootFallbackUri });
+            Volatile.Write(ref _resolvedProbeUri, rootFallbackUri);
+            snapshot = await ProbeAsync(rootFallbackUri, host, cancellationToken).ConfigureAwait(false);
+        }
+
         if (cancellationToken.IsCancellationRequested || !IsCurrentProbeRun(runId))
         {
             return;
@@ -372,7 +396,10 @@ public sealed class ControlUiLatencyService : IDisposable
             var detail = $"{classification.Detail} {stopwatch.ElapsedMilliseconds} ms";
             if (!classification.IsReachable)
             {
-                return ControlUiLatencySnapshot.Failure(host, detail, proxyPoP);
+                var pathAbsent = classification.Kind
+                    is GatewayHttpStatusKind.MissingPath
+                    or GatewayHttpStatusKind.MethodRejected;
+                return ControlUiLatencySnapshot.Failure(host, detail, proxyPoP, pathAbsent);
             }
 
             return ControlUiLatencySnapshot.Success(
@@ -391,7 +418,7 @@ public sealed class ControlUiLatencyService : IDisposable
         }
     }
 
-    private static Uri? TryGetProbeUri(string? controlUiUrl)
+    private static Uri? TryGetProbeUri(string? controlUiUrl, HostedBackendProfile? profile)
     {
         if (string.IsNullOrWhiteSpace(controlUiUrl) ||
             !Uri.TryCreate(controlUiUrl, UriKind.Absolute, out var uri))
@@ -400,11 +427,11 @@ public sealed class ControlUiLatencyService : IDisposable
         }
 
         return uri.Scheme is "http" or "https"
-            ? CreateControlUiConfigUri(uri)
+            ? CreateControlUiConfigUri(uri, profile?.LatencyProbePath)
             : null;
     }
 
-    private static Uri CreateControlUiConfigUri(Uri controlUiUri)
+    private static Uri CreateControlUiConfigUri(Uri controlUiUri, string? probePath)
     {
         var builder = new UriBuilder(controlUiUri)
         {
@@ -422,7 +449,9 @@ public sealed class ControlUiLatencyService : IDisposable
             basePath += "/";
         }
 
-        builder.Path = $"{basePath}__openclaw__/a2ui/";
+        builder.Path = string.IsNullOrWhiteSpace(probePath)
+            ? basePath
+            : $"{basePath}{probePath.TrimStart('/')}";
         return builder.Uri;
     }
 
@@ -459,15 +488,20 @@ public readonly record struct ControlUiLatencySnapshot(
     string Host,
     long? RoundtripTimeMs,
     string? Detail = null,
-    string? ProxyPoP = null)
+    string? ProxyPoP = null,
+    bool IsPathAbsent = false)
 {
     public static ControlUiLatencySnapshot Unknown => new(ControlUiLatencyState.Unknown, string.Empty, null);
 
     public static ControlUiLatencySnapshot Success(string host, long roundtripTimeMs, string? detail = null, string? proxyPoP = null) =>
         new(ControlUiLatencyState.Success, host, roundtripTimeMs, detail, proxyPoP);
 
-    public static ControlUiLatencySnapshot Failure(string host, string? detail = null, string? proxyPoP = null) =>
-        new(ControlUiLatencyState.Failure, host, null, detail, proxyPoP);
+    public static ControlUiLatencySnapshot Failure(
+        string host,
+        string? detail = null,
+        string? proxyPoP = null,
+        bool isPathAbsent = false) =>
+        new(ControlUiLatencyState.Failure, host, null, detail, proxyPoP, isPathAbsent);
 
     public bool IsSuccess => State == ControlUiLatencyState.Success && RoundtripTimeMs is not null;
 }

@@ -2,6 +2,7 @@
 
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Harness.Models;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 using Windows.Foundation;
@@ -65,8 +66,12 @@ public sealed class HostedUiBridge : IDisposable
     /// <summary>
     /// Initializes the bridge by injecting the JavaScript payload.
     /// </summary>
-    public async Task InitializeAsync(WebView2 webView, CancellationToken cancellationToken = default)
+    public async Task InitializeAsync(
+        WebView2 webView,
+        HostedBackendProfile backendProfile,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(backendProfile);
         if (_isDisposed)
         {
             return;
@@ -88,7 +93,7 @@ public sealed class HostedUiBridge : IDisposable
             _coreWebView = coreWebView;
 
             var scriptId = await coreWebView.AddScriptToExecuteOnDocumentCreatedAsync(
-                HostedUiBridgeScript.Build(_messageOwnership.OwnerToken));
+                HostedUiBridgeScript.Build(_messageOwnership.OwnerToken, backendProfile));
             _documentCreatedScriptId = scriptId;
             if (cancellationToken.IsCancellationRequested)
             {

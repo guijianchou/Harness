@@ -72,7 +72,10 @@ public partial class MainViewModel
 
         _runtime.Logger.Info("WebView2 host initialized.", new { environment = environmentName });
 
-        await _hostedUiBridge.InitializeAsync(webView, cancellationToken);
+        await _hostedUiBridge.InitializeAsync(
+            webView,
+            _selectedEnvironment.BackendProfile,
+            cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (!IsCurrentSelectedEnvironment(environmentName, gatewayUrl) ||
             _isDisposed ||
@@ -222,7 +225,7 @@ public partial class MainViewModel
             return;
         }
 
-        _latencyService.Start(_selectedEnvironment.GatewayUrl);
+        _latencyService.Start(_selectedEnvironment.GatewayUrl, _selectedEnvironment.BackendProfile);
 
         if (ShouldRunHeartbeatForCurrentState())
         {

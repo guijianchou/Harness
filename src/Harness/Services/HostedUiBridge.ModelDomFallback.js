@@ -1,7 +1,8 @@
 const openClawModelDomFallback = (() => {
   const modelPattern = /\b(?:gpt|o\d|claude|gemini|qwen|deepseek|llama|mistral|glm|yi|command|grok|codex|kimi|moonshot)[a-z0-9._:+/-]*\b/i;
 
-  const createReader = ({ dom, mutationFilter, modelResolver }) => {
+  const createReader = ({ dom, mutationFilter, modelResolver, profile }) => {
+    const appStateElement = profile?.appStateElement || '';
     const isStatusProbeExcludedElement = mutationFilter.isStatusProbeExcludedElement;
 
     const sanitizeModelLabel = (text) => {
@@ -70,7 +71,7 @@ const openClawModelDomFallback = (() => {
     };
 
     const readOpenClawStateCandidates = () => {
-      const app = document.querySelector('openclaw-app');
+      const app = appStateElement ? document.querySelector(appStateElement) : null;
       if (!app) return [];
       return dom.uniqueObjects([
         app,

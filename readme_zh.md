@@ -2,7 +2,7 @@
 
 **语言：** [English](README.md) | 简体中文
 
-**当前版本：** 5.3.3
+**当前版本：** 5.3.4
 
 Harness 是一个轻量的 Windows 原生客户端，用于承载托管的 agent Control UI，基于 WinUI 3 和 WebView2 构建。
 
@@ -11,7 +11,7 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 | 后端 | 状态 |
 |---|---|
 | OpenClaw Gateway | 已支持并验证 |
-| DeepSeek Harness | 计划中 —— 尚未实现 |
+| DeepSeek Harness | Web UI 测试通过 |
 
 ---
 
@@ -21,7 +21,7 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 
 把应用改名为 **Harness**，标记的是从"OpenClaw 的客户端"到"托管 agent Control UI 的通用客户端"的定位转变，OpenClaw 和 DeepSeek Harness 是最初计划支持的两个后端。
 
-本次改动只做改名。后端抽象——也就是让非 OpenClaw 的 Control UI 也能被托管的可插拔 bridge——是下一步，不在本次范围内。目前可用的后端仍然只有 OpenClaw。
+本次改动只做改名。后端抽象——也就是让非 OpenClaw 的 Control UI 也能被托管的可插拔 bridge——是下一步，不在本次范围内。此后已通过 DeepSeek Harness Web UI 的手动测试。
 
 ### 本次改名覆盖的范围
 
@@ -63,12 +63,14 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 
 它适合以下用户：
 
-- 在远程机器上运行 OpenClaw Gateway
+- 在远程机器上运行 OpenClaw Gateway 或 DeepSeek Harness
 - 通过 Cloudflare Tunnel 或反向代理访问它
 - 想用轻量 Windows 原生客户端，而不是一直开着浏览器标签页
 
-## 当前 5.3.3 注意事项
+## 当前 5.3.4 注意事项
 
+- `5.3.4` 增加原生运行完成通知。当托管的运行结束（busy→idle 状态转换）时，Harness 通过系统托盘弹出 Windows 气泡通知。这是浏览器标签无法自主传递的信号。设置项：`Notify when a run finishes`（默认开启）、`Only when Harness is not focused`（默认开启，当你正在观看时抑制冗余通知）和 `Forward notifications from the page`（默认开启，将托管 UI 发出的 Web 通知转发到 Windows）。通知系统遵守专注助手（勿扰时段）设置。
+- `5.3.4` 增加多后端支持，通过 `HostedBackendKind`（OpenClaw、Generic、Auto）和 `HostedBackendProfile` 实现。每个后端定义自己的延迟探测路径、应用状态选择器和词汇表（busy/abort 文本匹配）。OpenClaw 使用 `__openclaw__/a2ui/` 探测和英文停止词；Generic 使用网关根路径探测和 CJK + 英文词汇表。DOM 探测和命令分发现在同时支持 OpenClaw 专有方法和通用 CustomEvent 回退。后端选择在设置的 Environments 区域中提供，后端变更会触发自动拓扑检测，要求 WebView 重建。
 - `5.3.3` 在 General 中增加 `Auto refresh` 开关。关闭后会停止自动会话恢复、导航重试、心跳触发的刷新和超时触发的 WebView 重建；手动 Reload/Retry、启动初始化和环境切换仍然可用。
 - `5.3.2` 将原来的 Minimize to tray 和 Close to tray 合并为一个 System tray 开关。最小化始终留在任务栏；开启 System tray 时点击关闭会隐藏到系统托盘，关闭时点击关闭会退出应用。
 - `5.3.1` 顶部状态栏的延迟徽标在 Control UI 延迟探测失败时显示 `N/A`，不再显示 `ERR`。
@@ -116,7 +118,7 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 ### 本项目是
 
 - WinUI 3 + WebView2 远程管理外壳
-- 托管 agent Control UI 会话的 Windows 原生入口（目前为 OpenClaw）
+- 托管 agent Control UI 会话的 Windows 原生入口，已通过 OpenClaw Gateway 和 DeepSeek Harness Web UI 验证
 - 在现有 Web UI 之上增强原生 UX 的薄客户端
 
 ### 本项目不是
@@ -288,6 +290,8 @@ Bridge 脚本验证是当前用于拆分后的 hosted bridge JS assets 的行为
 
 真实 WebView2、Gateway、Cloudflare Tunnel、tray、hotkey 和 compact mode 行为仍需要 VS2026 manual debug。
 
+DeepSeek Harness Web UI 已通过当前手动网页端测试。
+
 Manual debug 需要明确覆盖：
 
 - 真实 hosted Gateway 加载、任务提交、输出流式更新，并在不手动刷新时完成
@@ -332,7 +336,7 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 
 1. 应用会使用一个占位环境启动，在配置真实 Control UI URL 前不会导航 WebView2。
 2. 从顶部栏打开 Settings。
-3. 添加你的公共 OpenClaw Control UI URL，例如 `https://your-gateway.example.com`。
+3. 添加你的公共托管 Control UI URL，例如 `https://your-gateway.example.com`。
 4. 保存设置后，内嵌 WebView2 外壳会加载远程 UI。
 
 ### Cloudflare Tunnel / VPS 说明

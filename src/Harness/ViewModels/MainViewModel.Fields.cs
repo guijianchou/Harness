@@ -31,6 +31,7 @@ public partial class MainViewModel
     private readonly WebViewService _webViewService;
     private readonly HostedUiBridge _hostedUiBridge;
     private readonly ControlUiLatencyService _latencyService;
+    private readonly RunCompletionNotifier _runCompletionNotifier = new();
     private readonly LatencyHistory _latencyHistory = new(LatencyHistoryCapacity);
     private readonly StatusPresenter _statusPresenter = new();
     private readonly Func<Action, bool> _dispatchToUi;

@@ -263,6 +263,21 @@
   <data name="SettingsControlUiUrl" xml:space="preserve">
     <value>Control UI URL</value>
   </data>
+  <data name="SettingsBackend" xml:space="preserve">
+    <value>Backend</value>
+  </data>
+  <data name="SettingsBackendHint" xml:space="preserve">
+    <value>Selects the latency probe path and in-page bridge behaviour. Auto works for any hosted Control UI; pick OpenClaw Gateway for its status bridge and MODEL display.</value>
+  </data>
+  <data name="SettingsBackendAuto" xml:space="preserve">
+    <value>Auto detect</value>
+  </data>
+  <data name="SettingsBackendOpenClaw" xml:space="preserve">
+    <value>OpenClaw Gateway</value>
+  </data>
+  <data name="SettingsBackendGeneric" xml:space="preserve">
+    <value>Generic Control UI</value>
+  </data>
   <data name="SettingsControlUiUrlHint1" xml:space="preserve">
     <value>Use the public hosted Control UI page URL (`http://` or `https://`), not the Gateway WebSocket URL. If you connect through Cloudflare Tunnel or another reverse proxy, this should be the exact public origin exposed to the browser.</value>
   </data>
@@ -684,5 +699,36 @@
   </data>
   <data name="SettingsValidationGlobalHotkeyInvalid" xml:space="preserve">
     <value>Enter a valid hotkey such as Ctrl+Alt+Space, Shift+F12, or Win+Alt+O.</value>
+  </data>
+
+  <data name="NotificationRunCompletedTitle" xml:space="preserve">
+    <value>Run finished</value>
+  </data>
+  <data name="NotificationRunCompletedBody" xml:space="preserve">
+    <value>The session is idle again.</value>
+  </data>
+  <data name="NotificationRunCompletedBodyFormat" xml:space="preserve">
+    <value>{0} is idle again.</value>
+  </data>
+  <data name="SettingsNotificationsHeader" xml:space="preserve">
+    <value>Notifications</value>
+  </data>
+  <data name="SettingsNotifyOnRunCompleted" xml:space="preserve">
+    <value>Notify when a run finishes</value>
+  </data>
+  <data name="SettingsNotifyOnRunCompletedDescription" xml:space="preserve">
+    <value>Raises a Windows notification when the hosted session stops working. A browser tab cannot tell you this.</value>
+  </data>
+  <data name="SettingsNotifyOnlyWhenUnfocused" xml:space="preserve">
+    <value>Only when Harness is not focused</value>
+  </data>
+  <data name="SettingsNotifyOnlyWhenUnfocusedDescription" xml:space="preserve">
+    <value>Skips the notification while you are already watching the output.</value>
+  </data>
+  <data name="SettingsForwardPageNotifications" xml:space="preserve">
+    <value>Forward notifications from the page</value>
+  </data>
+  <data name="SettingsForwardPageNotificationsDescription" xml:space="preserve">
+    <value>Passes web notifications raised by the hosted UI through to Windows instead of dropping them.</value>
   </data>
 </root>

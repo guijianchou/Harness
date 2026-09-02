@@ -263,6 +263,21 @@
   <data name="SettingsControlUiUrl" xml:space="preserve">
     <value>Control UI URL</value>
   </data>
+  <data name="SettingsBackend" xml:space="preserve">
+    <value>后端类型</value>
+  </data>
+  <data name="SettingsBackendHint" xml:space="preserve">
+    <value>决定延迟探针路径与页内桥行为。自动检测适用于任意托管 Control UI；选择 OpenClaw Gateway 才会启用其状态桥与 MODEL 显示。</value>
+  </data>
+  <data name="SettingsBackendAuto" xml:space="preserve">
+    <value>自动检测</value>
+  </data>
+  <data name="SettingsBackendOpenClaw" xml:space="preserve">
+    <value>OpenClaw Gateway</value>
+  </data>
+  <data name="SettingsBackendGeneric" xml:space="preserve">
+    <value>通用 Control UI</value>
+  </data>
   <data name="SettingsControlUiUrlHint1" xml:space="preserve">
     <value>请填写公开托管的 Control UI 页面地址（`http://` 或 `https://`），不要填写 Gateway WebSocket URL。如果你通过 Cloudflare Tunnel 或其他反向代理访问，这里应当是浏览器最终访问的公网 origin。</value>
   </data>
@@ -684,5 +699,36 @@
   </data>
   <data name="SettingsValidationGlobalHotkeyInvalid" xml:space="preserve">
     <value>请输入有效热键，例如 Ctrl+Alt+Space、Shift+F12 或 Win+Alt+O。</value>
+  </data>
+
+  <data name="NotificationRunCompletedTitle" xml:space="preserve">
+    <value>运行已结束</value>
+  </data>
+  <data name="NotificationRunCompletedBody" xml:space="preserve">
+    <value>会话已重新进入空闲状态。</value>
+  </data>
+  <data name="NotificationRunCompletedBodyFormat" xml:space="preserve">
+    <value>{0} 已重新进入空闲状态。</value>
+  </data>
+  <data name="SettingsNotificationsHeader" xml:space="preserve">
+    <value>通知</value>
+  </data>
+  <data name="SettingsNotifyOnRunCompleted" xml:space="preserve">
+    <value>运行结束时通知</value>
+  </data>
+  <data name="SettingsNotifyOnRunCompletedDescription" xml:space="preserve">
+    <value>托管会话停止工作时弹出 Windows 通知，浏览器标签页无法提供这一提示。</value>
+  </data>
+  <data name="SettingsNotifyOnlyWhenUnfocused" xml:space="preserve">
+    <value>仅在 Harness 未获得焦点时通知</value>
+  </data>
+  <data name="SettingsNotifyOnlyWhenUnfocusedDescription" xml:space="preserve">
+    <value>你已经在看输出时跳过通知。</value>
+  </data>
+  <data name="SettingsForwardPageNotifications" xml:space="preserve">
+    <value>转发页面通知</value>
+  </data>
+  <data name="SettingsForwardPageNotificationsDescription" xml:space="preserve">
+    <value>把托管界面发出的网页通知转交给 Windows，而不是直接丢弃。</value>
   </data>
 </root>

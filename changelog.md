@@ -8,6 +8,26 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 
 ## English
 
+### v5.3.4 (2026-09-01)
+
+- Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.4`.
+- Added native run completion notifications. When a hosted run finishes (busy→idle transition), Harness raises a Windows balloon notification through the system tray. This is the signal a browser tab cannot deliver on its own. Settings: `Notify when a run finishes` (default on), `Only when Harness is not focused` (default on, suppresses redundant notifications while you are watching), and `Forward notifications from the page` (default on, passes Web Notifications raised by the hosted UI through to Windows). The notification system respects Focus Assist (quiet hours) via `NIIF_RESPECT_QUIET_TIME`.
+- Added `RunCompletionNotifier` state machine (Core) to detect busy→idle edges. Suppresses notification when the idle transition coincides with losing the session (disconnect, not completion). The notifier resets on environment switches and WebView recreation so stale busy flags cannot trigger false notifications.
+- Wired `MainViewModel.NotificationRequested` event, `IsWindowFocused` tracking, and `MainWindow.OnNotificationRequested` handler to `TrayIconService.ShowBalloon`.
+- Added localized notification strings (`NotificationRunCompletedTitle`, `NotificationRunCompletedBody`, `NotificationRunCompletedBodyFormat`) in English and Chinese.
+- Added multi-backend support with `HostedBackendKind` (Auto, OpenClaw, Generic) and `HostedBackendProfile`. Each backend defines its own latency probe path, app state selectors, host command event prefix, and command globals. OpenClaw uses `__openclaw__/a2ui/` probe, `openclaw-app` element, `openclaw:` event prefix, and `[__openclaw, __OPENCLAW__, __APP__, app]` globals; Generic uses root probe, no app state element, no event prefix, and `[__APP__, app]` globals; Auto inherits OpenClaw's profile and allows root latency fallback when the backend-specific probe fails.
+- Added `HostedBackendProfile.For(kind)` factory and backend selection in Settings under Environments. Backend changes trigger `DidChangeSessionTopology` so the WebView is recreated with the correct bridge script.
+- Moved latency probe path out of `ControlUiLatencyService` hardcoded constant into `HostedBackendProfile.LatencyProbePath`. The service now accepts the profile and falls back to root HEAD probe when the path is null or when the backend allows root fallback and the specific path returns 404/405.
+- Created `HostedUiBridge.LabelVocabulary.js` with multilingual matchers (`buildMatcher`, `matchesStop`, `matchesShellAffordance`, `matchesAuth`, `matchesGatewayError`, `matchesConnecting`, `matchesPairing`, `matchesRateLimit`, `matchesBusy`). Latin terms match on `\b` word boundaries; CJK terms match as substrings because `\b` is not a word boundary between CJK codepoints.
+- Updated `HostedUiBridge.PhaseClassifier.js`, `HostedUiBridge.StatusInspection.js`, and `WebViewCommands.AbortRun.js` to use the shared vocabulary matchers. Removed duplicate inline regex patterns.
+- Updated `HostedUiBridge.CommandDispatch.js` to use backend profile's `HostCommandEventPrefix` and `CommandGlobals`. Tries backend-specific methods first (scriptable API globals, CustomEvent with prefix), then generic CustomEvent without prefix. Returns `false` for generic CustomEvent (no proof of handling).
+- Updated `HostedUiBridge.Script.cs` to accept `HostedBackendProfile` and inject `appStateElement`, `commandEventPrefix`, and `commandGlobals` as placeholders into the bridge script template.
+- Added `WebViewService.ExternalContent.cs` partial for routing popups, `target="_blank"` links, and downloads. Same-origin links navigate in-place; cross-origin links open in the system default browser. Download completion is logged and surfaced via `DownloadCompleted` event.
+- Added `EnvironmentConfig.Backend` property (default `HostedBackendKind.Auto` for backward compatibility) and `BackendProfile` convenience accessor.
+- Added Settings UI for backend selection: ComboBox with `BackendOptions` (`Auto`, `OpenClaw`, `Generic`) and localized hint. Persisted in `settings.json` per environment.
+- Added `bridge-scripts.ps1` checks for `HostedUiBridge.LabelVocabulary.js` and updated assertions for the new command dispatch and vocabulary integration.
+- Added `NativeNotificationKind` enum (`RunCompleted`, `PageForwarded`, `AttentionRequired`) and `NativeNotificationRequest` record.
+
 ### v5.3.3 (2026-08-31)
 
 - Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.3`.
@@ -339,6 +359,26 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 ---
 
 ## 简体中文
+
+### v5.3.4 (2026-09-01)
+
+- 将 app、assembly、file、package manifest、application manifest、README、中文 README 和 changelog 元数据同步到 `5.3.4`。
+- 增加原生运行完成通知。当托管的运行结束（busy→idle 状态转换）时，Harness 通过系统托盘弹出 Windows 气泡通知。这是浏览器标签无法自主传递的信号。设置项：`Notify when a run finishes`（默认开启）、`Only when Harness is not focused`（默认开启，当你正在观看时抑制冗余通知）和 `Forward notifications from the page`（默认开启，将托管 UI 发出的 Web 通知转发到 Windows）。通知系统通过 `NIIF_RESPECT_QUIET_TIME` 遵守专注助手（勿扰时段）设置。
+- 增加 `RunCompletionNotifier` 状态机（Core）以检测 busy→idle 边缘。当 idle 转换与会话丢失同时发生时（断开连接，不是完成）抑制通知。在环境切换和 WebView 重建时重置通知器，避免陈旧的 busy 标志触发错误通知。
+- 连接 `MainViewModel.NotificationRequested` 事件、`IsWindowFocused` 跟踪和 `MainWindow.OnNotificationRequested` 处理器到 `TrayIconService.ShowBalloon`。
+- 增加本地化通知字符串（`NotificationRunCompletedTitle`、`NotificationRunCompletedBody`、`NotificationRunCompletedBodyFormat`），包含英文和中文版本。
+- 增加多后端支持，通过 `HostedBackendKind`（Auto、OpenClaw、Generic）和 `HostedBackendProfile` 实现。每个后端定义自己的延迟探测路径、应用状态选择器、宿主命令事件前缀和命令全局变量。OpenClaw 使用 `__openclaw__/a2ui/` 探测、`openclaw-app` 元素、`openclaw:` 事件前缀和 `[__openclaw, __OPENCLAW__, __APP__, app]` 全局变量；Generic 使用根路径探测、无应用状态元素、无事件前缀和 `[__APP__, app]` 全局变量；Auto 继承 OpenClaw 的 profile，当后端专有探测失败时允许回退到根路径延迟探测。
+- 增加 `HostedBackendProfile.For(kind)` 工厂方法和 Settings 中 Environments 区域的后端选择。后端变更触发 `DidChangeSessionTopology`，以使用正确的 bridge 脚本重建 WebView。
+- 将延迟探测路径从 `ControlUiLatencyService` 硬编码常量移到 `HostedBackendProfile.LatencyProbePath`。服务现在接受 profile，当路径为 null 或后端允许根回退且专有路径返回 404/405 时回退到根 HEAD 探测。
+- 创建 `HostedUiBridge.LabelVocabulary.js`，包含多语言匹配器（`buildMatcher`、`matchesStop`、`matchesShellAffordance`、`matchesAuth`、`matchesGatewayError`、`matchesConnecting`、`matchesPairing`、`matchesRateLimit`、`matchesBusy`）。拉丁术语在 `\b` 词边界上匹配；CJK 术语作为子字符串匹配，因为 `\b` 不是 CJK 码点之间的词边界。
+- 更新 `HostedUiBridge.PhaseClassifier.js`、`HostedUiBridge.StatusInspection.js` 和 `WebViewCommands.AbortRun.js` 以使用共享词汇表匹配器。移除重复的内联正则表达式模式。
+- 更新 `HostedUiBridge.CommandDispatch.js` 以使用后端 profile 的 `HostCommandEventPrefix` 和 `CommandGlobals`。先尝试后端专有方法（可脚本化 API 全局变量、带前缀的 CustomEvent），再尝试无前缀的通用 CustomEvent。对通用 CustomEvent 返回 `false`（无处理证明）。
+- 更新 `HostedUiBridge.Script.cs` 以接受 `HostedBackendProfile`，并将 `appStateElement`、`commandEventPrefix` 和 `commandGlobals` 作为占位符注入 bridge 脚本模板。
+- 增加 `WebViewService.ExternalContent.cs` partial 以路由弹出窗口、`target="_blank"` 链接和下载。同源链接在当前页面内导航；跨源链接在系统默认浏览器中打开。下载完成记录日志并通过 `DownloadCompleted` 事件暴露。
+- 增加 `EnvironmentConfig.Backend` 属性（默认 `HostedBackendKind.Auto` 以保持向后兼容）和 `BackendProfile` 便利访问器。
+- 增加后端选择的 Settings UI：ComboBox 提供 `BackendOptions`（`Auto`、`OpenClaw`、`Generic`）和本地化提示。每个环境的后端选择持久化到 `settings.json`。
+- 增加 `bridge-scripts.ps1` 对 `HostedUiBridge.LabelVocabulary.js` 的检查，并更新断言以验证新的命令分发和词汇表集成。
+- 增加 `NativeNotificationKind` 枚举（`RunCompleted`、`PageForwarded`、`AttentionRequired`）和 `NativeNotificationRequest` 记录。
 
 ### v5.3.3 (2026-08-31)
 

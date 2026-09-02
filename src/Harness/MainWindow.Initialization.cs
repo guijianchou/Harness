@@ -30,6 +30,7 @@ public sealed partial class MainWindow
         ViewModel.NavigationTimeoutRecoveryNoLongerNeeded += OnNavigationTimeoutRecoveryNoLongerNeeded;
         ViewModel.ViewLogsRequested += OnViewLogsRequested;
         ViewModel.ErrorOccurred += OnError;
+        ViewModel.NotificationRequested += OnNotificationRequested;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 

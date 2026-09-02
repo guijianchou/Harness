@@ -136,6 +136,11 @@ public static class StringResources
     public static string SettingsRemoveTooltip => Get("SettingsRemoveTooltip");
     public static string SettingsEnvironmentPlaceholder => Get("SettingsEnvironmentPlaceholder");
     public static string SettingsControlUiUrl => Get("SettingsControlUiUrl");
+    public static string SettingsBackend => Get("SettingsBackend");
+    public static string SettingsBackendHint => Get("SettingsBackendHint");
+    public static string SettingsBackendAuto => Get("SettingsBackendAuto");
+    public static string SettingsBackendOpenClaw => Get("SettingsBackendOpenClaw");
+    public static string SettingsBackendGeneric => Get("SettingsBackendGeneric");
     public static string SettingsControlUiUrlPlaceholder => Get("SettingsControlUiUrlPlaceholder");
     public static string SettingsControlUiUrlHint1 => Get("SettingsControlUiUrlHint1");
     public static string SettingsControlUiUrlHint2 => Get("SettingsControlUiUrlHint2");
@@ -278,4 +283,16 @@ public static class StringResources
     public static string BridgeConnectingSummary => Get("BridgeConnectingSummary");
     public static string BridgeConnectingDetail => Get("BridgeConnectingDetail");
     public static string BridgeConnectedSummary => Get("BridgeConnectedSummary");
+
+    // --- Notifications ---
+    public static string NotificationRunCompletedTitle => Get("NotificationRunCompletedTitle");
+    public static string NotificationRunCompletedBody => Get("NotificationRunCompletedBody");
+    public static string NotificationRunCompletedBodyFormat => Get("NotificationRunCompletedBodyFormat");
+    public static string SettingsNotificationsHeader => Get("SettingsNotificationsHeader");
+    public static string SettingsNotifyOnRunCompleted => Get("SettingsNotifyOnRunCompleted");
+    public static string SettingsNotifyOnRunCompletedDescription => Get("SettingsNotifyOnRunCompletedDescription");
+    public static string SettingsNotifyOnlyWhenUnfocused => Get("SettingsNotifyOnlyWhenUnfocused");
+    public static string SettingsNotifyOnlyWhenUnfocusedDescription => Get("SettingsNotifyOnlyWhenUnfocusedDescription");
+    public static string SettingsForwardPageNotifications => Get("SettingsForwardPageNotifications");
+    public static string SettingsForwardPageNotificationsDescription => Get("SettingsForwardPageNotificationsDescription");
 }

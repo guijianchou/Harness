@@ -1,6 +1,9 @@
 (() => {
   const STRINGS = __OPENCLAW_BRIDGE_STRINGS_JSON__;
   const OWNER_TOKEN = __OPENCLAW_OWNER_TOKEN_JSON__;
+  const BACKEND_PROFILE = __HARNESS_BACKEND_PROFILE_JSON__;
+
+__HARNESS_LABEL_VOCABULARY_SCRIPT__
 
 __OPENCLAW_HOST_MESSAGING_SCRIPT__
 
@@ -26,7 +29,8 @@ __OPENCLAW_COMMAND_DISPATCH_SCRIPT__
     strings: STRINGS,
     mutationFilter: openClawMutationFilter,
     modelResolver: openClawModelResolver,
-    statusKind: KIND
+    statusKind: KIND,
+    backendProfile: BACKEND_PROFILE
   });
 
   let lastSeq = null;
@@ -101,7 +105,8 @@ __OPENCLAW_COMMAND_DISPATCH_SCRIPT__
   const onCommand = openClawCommandDispatch.createCommandHandler({
     inspectControlUi,
     postStatus,
-    checkSessionReady
+    checkSessionReady,
+    backendProfile: BACKEND_PROFILE
   });
 
   window.__openClawHostBridge = {

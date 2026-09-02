@@ -31,6 +31,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     private string _editName = string.Empty;
     private string _editUrl = string.Empty;
     private bool _editIsDefault;
+    private HostedBackendKind _editBackend = HostedBackendKind.Auto;
     private bool _isEditing;
     private string _selectedLanguage = "System";
     private bool _enableDevLog;
@@ -100,6 +101,38 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         get => _editIsDefault;
         set { _editIsDefault = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Gets the selectable backend labels, in <see cref="HostedBackendKind"/> order.
+    /// </summary>
+    public IReadOnlyList<string> BackendOptions { get; } =
+    [
+        StringResources.SettingsBackendAuto,
+        StringResources.SettingsBackendOpenClaw,
+        StringResources.SettingsBackendGeneric,
+    ];
+
+    /// <summary>
+    /// Gets or sets the edited environment's backend as an index into
+    /// <see cref="BackendOptions"/>, because ComboBox SelectedIndex binds to int.
+    /// </summary>
+    public int EditBackendIndex
+    {
+        get => (int)_editBackend;
+        set
+        {
+            var kind = value is >= 0 and <= (int)HostedBackendKind.Generic
+                ? (HostedBackendKind)value
+                : HostedBackendKind.Auto;
+            if (_editBackend == kind)
+            {
+                return;
+            }
+
+            _editBackend = kind;
+            OnPropertyChanged();
+        }
     }
 
     public bool IsEditing
@@ -412,6 +445,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             EditName = _selectedEnvironment.Name;
             EditUrl = _selectedEnvironment.GatewayUrl;
             EditIsDefault = _selectedEnvironment.IsDefault;
+            EditBackendIndex = (int)_selectedEnvironment.Backend;
             IsEditing = true;
         }
         else
@@ -419,6 +453,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             EditName = string.Empty;
             EditUrl = string.Empty;
             EditIsDefault = false;
+            EditBackendIndex = (int)HostedBackendKind.Auto;
             IsEditing = false;
         }
     }
@@ -459,6 +494,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         Name = EditName.Trim(),
         GatewayUrl = EditUrl.Trim(),
         IsDefault = EditIsDefault,
+        Backend = _editBackend,
     };
 
     private void SyncRenamedEnvironmentProfiles()
@@ -552,8 +588,12 @@ public class SettingsViewModel : INotifyPropertyChanged
             return true;
         }
 
+        // Backend belongs here, not only in metadata: the bridge script is injected
+        // at document-creation time, so a new profile only takes effect once the
+        // WebView is recreated.
         return !string.Equals(original.Name, environment.Name, StringComparison.Ordinal) ||
-               !string.Equals(original.GatewayUrl, environment.GatewayUrl, StringComparison.Ordinal);
+               !string.Equals(original.GatewayUrl, environment.GatewayUrl, StringComparison.Ordinal) ||
+               original.Backend != environment.Backend;
     }
 
     private bool DidEnvironmentMetadataChange(EnvironmentConfig environment)
@@ -565,7 +605,8 @@ public class SettingsViewModel : INotifyPropertyChanged
 
         return !string.Equals(original.Name, environment.Name, StringComparison.Ordinal) ||
                !string.Equals(original.GatewayUrl, environment.GatewayUrl, StringComparison.Ordinal) ||
-               original.IsDefault != environment.IsDefault;
+               original.IsDefault != environment.IsDefault ||
+               original.Backend != environment.Backend;
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null)

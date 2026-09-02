@@ -20,6 +20,7 @@ public partial class MainViewModel
         WorkStatusText = DefaultWorkStatus;
         WorkStatusBrush = WarningBrush;
         SetRunIndicatorMode(RunIndicatorMode.Wait);
+        _runCompletionNotifier.Reset();
     }
 
     private void OnLatencyUpdated(ControlUiLatencySnapshot snapshot)

@@ -16,6 +16,7 @@ public class EnvironmentConfig : INotifyPropertyChanged
     private string _name = string.Empty;
     private string _gatewayUrl = string.Empty;
     private bool _isDefault;
+    private HostedBackendKind _backend = HostedBackendKind.Auto;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -46,6 +47,24 @@ public class EnvironmentConfig : INotifyPropertyChanged
         set => SetProperty(ref _isDefault, value);
     }
 
+    /// <summary>
+    /// Gets or sets which hosted Control UI product this environment points at.
+    /// Defaults to <see cref="HostedBackendKind.Auto"/> so existing settings files
+    /// keep working and unknown backends degrade instead of failing.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<HostedBackendKind>))]
+    public HostedBackendKind Backend
+    {
+        get => _backend;
+        set => SetProperty(ref _backend, value);
+    }
+
+    /// <summary>
+    /// Gets the resolved behaviour profile for <see cref="Backend"/>.
+    /// </summary>
+    [JsonIgnore]
+    public HostedBackendProfile BackendProfile => HostedBackendProfile.For(Backend);
+
     [JsonIgnore]
     public bool IsPlaceholder =>
         string.Equals(GatewayUrl?.Trim(), PlaceholderGatewayUrl, StringComparison.OrdinalIgnoreCase);
@@ -58,6 +77,7 @@ public class EnvironmentConfig : INotifyPropertyChanged
         Name = Name,
         GatewayUrl = GatewayUrl,
         IsDefault = IsDefault,
+        Backend = Backend,
     };
 
     /// <summary>
@@ -69,6 +89,7 @@ public class EnvironmentConfig : INotifyPropertyChanged
         Name = other.Name;
         GatewayUrl = other.GatewayUrl;
         IsDefault = other.IsDefault;
+        Backend = other.Backend;
     }
 
     private void SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

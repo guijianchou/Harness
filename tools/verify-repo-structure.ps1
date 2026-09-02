@@ -104,7 +104,7 @@ foreach ($linkedCompileItem in $linkedCompileItems) {
     }
 }
 
-$currentVersion = '5.3.3'
+$currentVersion = '5.3.4'
 $currentFileVersion = "$currentVersion.0"
 if ($project -notmatch [regex]::Escape("<Version>$currentVersion</Version>") -or
     $project -notmatch [regex]::Escape("<AssemblyVersion>$currentFileVersion</AssemblyVersion>") -or
@@ -308,10 +308,11 @@ if ($latencyService -notmatch '_probeTask' -or
 }
 
 if ($latencyService -match 'control-ui-config\.json' -or
-    $latencyService -notmatch '__openclaw__/a2ui/' -or
+    $latencyService -notmatch 'HostedBackendProfile' -or
+    $latencyService -notmatch 'LatencyProbePath' -or
     $latencyService -notmatch 'GatewayHttpStatusClassifier\.Classify' -or
     $latencyService -match 'ControlUiLatencySnapshot\.Success\([\s\S]*HTTP \{\(int\)response\.StatusCode\}') {
-    throw 'Control UI latency probes must target the documented Gateway A2UI HTTP path and classify HTTP status before publishing success.'
+    throw 'Control UI latency probes must use HostedBackendProfile.LatencyProbePath and classify HTTP status before publishing success.'
 }
 
 $singleInstanceCoordinator = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness.Core/Services/SingleInstanceCoordinator.cs') -Raw
@@ -859,7 +860,7 @@ if ($hostedBridgeMain -notmatch 'WebViewMessageOwnership' -or
     $hostedBridgeMain -notmatch 'IsCurrentHost\(hostGeneration\)' -or
     $hostedBridgeMain -notmatch 'TryCaptureCurrentVersion\(args, root, out var pageVersion\)' -or
     $hostedBridgeMain -notmatch 'IsCurrentAcceptedPageVersion\(pageVersion\)' -or
-    $hostedBridgeMain -notmatch 'HostedUiBridgeScript\.Build\(_messageOwnership\.OwnerToken\)') {
+    $hostedBridgeMain -notmatch 'HostedUiBridgeScript\.Build\(_messageOwnership\.OwnerToken, backendProfile\)') {
     throw 'HostedUiBridge must inject and validate WebView message ownership tokens.'
 }
 
@@ -912,7 +913,7 @@ if ($mainViewModelLifecycle -notmatch '_lifetimeCts' -or
     $mainViewModelLifecycle -notmatch 'var environmentName = _selectedEnvironment\.Name' -or
     $mainViewModelLifecycle -notmatch 'var gatewayUrl = _selectedEnvironment\.GatewayUrl' -or
     $mainViewModelLifecycle -notmatch 'InitializeAsync\(webView, environmentName, cancellationToken\)' -or
-    $mainViewModelLifecycle -notmatch 'InitializeAsync\(webView, cancellationToken\)' -or
+    $mainViewModelLifecycle -notmatch 'InitializeAsync\(webView,[\s\S]*?_selectedEnvironment\.BackendProfile,[\s\S]*?cancellationToken\)' -or
     $mainViewModelLifecycle -notmatch 'IsCurrentSelectedEnvironment\(environmentName, gatewayUrl\)' -or
     $mainViewModelLifecycle -notmatch 'private bool IsCurrentSelectedEnvironment\(string environmentName, string gatewayUrl\)') {
     throw 'MainViewModel WebView initialization must honor the ViewModel lifetime cancellation token and selected-environment identity across awaits.'
@@ -1630,9 +1631,9 @@ if ($bridgeScript -notmatch 'const postSessionReady' -or
 }
 
 $commandDispatchScript = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/Services/HostedUiBridge.CommandDispatch.js') -Raw
-if ($commandDispatchScript -notmatch 'if \(!handled\)[\s\S]*dispatchBridgeEvent\(command, payload\)' -or
+if ($commandDispatchScript -notmatch 'if \(!handled\)[\s\S]*dispatchBridgeEvent\(command, payload, eventPrefix\)' -or
     $commandDispatchScript -notmatch 'return handled;' -or
-    $commandDispatchScript -notmatch 'default:[\s\S]*dispatchBridgeEvent\(command, payload\);[\s\S]*return false;' -or
+    $commandDispatchScript -notmatch 'default:[\s\S]*dispatchBridgeEvent\(command, payload, eventPrefix\);[\s\S]*return false;' -or
     $commandDispatchScript -match 'return handled \|\| dispatchBridgeEvent') {
     throw 'Hosted bridge command fallback must not report CustomEvent dispatch as a handled soft-resync command.'
 }

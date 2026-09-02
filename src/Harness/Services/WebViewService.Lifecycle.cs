@@ -74,10 +74,15 @@ public partial class WebViewService
             _processFailedHandler = CreateProcessFailedHandler(hostGeneration);
             _webMessageReceivedHandler = CreateWebMessageReceivedHandler(hostGeneration);
 
+            _newWindowRequestedHandler = CreateNewWindowRequestedHandler(hostGeneration);
+            _downloadStartingHandler = CreateDownloadStartingHandler(hostGeneration);
+
             coreWebView.NavigationStarting += _navigationStartingHandler;
             coreWebView.NavigationCompleted += _navigationCompletedHandler;
             coreWebView.ProcessFailed += _processFailedHandler;
             coreWebView.WebMessageReceived += _webMessageReceivedHandler;
+            coreWebView.NewWindowRequested += _newWindowRequestedHandler;
+            coreWebView.DownloadStarting += _downloadStartingHandler;
 
             // Allow file input dialog
             coreWebView.Settings.AreDefaultContextMenusEnabled = true;
@@ -145,12 +150,24 @@ public partial class WebViewService
             {
                 coreWebView.WebMessageReceived -= _webMessageReceivedHandler;
             }
+
+            if (_newWindowRequestedHandler is not null)
+            {
+                coreWebView.NewWindowRequested -= _newWindowRequestedHandler;
+            }
+
+            if (_downloadStartingHandler is not null)
+            {
+                coreWebView.DownloadStarting -= _downloadStartingHandler;
+            }
         }
 
         _navigationStartingHandler = null;
         _navigationCompletedHandler = null;
         _processFailedHandler = null;
         _webMessageReceivedHandler = null;
+        _newWindowRequestedHandler = null;
+        _downloadStartingHandler = null;
         _webView = null;
         _coreWebView = null;
         _isInitialized = false;

@@ -1,8 +1,10 @@
 const openClawStatusInspection = (() => {
-  const createInspector = ({ strings, mutationFilter, modelResolver, statusKind }) => {
+  const createInspector = ({ strings, mutationFilter, modelResolver, statusKind, backendProfile }) => {
     const dom = openClawDomUtilities;
-    const modelReader = openClawModelDomFallback.createReader({ dom, mutationFilter, modelResolver });
-    const activity = openClawActivityState.createActivityTracker({ dom, mutationFilter });
+    const vocabulary = harnessLabelVocabulary;
+    const profile = backendProfile || {};
+    const modelReader = openClawModelDomFallback.createReader({ dom, mutationFilter, modelResolver, profile });
+    const activity = openClawActivityState.createActivityTracker({ dom, mutationFilter, profile });
     const phaseClassifier = openClawPhaseClassifier.createClassifier({ dom, mutationFilter, strings });
     const isStatusProbeExcludedElement = mutationFilter.isStatusProbeExcludedElement;
 
@@ -25,20 +27,19 @@ const openClawStatusInspection = (() => {
     const detectShellFromDom = () => {
       return (
         hasVisibleElement('textarea, input:not([type]), input[type="text"], [contenteditable="true"], [role="textbox"]') ||
-        hasVisibleElement('button, [role="button"], nav, aside, [role="navigation"]', (el) => {
-          const label = dom.labelOf(el).toLowerCase();
-          return /stop|abort|dashboard|settings|sessions|workers|models|new chat|history/.test(label);
-        }));
+        hasVisibleElement('button, [role="button"], nav, aside, [role="navigation"]', (el) =>
+          vocabulary.matchesShellAffordance(dom.labelOf(el))));
     };
 
     const detectBusyFromDom = (needsDomSignals) => {
-      const busyByButton = needsDomSignals && hasVisibleElement('button, [role="button"], [aria-label], [title]', (el) => {
-        const label = dom.labelOf(el).toLowerCase();
-        return /\b(stop|abort|cancel)\b/.test(label);
-      });
+      const busyByButton = needsDomSignals && hasVisibleElement('button, [role="button"], [aria-label], [title]', (el) =>
+        vocabulary.matchesStop(dom.labelOf(el)));
       const busyBySignals = needsDomSignals && hasVisibleElement(
         '[aria-busy="true"], [role="progressbar"], [data-busy="true"], [data-running="true"], [data-state="running"], [data-state="streaming"], [data-status="running"], [data-status="streaming"]');
-      return busyByButton || busyBySignals;
+      const busyByStatusText = needsDomSignals && hasVisibleElement(
+        '[role="status"], [aria-live="polite"], [aria-live="assertive"]', (el) =>
+          vocabulary.matchesBusy(dom.textOf(el)));
+      return busyByButton || busyBySignals || busyByStatusText;
     };
 
     const inspectControlUi = () => {

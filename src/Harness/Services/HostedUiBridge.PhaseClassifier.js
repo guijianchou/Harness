@@ -2,11 +2,8 @@ const openClawPhaseClassifier = (() => {
   const matchAny = (haystack, needles) => needles.find((needle) => haystack.includes(needle)) || '';
 
   const classify = ({ documentReadyState, hasBody, text, lowerUrl, strings, shellDetected }) => {
-    const authMatch = matchAny(text, [
-      'authentication required', 'authorization failed', 'unauthorized',
-      'access denied', 'token required', 'password required',
-      'session expired', 'sign in', 'log in', 'login required'
-    ]);
+    const vocabulary = harnessLabelVocabulary;
+    const authMatch = vocabulary.matchesAuth(text);
     const tokenMissingMatch = matchAny(text, [
       'auth_token_missing', 'token missing', 'missing shared token'
     ]);
@@ -18,10 +15,7 @@ const openClawPhaseClassifier = (() => {
       'auth_device_token_mismatch', 'device token mismatch',
       'cached per-device token is stale', 'stale or revoked device token'
     ]);
-    const pairingMatch = matchAny(text, [
-      'pairing required', 'pair this device', 'device approval required',
-      'device not paired', 'disconnected (1008)'
-    ]);
+    const pairingMatch = vocabulary.matchesPairing(text);
     const originMatch = matchAny(text, [
       'origin not allowed', 'origin rejected', 'allowed origins',
       'forbidden origin', 'trusted proxy'
@@ -44,18 +38,9 @@ const openClawPhaseClassifier = (() => {
     const trustedProxyOriginRejectedMatch = matchAny(text, [
       'trusted_proxy_origin_not_allowed', 'origin did not pass control ui origin checks'
     ]);
-    const rateLimitMatch = matchAny(text, [
-      'retry later', 'too many failed auth attempts', 'retry-after',
-      'rate limited', 'rate limit'
-    ]);
-    const gatewayErrorMatch = matchAny(text, [
-      'unable to connect', 'connection lost', 'gateway unavailable',
-      'failed to connect', 'websocket closed', 'disconnect code'
-    ]);
-    const connectingMatch = matchAny(text, [
-      'connecting to gateway', 'waiting for gateway',
-      'reconnecting', 'establishing connection'
-    ]);
+    const rateLimitMatch = vocabulary.matchesRateLimit(text);
+    const gatewayErrorMatch = vocabulary.matchesGatewayError(text);
+    const connectingMatch = vocabulary.matchesConnecting(text);
     const isNonLocalHttp =
       lowerUrl.startsWith('http://') &&
       !/\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::|\/|$)/.test(lowerUrl);

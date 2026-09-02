@@ -40,6 +40,8 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
     private TypedEventHandler<CoreWebView2, CoreWebView2NavigationCompletedEventArgs>? _navigationCompletedHandler;
     private TypedEventHandler<CoreWebView2, CoreWebView2ProcessFailedEventArgs>? _processFailedHandler;
     private TypedEventHandler<CoreWebView2, CoreWebView2WebMessageReceivedEventArgs>? _webMessageReceivedHandler;
+    private TypedEventHandler<CoreWebView2, CoreWebView2NewWindowRequestedEventArgs>? _newWindowRequestedHandler;
+    private TypedEventHandler<CoreWebView2, CoreWebView2DownloadStartingEventArgs>? _downloadStartingHandler;
     private bool _isDisposed;
     private ulong _currentNavigationId = NoCurrentNavigationId;
     private ulong _activeNavigationCompletionWatchdogId = NoCurrentNavigationId;

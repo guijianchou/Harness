@@ -12,6 +12,11 @@ internal sealed class TrayIconService : IDisposable
     private const uint NotifyIconVersion4 = 4;
     private const int TooltipMaxLength = 127;
 
+    // NOTIFYICONDATA fixed buffers: szInfoTitle is 64 chars, szInfo is 256,
+    // both including the terminator.
+    private const int BalloonTitleMaxLength = 63;
+    private const int BalloonBodyMaxLength = 255;
+
     private const int MenuOpenApp = 100;
     private const int MenuSettings = 101;
     private const int MenuExit = 102;
@@ -77,6 +82,45 @@ internal sealed class TrayIconService : IDisposable
 
         var data = CreateNotifyIconData(NotifyIconFlags.Tip);
         ShellNotifyIcon(NotifyIconMessage.Modify, ref data);
+    }
+
+    /// <summary>
+    /// Shows a tray balloon notification. Used instead of AppNotificationManager
+    /// because Harness ships unpackaged: toast notifications need MSIX identity and
+    /// a registered COM activator, while Shell_NotifyIcon balloons need neither.
+    /// </summary>
+    public bool ShowBalloon(string title, string body)
+    {
+        if (_isDisposed || !IsAvailable)
+        {
+            return false;
+        }
+
+        var data = CreateNotifyIconData(NotifyIconFlags.Info);
+        data.szInfoTitle = Truncate(title, BalloonTitleMaxLength);
+        data.szInfo = Truncate(body, BalloonBodyMaxLength);
+        data.dwInfoFlags = BalloonFlags.Info | BalloonFlags.RespectQuietTime;
+
+        if (ShellNotifyIcon(NotifyIconMessage.Modify, ref data))
+        {
+            return true;
+        }
+
+        _logger.Warning($"Failed to show tray balloon: {Marshal.GetLastWin32Error()}");
+        return false;
+    }
+
+    private static string Truncate(string? value, int maxLength)
+    {
+        var text = (value ?? string.Empty).Trim();
+        if (text.Length <= maxLength)
+        {
+            return text;
+        }
+
+        // Reserve one char for the ellipsis so the struct's fixed-size buffer
+        // never truncates mid-way and drops the visual cue that text was cut.
+        return string.Concat(text.AsSpan(0, maxLength - 1), "…");
     }
 
     public void Dispose()
@@ -431,6 +475,16 @@ internal sealed class TrayIconService : IDisposable
         public const uint Message = 0x00000001;
         public const uint Icon = 0x00000002;
         public const uint Tip = 0x00000004;
+        public const uint Info = 0x00000010;
+    }
+
+    private static class BalloonFlags
+    {
+        public const uint Info = 0x00000001;
+
+        // Suppresses the balloon during Focus Assist / presentation mode instead of
+        // interrupting, which matters for an app that can notify on run completion.
+        public const uint RespectQuietTime = 0x00000080;
     }
 
     private static class WindowMessages
