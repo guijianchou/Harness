@@ -87,22 +87,26 @@ Canonical local verification:
 ```powershell
 dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
+dotnet test tests/Harness.Core.Tests/Harness.Core.Tests.csproj -c Debug --no-restore
 $env:Platform='x64'; dotnet format Harness.sln --verify-no-changes --no-restore
 powershell -ExecutionPolicy Bypass -File tools\verify-repo-structure.ps1
 $env:OPENCLAW_NODE='C:\Users\Zen\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe'
 powershell -ExecutionPolicy Bypass -File tools\verify-bridge-scripts.ps1
+pwsh -NoProfile -STA -File tools\verify-native-webview.ps1 -OutputDirectory "$env:TEMP/Harness-native-regression"
 git diff --check
 ```
 
-The local regression harness is not part of the active solution at this checkpoint; validate with restore, x64 build, format, repository guardrails, bridge script checks, whitespace checks, and VS2026 manual debug for real WebView2/Gateway behavior. `tools\verify-repo-structure.ps1` is the active architecture and release-metadata guardrail, and `tools\verify-bridge-scripts.ps1` is the active behavior check for embedded bridge scripts. The bridge verifier requires Node.js by default, honors `OPENCLAW_NODE` when a specific Node executable is required, and skips only when `OPENCLAW_ALLOW_NODE_SKIP=1` is set explicitly; on this workstation the Codex runtime Node path above avoids the blocked default `node`.
+The active Core test project is `tests/Harness.Core.Tests`. The standalone native WebView2 verifier compiles current command, settings, environment-selection, error-page, and navigation source with stubbed WinUI/coordinator dependencies, uses temporary settings/browser profiles, and intercepts Gateway requests locally. It verifies those boundaries and writes error-page PNGs; real Gateway connectivity and full WinUI shell behavior still need manual debug. `tools\verify-repo-structure.ps1` guards architecture and release metadata; `tools\verify-bridge-scripts.ps1` checks embedded scripts. The bridge verifier requires Node.js by default, honors `OPENCLAW_NODE`, and skips only when `OPENCLAW_ALLOW_NODE_SKIP=1` is set explicitly.
 
-## Active Verification After Test Harness Removal
+## Active Verification
 
-Older notes mention regression tests that existed in previous checkpoints. Current active verification is:
+Current active verification is:
 
 - solution restore/build/format
+- Core regression tests through `dotnet test tests/Harness.Core.Tests/Harness.Core.Tests.csproj`
 - repository structure guardrails through `tools\verify-repo-structure.ps1`
 - bridge script behavior checks through `tools\verify-bridge-scripts.ps1`
+- isolated native WebView2 checks through `tools\verify-native-webview.ps1` (run with `pwsh -STA` after a Debug build)
 - whitespace diff checks
 - VS2026 manual debug on real WebView2/Gateway behavior
 

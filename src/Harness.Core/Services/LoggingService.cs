@@ -70,7 +70,7 @@ public class LoggingService : IAppLogger
                 Context = context
             };
 
-            EnqueueLine(JsonSerializer.Serialize(logEntry));
+            EnqueueLine(DiagnosticRedactor.RedactJson(JsonSerializer.Serialize(logEntry)));
         }
         catch
         {

@@ -156,19 +156,19 @@ public sealed class HostedUiBridge : IDisposable
         {
             var message = new { kind = "command", command, payload };
             var json = JsonSerializer.Serialize(message);
-            var script = $"(async () => await window.__openClawHostBridge?.onCommand?.({json}) ?? false)()";
+            var script = $"window.__openClawHostBridge?.onCommand?.({json}) ?? false";
             using var timeout = new CancellationTokenSource(CommandTimeout);
             using var commandCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                 timeout.Token,
                 cancellationToken);
-            var raw = await coreWebView.ExecuteScriptAsync(script)
-                .AsTask(commandCancellation.Token);
+            var handled = await WebViewScriptExecutor.ExecuteBooleanAsync(
+                coreWebView, _messageOwnership, pageVersion, script, commandCancellation.Token);
             if (!IsStillCurrentCommandTarget(coreWebView, pageVersion))
             {
                 return false;
             }
 
-            return bool.TryParse(raw?.Trim('"'), out var handled) && handled;
+            return handled;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

@@ -8,7 +8,12 @@ const openClawDomUtilities = (() => {
   };
 
   const textOf = (el) => {
-    return [el?.innerText, el?.textContent]
+    const inner = el?.innerText?.replace(/\s+/g, ' ').trim() || '';
+    const content = el?.textContent?.replace(/\s+/g, ' ').trim() || '';
+    // If innerText and textContent are the same, only use one
+    if (inner === content) return inner;
+    // Otherwise, combine them
+    return [inner, content]
       .filter(Boolean)
       .join(' ')
       .replace(/\s+/g, ' ')

@@ -83,6 +83,16 @@ internal sealed class WebViewMessageOwnership
         }
     }
 
+    public bool TryCaptureTokens(int version, out string ownerToken, out string? pageToken)
+    {
+        lock (_gate)
+        {
+            ownerToken = _ownerToken;
+            pageToken = _acceptedPageToken;
+            return version != 0 && version == _version && !string.IsNullOrWhiteSpace(pageToken);
+        }
+    }
+
     public bool IsCurrent(CoreWebView2WebMessageReceivedEventArgs args, string messageJson)
     {
         try

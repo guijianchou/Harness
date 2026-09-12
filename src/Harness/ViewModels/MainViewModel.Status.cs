@@ -130,7 +130,7 @@ public partial class MainViewModel
 
     private void ApplyModelSummary(ControlUiProbeSnapshot snapshot)
     {
-        var modelSummary = _statusPresenter.FormatModelSummary(snapshot.CurrentModel, DefaultModelSummary);
+        var modelSummary = _statusPresenter.FormatModelSummary(snapshot.CurrentModel, snapshot.CurrentEffort, DefaultModelSummary);
         if (modelSummary != DefaultModelSummary)
         {
             _lastKnownModelSummaryText = modelSummary;

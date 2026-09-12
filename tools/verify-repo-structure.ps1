@@ -104,7 +104,7 @@ foreach ($linkedCompileItem in $linkedCompileItems) {
     }
 }
 
-$currentVersion = '5.3.4'
+$currentVersion = '5.3.6'
 $currentFileVersion = "$currentVersion.0"
 if ($project -notmatch [regex]::Escape("<Version>$currentVersion</Version>") -or
     $project -notmatch [regex]::Escape("<AssemblyVersion>$currentFileVersion</AssemblyVersion>") -or
@@ -399,7 +399,7 @@ if ($commandFile -match 'ExecuteScriptAsync\(@"|ExecuteScriptAsync\(\$@"|const s
 }
 
 if ($commandFile -notmatch 'CommandScriptTimeout' -or
-    $commandFile -notmatch '\.AsTask\(timeout\.Token\)' -or
+    $commandFile -notmatch 'WebViewScriptExecutor\.ExecuteBooleanAsync\([^;]*timeout\.Token\)' -or
     $commandFile -notmatch 'CaptureAcceptedPageVersion' -or
     $commandFile -notmatch 'IsStillCurrentWebViewCommandTarget\(CoreWebView2 coreWebView, int pageVersion\)' -or
     $commandFile -notmatch 'IsCurrentAcceptedPageVersion\(pageVersion\)') {
@@ -1132,9 +1132,10 @@ if ($settingsPersistenceAdapter -match 'App\.Configuration|App\.Logger') {
 }
 
 $settingsViewModel = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/ViewModels/SettingsViewModel.cs') -Raw
-if ($settingsPersistenceAdapter -notmatch 'public SettingsPersistenceSaveResult Save\(\)' -or
+if ($settingsPersistenceAdapter -notmatch 'public SettingsPersistenceSaveResult Save\(AppSettings settings\)' -or
     $settingsPersistenceAdapter -match 'void Save\(\)' -or
-    $settingsViewModel -notmatch 'var saveResult = _settingsPersistence\.Save\(\)' -or
+    $settingsViewModel -notmatch 'var settings = _settingsPersistence\.CreateDraft\(\)' -or
+    $settingsViewModel -notmatch 'var saveResult = _settingsPersistence\.Save\(settings\)' -or
     $settingsViewModel -notmatch 'if \(!saveResult\.Succeeded\)' -or
     $settingsViewModel -match '_settingsPersistence\.Save\(\);\s*ValidationMessage') {
     throw 'Settings save failures must flow from persistence to SettingsViewModel instead of being reported as successful saves.'
@@ -1154,7 +1155,7 @@ if ($configurationService -match '_ = Task\.Run\(ProcessDeferredSaveQueueAsync\)
     throw 'ConfigurationService deferred-save worker must own and cancel its task, and serialize coalesced save versions under one lifetime gate.'
 }
 
-if ($configurationService -notmatch 'public SettingsWriteResult Save\(\)' -or
+if ($configurationService -notmatch 'public SettingsWriteResult Save\(AppSettings\? updatedSettings = null\)' -or
     $configurationService -notmatch 'return SettingsWriteResult\.Success' -or
     $configurationService -notmatch 'return SettingsWriteResult\.Failure' -or
     $configurationService -match 'public void Save\(\)') {
@@ -1221,8 +1222,18 @@ if ($mainWindowLifecycle -notmatch '_isCompactMode[\s\S]*SaveCompactWindowPositi
 }
 
 $mainWindowXaml = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/MainWindow.xaml') -Raw
-if ($mainWindowXaml -notmatch 'x:Name="RootLayout"[\s\S]*VisualStateManager\.VisualStateGroups') {
-    throw 'Compact visual states must be attached to RootLayout.'
+$mainWindowDocument = [xml]$mainWindowXaml
+$mainWindowNamespaces = [System.Xml.XmlNamespaceManager]::new($mainWindowDocument.NameTable)
+$mainWindowNamespaces.AddNamespace('ui', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
+$mainWindowNamespaces.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+$shellModeStates = $mainWindowDocument.SelectSingleNode('/ui:Window/ui:UserControl[@x:Name="RootLayout"]/ui:Grid[@x:Name="ShellLayout"]/ui:VisualStateManager.VisualStateGroups/ui:VisualStateGroup[@x:Name="ShellModeStates"]', $mainWindowNamespaces)
+if ($null -eq $shellModeStates) {
+    throw 'Shell visual states must be attached to the UserControl content root so GoToState can find them.'
+}
+foreach ($stateName in @('FullMode', 'MediumMode', 'NarrowMode', 'SmallMode', 'CompactMode')) {
+    if ($null -eq $shellModeStates.SelectSingleNode("ui:VisualState[@x:Name='$stateName']", $mainWindowNamespaces)) {
+        throw "Missing responsive shell visual state: $stateName"
+    }
 }
 
 if ($mainWindowXaml -match 'LoadingRing[\s\S]*Visibility="\{x:Bind ViewModel\.LoadingVisibility' -or
@@ -1615,11 +1626,19 @@ if ($hostedBridge -match '_bridgeScriptResource|BridgeScriptResource') {
 
 if ($hostedBridge -notmatch 'CommandTimeout' -or
     $hostedBridge -notmatch 'CancellationTokenSource\.CreateLinkedTokenSource\(\s*timeout\.Token,\s*cancellationToken\)' -or
-    $hostedBridge -notmatch '\.AsTask\(commandCancellation\.Token\)' -or
+    $hostedBridge -notmatch 'WebViewScriptExecutor\.ExecuteBooleanAsync\([^;]*commandCancellation\.Token\)' -or
     $hostedBridge -notmatch 'CaptureAcceptedPageVersion' -or
     $hostedBridge -notmatch 'IsStillCurrentCommandTarget\(CoreWebView2 coreWebView, int pageVersion\)' -or
     $hostedBridge -notmatch 'IsCurrentAcceptedPageVersion\(pageVersion\)') {
     throw 'HostedUiBridge command dispatch must have a bounded timeout and reject stale WebView/page results after awaits.'
+}
+
+$commandExecutor = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/Services/WebViewScriptExecutor.cs') -Raw
+if ($commandExecutor -notmatch 'TryCaptureCurrentVersion' -or
+    $commandExecutor -notmatch 'id\.ValueEquals\(commandId\)' -or
+    $commandExecutor -notmatch 'completion\.Task\.WaitAsync\(cancellationToken\)' -or
+    $commandExecutor -notmatch 'finally[\s\S]*WebMessageReceived -= handler') {
+    throw 'Async command replies must validate command/page ownership, bound the wait, and retire their event handler.'
 }
 
 $bridgeScript = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/Services/HostedUiBridge.Script.js') -Raw

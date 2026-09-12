@@ -1,6 +1,7 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
 using System.Text.Json;
+using Harness.Helpers;
 using Harness.Models;
 using Harness.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -124,6 +125,110 @@ public sealed class ConfigurationServiceTests
 
         // In-memory settings fall back to defaults for this session.
         Assert.IsTrue(lockedLoad.Settings.Environments[0].IsPlaceholder);
+
+        lockedLoad.Settings.WindowWidth = 1440;
+        Assert.IsFalse(lockedLoad.Save().Succeeded);
+        lockedLoad.SaveDeferred();
+        lockedLoad.FlushDeferredSave();
+        Assert.AreEqual(originalContent, File.ReadAllText(SettingsPath), "later automatic saves must not persist fallback defaults");
+
+        lockedLoad.Load();
+        lockedLoad.Settings.WindowWidth = 1440;
+        Assert.IsTrue(lockedLoad.Save().Succeeded);
+        Assert.IsTrue(lockedLoad.Settings.Environments.Any(env => env.Name == "Keep"));
+    }
+
+    [TestMethod]
+    public void FailedDraftSaveDoesNotChangeRuntimeSettingsAndCanBeRetried()
+    {
+        var rejectWrite = false;
+        var service = new ConfigurationService(_tempFolder, writeAllText: (path, text) =>
+        {
+            if (rejectWrite)
+            {
+                throw new IOException("Injected write failure");
+            }
+
+            AtomicFileWriter.WriteAllText(path, text);
+        });
+        service.Load();
+        var originalContent = File.ReadAllText(SettingsPath);
+        var draft = service.CreateSnapshot();
+        draft.AlwaysOnTop = true;
+        draft.Diagnostics.EnableVerboseRecoveryLogging = true;
+
+        rejectWrite = true;
+        Assert.IsFalse(service.Save(draft).Succeeded);
+        Assert.IsFalse(service.Settings.AlwaysOnTop);
+        Assert.IsFalse(service.Settings.Diagnostics.EnableVerboseRecoveryLogging);
+        Assert.AreEqual(originalContent, File.ReadAllText(SettingsPath));
+
+        rejectWrite = false;
+        Assert.IsTrue(service.Save(draft).Succeeded);
+        Assert.IsTrue(service.Settings.AlwaysOnTop);
+        Assert.IsTrue(service.Settings.Diagnostics.EnableVerboseRecoveryLogging);
+    }
+
+    [TestMethod]
+    public void IndependentInstancesMergeUnrelatedChangesAcrossRepeatedSaves()
+    {
+        var first = CreateService();
+        first.Load();
+        var second = CreateService();
+        second.Load();
+
+        first.Settings.Environments.Add(new EnvironmentConfig { Name = "Keep", GatewayUrl = "https://keep.example.org" });
+        Assert.IsTrue(first.Save().Succeeded);
+        second.Settings.WindowWidth = 1440;
+        Assert.IsTrue(second.Save().Succeeded);
+        second.Settings.WindowHeight = 900;
+        Assert.IsTrue(second.Save().Succeeded);
+        first.Settings.AlwaysOnTop = true;
+        Assert.IsTrue(first.Save().Succeeded);
+
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.IsTrue(reloaded.Settings.Environments.Any(env => env.Name == "Keep"));
+        Assert.AreEqual(1440, reloaded.Settings.WindowWidth);
+        Assert.AreEqual(900, reloaded.Settings.WindowHeight);
+        Assert.IsTrue(reloaded.Settings.AlwaysOnTop);
+    }
+
+    [TestMethod]
+    public void IndependentInstancesRejectConflictingEnvironmentEdits()
+    {
+        var first = CreateService();
+        first.Load();
+        var second = CreateService();
+        second.Load();
+
+        first.Settings.Environments[0].GatewayUrl = "https://first.example.org";
+        Assert.IsTrue(first.Save().Succeeded);
+        var savedContent = File.ReadAllText(SettingsPath);
+        var draft = second.CreateSnapshot();
+        draft.Environments[0].GatewayUrl = "https://second.example.org";
+
+        var result = second.Save(draft);
+        Assert.IsFalse(result.Succeeded);
+        StringAssert.Contains(result.ErrorMessage!, "another instance");
+        Assert.IsTrue(second.Settings.Environments[0].IsPlaceholder);
+        Assert.AreEqual(savedContent, File.ReadAllText(SettingsPath));
+    }
+
+    [TestMethod]
+    public void ConcurrentWriterLockPreventsReadModifyWriteOverlap()
+    {
+        var service = CreateService();
+        service.Load();
+        var originalContent = File.ReadAllText(SettingsPath);
+        service.Settings.AlwaysOnTop = true;
+        using (File.Open($"{SettingsPath}.lock", FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            Assert.IsFalse(service.Save().Succeeded);
+        }
+
+        Assert.AreEqual(originalContent, File.ReadAllText(SettingsPath));
+        Assert.IsTrue(service.Save().Succeeded);
     }
 
     [TestMethod]

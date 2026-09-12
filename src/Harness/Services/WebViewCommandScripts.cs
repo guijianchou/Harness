@@ -6,13 +6,19 @@ internal static class WebViewCommandScripts
 {
     private const string StopInjectionResourceName = "Harness.Services.WebViewCommands.StopInjection.js";
     private const string AbortRunResourceName = "Harness.Services.WebViewCommands.AbortRun.js";
+    private const string ExecuteAsyncResourceName = "Harness.Services.WebViewCommands.ExecuteAsync.js";
 
     private static readonly Lazy<string> StopInjectionScript = new(() => Load(StopInjectionResourceName));
     private static readonly Lazy<string> AbortRunScript = new(() => Load(AbortRunResourceName));
+    private static readonly Lazy<string> ExecuteAsyncScript = new(() => Load(ExecuteAsyncResourceName));
 
     public static string StopInjection => StopInjectionScript.Value;
 
     public static string AbortRun => AbortRunScript.Value;
+
+    public static string WrapAsync(string expression, string messageJson) => ExecuteAsyncScript.Value
+        .Replace("__HARNESS_COMMAND_MESSAGE_JSON__", messageJson, StringComparison.Ordinal)
+        .Replace("__HARNESS_COMMAND_EXPRESSION__", expression, StringComparison.Ordinal);
 
     private static string Load(string resourceName)
     {

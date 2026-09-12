@@ -66,6 +66,7 @@ public sealed partial class MainWindow
 
         rootElement.Loaded += OnRootLoaded;
         rootElement.ActualThemeChanged += OnRootActualThemeChanged;
+        rootElement.SizeChanged += OnRootSizeChanged;
         WebViewHost.SizeChanged += OnWebViewHostSizeChanged;
     }
 }

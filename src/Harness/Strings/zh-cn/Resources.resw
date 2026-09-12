@@ -275,6 +275,9 @@
   <data name="SettingsBackendOpenClaw" xml:space="preserve">
     <value>OpenClaw Gateway</value>
   </data>
+  <data name="SettingsBackendDeepSeek" xml:space="preserve">
+    <value>DeepSeek Harness</value>
+  </data>
   <data name="SettingsBackendGeneric" xml:space="preserve">
     <value>通用 Control UI</value>
   </data>
@@ -730,5 +733,14 @@
   </data>
   <data name="SettingsForwardPageNotificationsDescription" xml:space="preserve">
     <value>把托管界面发出的网页通知转交给 Windows，而不是直接丢弃。</value>
+  </data>
+  <data name="ErrorPageTitle" xml:space="preserve">
+    <value>连接失败</value>
+  </data>
+  <data name="ErrorPageDescription" xml:space="preserve">
+    <value>无法连接到网关。请重试，或在设置中检查当前环境的地址。</value>
+  </data>
+  <data name="ErrorPageGateway" xml:space="preserve">
+    <value>网关</value>
   </data>
 </root>

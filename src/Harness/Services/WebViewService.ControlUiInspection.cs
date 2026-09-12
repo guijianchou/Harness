@@ -77,7 +77,10 @@ public partial class WebViewService
                 SetState(ConnectionState.Error);
                 break;
             case ControlUiPhase.Unavailable:
-                SetState(ConnectionState.Reconnecting);
+                if (_errorPageToken is null)
+                {
+                    SetState(ConnectionState.Reconnecting);
+                }
                 break;
             case ControlUiPhase.Unknown:
             default:

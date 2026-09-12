@@ -7,25 +7,44 @@ namespace Harness.ViewModels;
 
 public partial class MainViewModel
 {
+    private bool _isReloadingEnvironments;
+
     private void LoadEnvironments()
     {
-        Environments.Clear();
-
-        foreach (var environment in _runtime.Configuration.Settings.Environments)
+        _isReloadingEnvironments = true;
+        try
         {
-            Environments.Add(environment);
-        }
+            Environments.Clear();
+            foreach (var environment in _runtime.Configuration.Settings.Environments)
+            {
+                Environments.Add(environment);
+            }
 
-        UpdateEnvironmentSelection(_runtime.Configuration.GetSelectedEnvironment(), persistSelection: false);
+            UpdateEnvironmentSelection(_runtime.Configuration.GetSelectedEnvironment(), persistSelection: false);
+        }
+        finally
+        {
+            _isReloadingEnvironments = false;
+        }
     }
 
     private void UpdateEnvironmentSelection(EnvironmentConfig? environment, bool persistSelection)
     {
+        var sameSession = environment is not null && _selectedEnvironment is not null &&
+            string.Equals(environment.Name, _selectedEnvironment.Name, StringComparison.Ordinal) &&
+            string.Equals(environment.GatewayUrl, _selectedEnvironment.GatewayUrl, StringComparison.Ordinal) &&
+            environment.Backend == _selectedEnvironment.Backend;
+        var backendChanged = environment?.Backend != _selectedEnvironment?.Backend;
         _selectedEnvironment = environment;
         OnPropertyChanged(nameof(SelectedEnvironment));
         OnPropertyChanged(nameof(CurrentUrl));
         OnPropertyChanged(nameof(SelectedEnvironmentName));
         OnPropertyChanged(nameof(IsPlaceholderEnvironment));
+
+        if (sameSession)
+        {
+            return;
+        }
 
         if (environment is null)
         {
@@ -72,7 +91,7 @@ public partial class MainViewModel
             return;
         }
 
-        if (_webViewService.IsUsingEnvironmentProfile(environment.Name))
+        if (!backendChanged && _webViewService.IsUsingEnvironmentProfile(environment.Name))
         {
             _webViewService.Navigate(environment.GatewayUrl);
         }

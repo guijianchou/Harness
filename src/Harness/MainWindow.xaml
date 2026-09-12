@@ -13,33 +13,85 @@
 
     <UserControl x:Name="RootLayout"
                  Background="Transparent">
-        <VisualStateManager.VisualStateGroups>
-            <VisualStateGroup x:Name="ShellModeStates">
-                <VisualState x:Name="FullMode" />
-                <VisualState x:Name="CompactMode">
-                    <VisualState.Setters>
-                        <Setter Target="CommandBarSurface.Padding" Value="{StaticResource CompactTopBarPadding}" />
-                        <Setter Target="EnvironmentSummaryGroup.Visibility" Value="Collapsed" />
-                        <Setter Target="LatencyBadge.Visibility" Value="Collapsed" />
-                        <Setter Target="LoadingRing.Visibility" Value="Collapsed" />
-                        <Setter Target="TopStatusPill.MinWidth" Value="{StaticResource CompactTopStatusPillMinWidth}" />
-                        <Setter Target="TopStatusPill.Margin" Value="{StaticResource CompactTopStatusPillMargin}" />
-                        <Setter Target="TopStatusPill.Padding" Value="{StaticResource CompactTopStatusPillPadding}" />
-                        <Setter Target="TopStatusContent.ColumnSpacing" Value="{StaticResource CompactTopStatusPillColumnSpacing}" />
-                        <Setter Target="HeartbeatSummarySegment.Visibility" Value="Collapsed" />
-                        <Setter Target="HeartbeatIndicatorSegment.Visibility" Value="Collapsed" />
-                        <Setter Target="ModelStatusSegment.MinWidth" Value="{StaticResource CompactTopStatusModelSegmentMinWidth}" />
-                        <Setter Target="ModelStatusSegment.Margin" Value="{StaticResource CompactTopStatusModelSegmentMargin}" />
-                        <Setter Target="AccessStatusSegment.Visibility" Value="Collapsed" />
-                        <Setter Target="RunIndicatorSegment.Visibility" Value="Collapsed" />
-                        <Setter Target="ThemeSwitcherContainer.Visibility" Value="Collapsed" />
-                        <Setter Target="AboutButton.Visibility" Value="Collapsed" />
-                    </VisualState.Setters>
-                </VisualState>
-            </VisualStateGroup>
-        </VisualStateManager.VisualStateGroups>
-
         <Grid x:Name="ShellLayout">
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="ShellModeStates">
+                    <VisualState x:Name="FullMode" />
+                    <VisualState x:Name="MediumMode">
+                        <VisualState.Setters>
+                            <Setter Target="UrlDisplay.Visibility" Value="Collapsed" />
+                            <Setter Target="HeartbeatIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="RunIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="TopStatusPill.MinWidth" Value="0" />
+                            <Setter Target="TopStatusPill.Margin" Value="8,0" />
+                            <Setter Target="TopStatusContent.ColumnSpacing" Value="8" />
+                            <Setter Target="ModelStatusSegment.MinWidth" Value="128" />
+                            <Setter Target="AccessStatusSegment.Margin" Value="8,0,0,0" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="NarrowMode">
+                        <VisualState.Setters>
+                            <Setter Target="UrlDisplay.Visibility" Value="Collapsed" />
+                            <Setter Target="LatencyBadge.Visibility" Value="Collapsed" />
+                            <Setter Target="TopStatusPill.MinWidth" Value="0" />
+                            <Setter Target="TopStatusPill.Margin" Value="8,0" />
+                            <Setter Target="TopStatusPill.Padding" Value="{StaticResource CompactTopStatusPillPadding}" />
+                            <Setter Target="TopStatusContent.ColumnSpacing" Value="{StaticResource CompactTopStatusPillColumnSpacing}" />
+                            <Setter Target="HeartbeatSummarySegment.Visibility" Value="Collapsed" />
+                            <Setter Target="HeartbeatIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="ModelStatusSegment.MinWidth" Value="0" />
+                            <Setter Target="AccessStatusSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="RunIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="ThemeSwitcherContainer.Visibility" Value="Collapsed" />
+                            <Setter Target="AboutButton.Visibility" Value="Collapsed" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="SmallMode">
+                        <VisualState.Setters>
+                            <Setter Target="EnvironmentSummaryGroup.(Grid.ColumnSpan)" Value="4" />
+                            <Setter Target="EnvironmentSummaryGroup.Margin" Value="0,0,0,8" />
+                            <Setter Target="TopStatusPill.(Grid.Row)" Value="1" />
+                            <Setter Target="TopStatusPill.(Grid.Column)" Value="0" />
+                            <Setter Target="TopStatusPill.(Grid.ColumnSpan)" Value="3" />
+                            <Setter Target="TitleBarActions.(Grid.Row)" Value="1" />
+                            <Setter Target="UrlDisplay.Visibility" Value="Collapsed" />
+                            <Setter Target="LatencyBadge.Visibility" Value="Collapsed" />
+                            <Setter Target="TopStatusPill.MinWidth" Value="0" />
+                            <Setter Target="TopStatusPill.Margin" Value="0,0,8,0" />
+                            <Setter Target="TopStatusPill.Padding" Value="{StaticResource CompactTopStatusPillPadding}" />
+                            <Setter Target="TopStatusContent.ColumnSpacing" Value="0" />
+                            <Setter Target="HeartbeatSummarySegment.Visibility" Value="Collapsed" />
+                            <Setter Target="HeartbeatIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="ModelStatusSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="AccessStatusSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="RunIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="ThemeSwitcherContainer.Visibility" Value="Collapsed" />
+                            <Setter Target="AboutButton.Visibility" Value="Collapsed" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="CompactMode">
+                        <VisualState.Setters>
+                            <Setter Target="CommandBarSurface.Padding" Value="{StaticResource CompactTopBarPadding}" />
+                            <Setter Target="EnvironmentSummaryGroup.Visibility" Value="Collapsed" />
+                            <Setter Target="LatencyBadge.Visibility" Value="Collapsed" />
+                            <Setter Target="LoadingRing.Visibility" Value="Collapsed" />
+                            <Setter Target="TopStatusPill.MinWidth" Value="{StaticResource CompactTopStatusPillMinWidth}" />
+                            <Setter Target="TopStatusPill.Margin" Value="{StaticResource CompactTopStatusPillMargin}" />
+                            <Setter Target="TopStatusPill.Padding" Value="{StaticResource CompactTopStatusPillPadding}" />
+                            <Setter Target="TopStatusContent.ColumnSpacing" Value="{StaticResource CompactTopStatusPillColumnSpacing}" />
+                            <Setter Target="HeartbeatSummarySegment.Visibility" Value="Collapsed" />
+                            <Setter Target="HeartbeatIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="ModelStatusSegment.MinWidth" Value="{StaticResource CompactTopStatusModelSegmentMinWidth}" />
+                            <Setter Target="ModelStatusSegment.Margin" Value="{StaticResource CompactTopStatusModelSegmentMargin}" />
+                            <Setter Target="AccessStatusSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="RunIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="ThemeSwitcherContainer.Visibility" Value="Collapsed" />
+                            <Setter Target="AboutButton.Visibility" Value="Collapsed" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+
             <Grid.RowDefinitions>
                 <RowDefinition Height="37" />
                 <RowDefinition Height="Auto" />
@@ -90,6 +142,10 @@
               Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
               BorderThickness="0,0,0,1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -103,6 +159,7 @@
                         Spacing="8">
                 <ComboBox x:Name="EnvironmentSelector"
                           MinWidth="160"
+                          MaxWidth="200"
                           ItemsSource="{x:Bind ViewModel.Environments}"
                           SelectedItem="{x:Bind ViewModel.SelectedEnvironment, Mode=TwoWay}"
                           DisplayMemberPath="Name"
@@ -111,7 +168,7 @@
 
                 <TextBlock x:Name="UrlDisplay"
                            Margin="8,0,0,0"
-                           MaxWidth="400"
+                           MaxWidth="240"
                            VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            IsTextSelectionEnabled="True"
@@ -395,26 +452,32 @@
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
               BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0"
-                        Orientation="Horizontal"
-                        Spacing="6">
+            <Grid Grid.Column="0" ColumnSpacing="6" Margin="0,0,12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
                 <Ellipse x:Name="StatusDot"
                          Width="8"
                          Height="8"
                          VerticalAlignment="Center"
                          Fill="{x:Bind ViewModel.StatusIndicatorBrush, Mode=OneWay}" />
                 <TextBlock x:Name="StatusText"
+                            Grid.Column="1"
                             VerticalAlignment="Center"
+                            TextTrimming="CharacterEllipsis"
                             Style="{StaticResource StatusBarTextBlockStyle}"
                             Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
-            </StackPanel>
+            </Grid>
 
             <TextBlock Grid.Column="2"
+                        MaxWidth="160"
+                        TextTrimming="CharacterEllipsis"
                         VerticalAlignment="Center"
                         Style="{StaticResource StatusBarTextBlockStyle}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"

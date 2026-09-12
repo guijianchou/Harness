@@ -62,8 +62,8 @@ public partial class WebViewService
 
             _coreWebView = coreWebView;
 
-            // Make WebView2 follow system Light/Dark theme preferred scheme
-            coreWebView.Profile.PreferredColorScheme = CoreWebView2PreferredColorScheme.Auto;
+            ApplyWebViewColorScheme();
+            webView.ActualThemeChanged += OnWebViewActualThemeChanged;
 
             // Set default background to transparent (blends with Mica)
             webView.DefaultBackgroundColor = Microsoft.UI.Colors.Transparent;
@@ -118,6 +118,12 @@ public partial class WebViewService
 
     private void DetachCurrentWebView()
     {
+        ClearErrorPageOwnership();
+        if (_webView is not null)
+        {
+            _webView.ActualThemeChanged -= OnWebViewActualThemeChanged;
+        }
+
         CancelStatusProbeLoop();
         StopHeartbeat();
         CancelNavigationStartWatchdog();

@@ -119,6 +119,11 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
     public event Action? NavigationTimeoutRecovered;
 
     /// <summary>
+    /// Raised when user requests to open Settings from the error page.
+    /// </summary>
+    public event Action? ErrorPageSettingsRequested;
+
+    /// <summary>
     /// Gets the current connection state.
     /// </summary>
     public ConnectionState CurrentState { get; private set; } = ConnectionState.Offline;
@@ -175,6 +180,11 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
     /// </summary>
     public bool Reload()
     {
+        if (_errorPageToken is not null)
+        {
+            return RetryNavigation();
+        }
+
         var coreWebView = GetCoreWebView();
         if (!_isInitialized || coreWebView is null)
         {
@@ -213,6 +223,8 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
             return false;
         }
 
+        var errorPageToken = _errorPageToken;
+        var errorPageNavigationId = _errorPageNavigationId;
         _retryCount = 0; // manual retry resets counter
         _logger.Info($"Manual retry navigation to: {_lastNavigatedUrl}");
         var navigationGeneration = PrepareNavigationStart();
@@ -228,6 +240,8 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
         CancelNavigationCancellation();
         SetState(ConnectionState.Error);
         NavigationErrorOccurred?.Invoke("Retry failed before WebView2 was ready.");
+        _errorPageToken = errorPageToken;
+        _errorPageNavigationId = errorPageNavigationId;
         return false;
     }
 

@@ -8,6 +8,28 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 
 ## English
 
+### v5.3.6 (2026-09-07)
+
+- Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.6`.
+- Blocked saves after failed configuration reads, committed Settings drafts only after successful writes, and protected multiple instances with field merging and conflict detection under an exclusive file lock.
+- Added owned asynchronous WebView2 command replies and corrected activity sampling to observe the latest messages before escalating recovery.
+- Redacted credentials, URLs, and activity text during logging and diagnostic export, including legacy JSON log entries.
+- Corrected error-page retry and diagnostic data, preserved failure state while showing the local page, and validated error-page actions against their source and per-page token.
+- Simplified the localized error page, followed the app theme, added responsive shell layouts, and preserved active sessions when environment metadata changes.
+- Added configuration, diagnostic, and bridge regression coverage and updated repository verification for the current contracts.
+
+### v5.3.5 (2026-09-02)
+
+- Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.5`.
+- Added a custom Claude-styled error page that replaces Edge's default error page when the gateway is unreachable. The page features a warm brown palette (#231F1D background, #D97706 amber accents), labeled card sections, feature highlights (Multi-Environment, Auto-Reconnect, Native Integration), and interactive buttons to retry connection or open settings.
+- Created `WebViewService.ErrorPage.cs` partial with `GetErrorPageHtml()` (loads from embedded resource with caching), `GetFallbackErrorPageHtml()` (inline minified HTML matching the Claude theme), `NavigateToErrorPage(targetUrl, errorStatus)` (injects parameters and navigates), and `EscapeJavaScriptString()` (security helper for parameter injection).
+- Added `Assets/ErrorPages/connection-error.html` as an embedded resource with the full error page design: Claude brown gradient background, pulsing amber status dot with "WAITING" label, info grid showing Gateway URL and error status, three feature cards with icons, primary amber gradient button and secondary card-background button, and responsive design with fluid typography.
+- Updated `WebViewService.Navigation.cs` to call `NavigateToErrorPage()` on connection errors (ConnectionAborted, Timeout, ServerUnreachable, etc.) and auto-retry failures.
+- Added error page action handling in `WebViewService.HostMessages.cs` to process `harness-error-page-action` WebMessages: `retry` action calls `Reload()`, `settings` action invokes `ErrorPageSettingsRequested` event.
+- Added `ErrorPageSettingsRequested` event to `WebViewService.cs` and wired it through `MainViewModel.Lifecycle.cs` to `OpenSettingsRequested` so the error page's "Configure Gateway" button opens the Settings dialog.
+- Added `connection-error.html` to embedded resources in `Harness.csproj` with logical name `Harness.Assets.ErrorPages.connection-error.html`.
+- Created `FEATURE_ERROR_PAGE.md` documenting the error page feature's design goals, implementation details, user interaction patterns, testing points, and future enhancements.
+
 ### v5.3.4 (2026-09-01)
 
 - Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.4`.
@@ -359,6 +381,28 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 ---
 
 ## 简体中文
+
+### v5.3.6 (2026-09-07)
+
+- 将 app、assembly、file、package manifest、application manifest、README、中文 README 和 changelog 元数据同步到 `5.3.6`。
+- 配置读取失败后禁止写回默认值，设置草稿仅在写盘成功后提交；多实例通过独占文件锁、字段合并及冲突检测保护配置。
+- WebView2 命令等待带归属校验的异步回执；活动检测改为观察最新消息，避免错误升级恢复。
+- 日志写入与诊断导出统一脱敏凭据、URL 和活动文本，并处理历史 JSON 日志。
+- 修正错误页重试和诊断信息，展示本地页面时保留失败状态，并校验操作消息的来源与页面令牌。
+- 简化错误页并接入语言和主题，顶部工具栏支持窄窗布局；环境元数据修改保留当前会话。
+- 补充配置、诊断和桥接回归测试，更新仓库校验规则。
+
+### v5.3.5 (2026-09-02)
+
+- 将 app、assembly、file、package manifest、application manifest、README、中文 README 和 changelog 元数据同步到 `5.3.5`。
+- 增加 Claude 风格自定义错误页面，在网关不可达时替代 Edge 默认错误页。页面采用暖棕色调（#231F1D 背景、#D97706 琥珀强调色）、标签卡片分块、功能亮点（多环境、自动重连、原生集成）和交互按钮（重试连接、打开设置）。
+- 创建 `WebViewService.ErrorPage.cs` partial，包含 `GetErrorPageHtml()`（从嵌入式资源加载并缓存）、`GetFallbackErrorPageHtml()`（内联精简 HTML，匹配 Claude 主题）、`NavigateToErrorPage(targetUrl, errorStatus)`（注入参数并导航）和 `EscapeJavaScriptString()`（参数注入的安全辅助函数）。
+- 增加 `Assets/ErrorPages/connection-error.html` 作为嵌入式资源，完整错误页面设计：Claude 棕色渐变背景、带"WAITING"标签的琥珀色脉动状态点、显示网关 URL 和错误状态的信息网格、三张带图标的功能卡片、琥珀渐变主按钮和卡片背景次按钮，以及带流体字体的响应式设计。
+- 更新 `WebViewService.Navigation.cs`，在连接错误（ConnectionAborted、Timeout、ServerUnreachable 等）和自动重试失败时调用 `NavigateToErrorPage()`。
+- 在 `WebViewService.HostMessages.cs` 中增加错误页面操作处理，处理 `harness-error-page-action` WebMessages：`retry` 操作调用 `Reload()`，`settings` 操作触发 `ErrorPageSettingsRequested` 事件。
+- 在 `WebViewService.cs` 中增加 `ErrorPageSettingsRequested` 事件，并通过 `MainViewModel.Lifecycle.cs` 连接到 `OpenSettingsRequested`，使错误页面的"配置网关"按钮能够打开设置对话框。
+- 在 `Harness.csproj` 中将 `connection-error.html` 添加到嵌入式资源，逻辑名称为 `Harness.Assets.ErrorPages.connection-error.html`。
+- 创建 `FEATURE_ERROR_PAGE.md`，记录错误页面功能的设计目标、实现细节、用户交互模式、测试要点和未来增强方向。
 
 ### v5.3.4 (2026-09-01)
 

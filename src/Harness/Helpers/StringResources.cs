@@ -140,6 +140,7 @@ public static class StringResources
     public static string SettingsBackendHint => Get("SettingsBackendHint");
     public static string SettingsBackendAuto => Get("SettingsBackendAuto");
     public static string SettingsBackendOpenClaw => Get("SettingsBackendOpenClaw");
+    public static string SettingsBackendDeepSeek => Get("SettingsBackendDeepSeek");
     public static string SettingsBackendGeneric => Get("SettingsBackendGeneric");
     public static string SettingsControlUiUrlPlaceholder => Get("SettingsControlUiUrlPlaceholder");
     public static string SettingsControlUiUrlHint1 => Get("SettingsControlUiUrlHint1");

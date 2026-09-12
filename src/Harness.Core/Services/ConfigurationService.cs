@@ -1,6 +1,7 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Harness.Helpers;
 using Harness.Models;
 
@@ -10,7 +11,7 @@ namespace Harness.Services;
 /// Manages application settings persistence using JSON file storage.
 /// Settings are stored in %LOCALAPPDATA%\Harness\settings.json.
 /// </summary>
-public class ConfigurationService
+public partial class ConfigurationService
 {
     private static readonly string DefaultAppDataFolder =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Harness");
@@ -29,6 +30,9 @@ public class ConfigurationService
     private int _saveVersion;
     private int _deferredSaveRequests;
     private int _deferredSaveCoalescedRequests;
+    private JsonObject _settingsBaseline = new();
+    private bool _settingsReadFailed;
+    private string? _backedUpCorruptJson;
 
     public ConfigurationService()
         : this(DefaultAppDataFolder, NullAppLogger.Instance)
@@ -84,31 +88,30 @@ public class ConfigurationService
         lock (_lock)
         {
             string? json = null;
-            var fileExists = false;
-
             try
             {
-                if (File.Exists(_settingsFilePath))
-                {
-                    fileExists = true;
-                    json = File.ReadAllText(_settingsFilePath);
-                }
+                json = ReadSettingsFile();
             }
             catch (Exception ex)
             {
                 _logger.Error($"Failed to read settings file; using in-memory defaults without overwriting it: {ex.Message}");
                 Settings = CreateDefaultSettings();
                 NormalizeSettings(Settings);
+                _settingsReadFailed = true;
                 return;
             }
 
-            if (fileExists)
+            _settingsReadFailed = false;
+            _settingsBaseline = new JsonObject();
+            _backedUpCorruptJson = null;
+            if (json is not null)
             {
                 try
                 {
                     var settings = JsonSerializer.Deserialize(json!, AppSettingsJsonContext.Default.AppSettings);
                     if (settings is not null)
                     {
+                        _settingsBaseline = JsonNode.Parse(json!)!.AsObject();
                         var settingsChanged = NormalizeSettings(settings, json);
                         Settings = settings;
                         if (settingsChanged)
@@ -126,7 +129,7 @@ public class ConfigurationService
                     _logger.Error($"Settings file is corrupt: {ex.Message}");
                 }
 
-                BackUpCorruptSettingsFile();
+                _settingsReadFailed = !BackUpCorruptSettingsFile(json);
             }
 
             Settings = CreateDefaultSettings();
@@ -153,33 +156,61 @@ public class ConfigurationService
         };
     }
 
-    private void BackUpCorruptSettingsFile()
+    private bool BackUpCorruptSettingsFile(string json)
     {
         try
         {
-            var backupPath = $"{_settingsFilePath}.corrupt-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}";
-            File.Copy(_settingsFilePath, backupPath, overwrite: true);
+            var backupPath = $"{_settingsFilePath}.corrupt-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}";
+            File.WriteAllText(backupPath, json);
+            _backedUpCorruptJson = json;
             _logger.Warning($"Backed up corrupt settings file to '{backupPath}'.");
+            return true;
         }
         catch (Exception ex)
         {
             _logger.Warning($"Failed to back up corrupt settings file: {ex.Message}");
+            return false;
         }
     }
 
     /// <summary>
     /// Saves current settings to disk.
     /// </summary>
-    public SettingsWriteResult Save()
+    public SettingsWriteResult Save(AppSettings? updatedSettings = null)
     {
         lock (_lock)
         {
             try
             {
-                NormalizeSettings(Settings);
+                if (_settingsReadFailed)
+                {
+                    return SettingsWriteResult.Failure("Settings could not be read. Restart Harness after restoring access before saving.");
+                }
+
+                var settings = CloneSettings(updatedSettings ?? Settings);
+                NormalizeSettings(settings);
                 Directory.CreateDirectory(_appDataFolder);
-                var json = JsonSerializer.Serialize(Settings, AppSettingsJsonContext.Default.AppSettings);
-                _writeAllText(_settingsFilePath, json);
+                // Serialize the read/merge/replace transaction across app instances.
+                using var fileLock = new FileStream($"{_settingsFilePath}.lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+                var currentJson = ReadSettingsFile();
+                var current = currentJson is null
+                    ? (JsonObject)_settingsBaseline.DeepClone()
+                    : currentJson == _backedUpCorruptJson
+                        ? new JsonObject()
+                        : JsonNode.Parse(currentJson)!.AsObject();
+                var desired = JsonSerializer.SerializeToNode(settings, AppSettingsJsonContext.Default.AppSettings)!.AsObject();
+                var merged = MergeSettings(_settingsBaseline, desired, current);
+                _writeAllText(_settingsFilePath, merged.ToJsonString(AppSettingsJsonContext.Default.Options));
+                _settingsBaseline = desired;
+                _backedUpCorruptJson = null;
+                if (updatedSettings is not null)
+                {
+                    Settings = settings;
+                }
+                else
+                {
+                    NormalizeSettings(Settings);
+                }
                 return SettingsWriteResult.Success();
             }
             catch (Exception ex)

@@ -15,7 +15,7 @@ public partial class MainViewModel
     private const int RunIndicatorCount = 12;
     private const int LatencyHistoryCapacity = 60;
     private const string DefaultHeartbeatSummary = "HB --";
-    private const string DefaultModelSummary = "--";
+    private const string DefaultModelSummary = "N/A";
     private const string DefaultAccessSummary = "AUTH --";
     private const string DefaultLatencySummary = "-- ms";
     private const string DefaultWorkStatus = "WAIT";

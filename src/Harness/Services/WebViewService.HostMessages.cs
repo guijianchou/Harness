@@ -24,6 +24,30 @@ public partial class WebViewService
             var message = args.WebMessageAsJson;
             using var document = System.Text.Json.JsonDocument.Parse(message);
             var root = document.RootElement;
+
+            // Handle error page actions
+            if (root.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                root.TryGetProperty("type", out var typeElement) &&
+                typeElement.ValueKind == System.Text.Json.JsonValueKind.String &&
+                typeElement.GetString() == "harness-error-page-action" &&
+                IsCurrentErrorPageAction(args, root) &&
+                root.TryGetProperty("action", out var actionElement) &&
+                actionElement.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                var action = actionElement.GetString();
+                if (action == "retry")
+                {
+                    _logger.Info("error-page.retry-requested");
+                    RetryNavigation();
+                }
+                else if (action == "settings")
+                {
+                    _logger.Info("error-page.settings-requested");
+                    ErrorPageSettingsRequested?.Invoke();
+                }
+                return;
+            }
+
             if (!_messageOwnership.TryCaptureCurrentVersion(args, root, out var pageVersion))
             {
                 return;

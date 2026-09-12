@@ -138,6 +138,7 @@ public sealed partial class MainWindow
         _windowLifetimeCts.Cancel();
         AppWindow.Closing -= OnAppWindowClosing;
         WebViewHost.SizeChanged -= OnWebViewHostSizeChanged;
+        RootLayout.SizeChanged -= OnRootSizeChanged;
         _runIndicatorTimer.Stop();
         _runIndicatorTimer.Tick -= OnRunIndicatorTick;
         _webViewRecreationTimer.Stop();
@@ -219,6 +220,7 @@ public sealed partial class MainWindow
         }
 
         ApplyTheme(App.Configuration.Settings.AppTheme);
+        ApplyCompactTopBarState(_isCompactMode);
         if (!_hasInitializedWebViewHost)
         {
             _hasInitializedWebViewHost = true;

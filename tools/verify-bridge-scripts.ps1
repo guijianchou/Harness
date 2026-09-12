@@ -137,6 +137,9 @@ $runner = @(
     Get-Content -LiteralPath $commandDispatchPath -Raw
 ) -join "`n"
 
+$asyncExecutionLiteral = Get-Content -LiteralPath (Join-Path $servicesRoot 'WebViewCommands.ExecuteAsync.js') -Raw | ConvertTo-Json -Compress
+$runner += "`nconst asyncExecutionTemplate = $asyncExecutionLiteral;`n"
+
 $runner += @'
 
 let failed = 0;
@@ -221,6 +224,73 @@ const modelDomReader = openClawModelDomFallback.createReader({
 assertEqual('MODEL DOM fallback sanitizes control labels',
   modelDomReader.sanitizeModelLabel('Current model: openai/gpt-5.5'),
   'openai/gpt-5.5');
+assertEqual('MODEL DOM fallback collapses duplicated model labels',
+  modelDomReader.sanitizeModelLabel('MODEL: glm-5.2-glm-5.2'),
+  'glm-5.2');
+assertEqual('MODEL DOM fallback preserves provider while collapsing duplicate',
+  modelDomReader.sanitizeModelLabel('MODEL: openclaw/glm-5.2-glm-5.2'),
+  'openclaw/glm-5.2');
+
+const makeVisibleElement = ({ text = '', ariaLabel = '', title = '', child = null } = {}) => ({
+  innerText: text,
+  textContent: text,
+  getAttribute: (name) => name === 'aria-label' ? ariaLabel : name === 'title' ? title : null,
+  getBoundingClientRect: () => ({ width: 100, height: 20, top: 40 }),
+  querySelector: () => child
+});
+globalThis.HTMLSelectElement = class HTMLSelectElement {};
+const runModelDomFixture = (kind) => {
+  const modelLabel = makeVisibleElement({
+    text: kind === 'openclaw' ? 'glm-5.2' : 'DeepSeek-V4-Flash'
+  });
+  const effortLabel = makeVisibleElement({ text: 'High' });
+  const modelButton = makeVisibleElement({
+    ariaLabel: 'Select model, current DeepSeek-V4-Flash, reasoning effort High',
+    title: 'DeepSeek-V4-Flash · High',
+    child: modelLabel
+  });
+  globalThis.window = { getComputedStyle: () => ({ display: 'block', visibility: 'visible' }) };
+  globalThis.document = {
+    querySelector: () => null,
+    querySelectorAll: (selector) => {
+      if (kind === 'openclaw' && selector === 'summary[data-model-select="true"] .chat-controls__inline-select-label, .chat-controls__model-picker .chat-controls__inline-select-label') {
+        return [modelLabel];
+      }
+      if (kind === 'openclaw' && selector === '.chat-controls__inline-select-label') {
+        return [modelLabel, effortLabel];
+      }
+      if (kind === 'deepseek' && selector === 'button[aria-label], [role="button"][aria-label]') {
+        return [modelButton, makeVisibleElement({ ariaLabel: 'Settings' })];
+      }
+      if (kind === 'deepseek' && selector === 'button[aria-label*="reasoning effort"], button[aria-label*="Reasoning effort"]') {
+        return [modelButton];
+      }
+      return [];
+    }
+  };
+
+  const reader = openClawModelDomFallback.createReader({
+    dom: openClawDomUtilities,
+    mutationFilter: fakeMutationFilter,
+    modelResolver: openClawModelResolver,
+    profile: {}
+  });
+  return { model: reader.readCurrentModel(), effort: reader.readCurrentEffort() };
+};
+const openClawFixture = runModelDomFixture('openclaw');
+assertEqual('MODEL DOM fixture reads OpenClaw model instead of effort',
+  openClawFixture.model.value,
+  'glm-5.2');
+assertEqual('MODEL DOM fixture identifies OpenClaw model source',
+  openClawFixture.model.source,
+  'dom:openclaw-model-label');
+const deepSeekFixture = runModelDomFixture('deepseek');
+assertEqual('MODEL DOM fixture reads DeepSeek model instead of Settings',
+  deepSeekFixture.model.value,
+  'DeepSeek-V4-Flash');
+assertEqual('MODEL DOM fixture reads DeepSeek effort separately',
+  deepSeekFixture.effort.value,
+  'High');
 
 globalThis.window = {};
 globalThis.document = { querySelector: () => null, querySelectorAll: () => [] };
@@ -231,6 +301,31 @@ const activityTracker = openClawActivityState.createActivityTracker({
 const idleSnapshot = activityTracker.applyBusyStaleness({ phase: 'connected', workState: 'idle', isBusy: false });
 assertTrue('activity state marks idle snapshot non-stale',
   idleSnapshot.isBusyStale === false && idleSnapshot.busyStaleSeconds === 0);
+
+const realDateNow = Date.now;
+let activityNow = 1000;
+Date.now = () => activityNow;
+const conversation = Array.from({ length: 5 }, (_, index) => ({ id: `message-${index}`, text: `text-${index}` }));
+globalThis.document = { querySelectorAll: () => conversation };
+const genericActivity = openClawActivityState.createActivityTracker({
+  dom: { isVisible: () => true, textOf: (element) => element.text, compactText: (text) => String(text || '') },
+  mutationFilter: fakeMutationFilter,
+  profile: {}
+});
+const inspectActivity = () => genericActivity.applyBusyStaleness({
+  phase: 'connected', workState: 'busy', isBusy: true,
+  activitySignature: genericActivity.collectDomActivitySignature()
+});
+inspectActivity();
+activityNow += 31000;
+conversation[4].text = 'newest';
+assertTrue('generic activity observes output after the fourth message', inspectActivity().isBusyStale === false);
+activityNow += 31000;
+conversation[4].text = 'update';
+assertTrue('generic activity observes same-length streaming edits', inspectActivity().isBusyStale === false);
+activityNow += 31000;
+assertTrue('generic activity still identifies a stalled stream', inspectActivity().isBusyStale === true);
+Date.now = realDateNow;
 
 const phaseStrings = {
   bridgeGatewayUiLoaded: 'loaded',
@@ -302,7 +397,8 @@ const statusInspector = openClawStatusInspection.createInspector({
   strings: phaseStrings,
   mutationFilter: fakeMutationFilter,
   modelResolver: openClawModelResolver,
-  statusKind: 'harness-control-ui-status'
+  statusKind: 'harness-control-ui-status',
+  backendProfile: { appStateElement: 'openclaw-app', commandGlobals: ['__openclaw', '__OPENCLAW__', '__APP__', 'app'] }
 });
 const statusSnapshot = statusInspector.inspectControlUi();
 assertTrue('status inspection composes split bridge modules',
@@ -470,6 +566,23 @@ const genericHandler = openClawCommandDispatch.createCommandHandler({
 const genericHandled = await genericHandler({ command: 'refresh_session', payload: {} });
 assertTrue('generic backend dispatches no host-command events and reports unhandled',
   genericHandled === false && genericDispatched.length === 0);
+
+const replies = [];
+globalThis.window = { chrome: { webview: { postMessage: (message) => replies.push(message) } } };
+const executeOwned = async (expression, commandId) => {
+  const script = asyncExecutionTemplate
+    .replace('__HARNESS_COMMAND_MESSAGE_JSON__', JSON.stringify({ kind: 'harness-command-result', commandId, nativeOwnerToken: 'owner', nativePageToken: 'page' }))
+    .replace('__HARNESS_COMMAND_EXPRESSION__', expression);
+  const accepted = eval(script);
+  await new Promise((resolve) => setImmediate(resolve));
+  return accepted;
+};
+assertTrue('async command injection returns synchronously', await executeOwned('Promise.resolve(true)', 'success') === true);
+await executeOwned('Promise.resolve(false)', 'unhandled');
+await executeOwned('Promise.reject(new Error("synthetic failure"))', 'rejected');
+assertTrue('async command replies carry settled results and ownership',
+  replies.length === 3 && replies[0].handled === true && replies[1].handled === false && replies[2].handled === false &&
+  replies.every((reply) => reply.nativeOwnerToken === 'owner' && reply.nativePageToken === 'page'));
 
 process.exit(failed === 0 ? 0 : 1);
 '@

@@ -110,6 +110,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     [
         StringResources.SettingsBackendAuto,
         StringResources.SettingsBackendOpenClaw,
+        StringResources.SettingsBackendDeepSeek,
         StringResources.SettingsBackendGeneric,
     ];
 
@@ -399,7 +400,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             return false;
         }
 
-        var settings = _settingsPersistence.Current;
+        var settings = _settingsPersistence.CreateDraft();
         var didChangeEnvironmentState = DidChangeEnvironmentState || HasEnvironmentMetadataChanges();
         var didChangeSessionTopology = DidChangeSessionTopology || HasEnvironmentSessionIdentityChanges();
         var beforeLanguage = settings.AppLanguage ?? "System";
@@ -414,18 +415,18 @@ public class SettingsViewModel : INotifyPropertyChanged
 
         ApplyChangedShellSettings(settings);
 
-        if (didChangeEnvironmentState)
-        {
-            SyncRenamedEnvironmentProfiles();
-        }
-
-        var saveResult = _settingsPersistence.Save();
+        var saveResult = _settingsPersistence.Save(settings);
         if (!saveResult.Succeeded)
         {
             ValidationMessage = string.Format(
                 StringResources.SettingsValidationSaveFailedFormat,
                 saveResult.ErrorMessage ?? StringResources.SettingsValidationSaveFailedUnknown);
             return false;
+        }
+
+        if (didChangeEnvironmentState)
+        {
+            SyncRenamedEnvironmentProfiles();
         }
 
         ValidationMessage = StringResources.SettingsValidationDefaultMessage;

@@ -30,6 +30,15 @@ public partial class WebViewService
             return;
         }
 
+        if (_errorPageToken is not null &&
+            (_errorPageNavigationId == NoCurrentNavigationId || _errorPageNavigationId == args.NavigationId) &&
+            (string.Equals(args.Uri, "about:blank", StringComparison.OrdinalIgnoreCase) ||
+             args.Uri.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase)))
+        {
+            _errorPageNavigationId = args.NavigationId;
+            return;
+        }
+
         CancelNavigationStartWatchdog();
         var navigationGeneration = PrepareNavigationStart();
         _currentNavigationId = args.NavigationId;
@@ -74,6 +83,14 @@ public partial class WebViewService
     {
         if (!IsCurrentHost(hostGeneration) || _coreWebView is null)
         {
+            return;
+        }
+
+        if (_errorPageToken is not null &&
+            (args.NavigationId == _errorPageNavigationId ||
+             (_errorPageNavigationId == NoCurrentNavigationId && string.Equals(sender.Source, "about:blank", StringComparison.OrdinalIgnoreCase))))
+        {
+            // Loading the local failure UI does not recover the hosted session.
             return;
         }
 
@@ -168,6 +185,7 @@ public partial class WebViewService
                 {
                     SetState(ConnectionState.Error);
                     NavigationErrorOccurred?.Invoke("Auto-retry failed before WebView2 was ready.");
+                    NavigateToErrorPage(_lastNavigatedUrl ?? "Unknown", "Auto-retry failed");
                     return;
                 }
             }
@@ -182,6 +200,7 @@ public partial class WebViewService
                 _ => ConnectionState.Error,
             });
             NavigationErrorOccurred?.Invoke($"Navigation error: {args.WebErrorStatus}");
+            NavigateToErrorPage(_lastNavigatedUrl ?? "Unknown", args.WebErrorStatus.ToString());
         }
     }
 

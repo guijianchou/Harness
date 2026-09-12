@@ -24,8 +24,14 @@ public enum HostedBackendKind
     OpenClaw = 1,
 
     /// <summary>
+    /// DeepSeek Harness Web UI. Uses root latency probe with generic DOM heuristics
+    /// and CJK + English vocabulary matching for status detection.
+    /// </summary>
+    DeepSeek = 2,
+
+    /// <summary>
     /// A hosted Control UI with no Harness-specific integration contract.
     /// Latency probes the site root and the bridge uses generic DOM heuristics only.
     /// </summary>
-    Generic = 2,
+    Generic = 3,
 }

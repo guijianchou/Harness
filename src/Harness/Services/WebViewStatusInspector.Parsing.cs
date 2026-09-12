@@ -59,6 +59,7 @@ internal sealed partial class WebViewStatusInspector
         var workState = GetString(root, "workState");
         var currentModel = GetString(root, "currentModel");
         var currentModelSource = GetString(root, "currentModelSource");
+        var currentEffort = GetString(root, "currentEffort");
         var activitySignature = GetString(root, "activitySignature");
 
         return new ControlUiProbeSnapshot(phase, summary, detail, url, shellDetected, isBusy, inputFocused, workState, currentModel)
@@ -68,6 +69,7 @@ internal sealed partial class WebViewStatusInspector
             BusyStaleSeconds = busyStaleSeconds,
             ActivitySignature = activitySignature,
             ModelSource = currentModelSource,
+            CurrentEffort = currentEffort,
         };
     }
 

@@ -30,7 +30,7 @@ internal sealed class StatusPresenter
             HeartbeatProbeStatus.Connecting => new StatusPresentation(StringResources.HeartbeatWait, brushes.Warning),
             HeartbeatProbeStatus.SessionBlocked => new StatusPresentation(StringResources.HeartbeatBlocked, brushes.Warning),
             HeartbeatProbeStatus.Failure => new StatusPresentation(StringResources.HeartbeatFailed, brushes.Warning),
-            _ => new StatusPresentation(defaultHeartbeatSummary, brushes.Warning),
+            _ => new StatusPresentation("N/A", brushes.Warning),
         };
     }
 
@@ -54,14 +54,26 @@ internal sealed class StatusPresenter
             return new StatusPresentation("N/A", brushes.Error);
         }
 
-        return new StatusPresentation(defaultLatencySummary, brushes.Neutral);
+        return new StatusPresentation("N/A", brushes.Neutral);
     }
 
-    public string FormatModelSummary(string model, string defaultModelSummary)
+    public string FormatModelSummary(string model, string effort, string defaultModelSummary)
     {
-        return string.IsNullOrWhiteSpace(model)
-            ? defaultModelSummary
-            : model.Trim();
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            return "N/A";
+        }
+
+        var trimmedModel = model.Trim();
+
+        // If effort is available, append it
+        if (!string.IsNullOrWhiteSpace(effort))
+        {
+            var trimmedEffort = effort.Trim();
+            return $"{trimmedModel} ({trimmedEffort})";
+        }
+
+        return trimmedModel;
     }
 
     public StatusPresentation FormatAccessSummary(
@@ -77,7 +89,7 @@ internal sealed class StatusPresenter
             ControlUiPhase.OriginRejected => new StatusPresentation("AUTH ORIGIN", brushes.Warning),
             ControlUiPhase.GatewayConnecting or ControlUiPhase.PageLoaded or ControlUiPhase.Loading =>
                 new StatusPresentation("AUTH WAIT", brushes.Warning),
-            _ => new StatusPresentation(defaultAccessSummary, brushes.Warning),
+            _ => new StatusPresentation("N/A", brushes.Warning),
         };
     }
 
@@ -97,7 +109,7 @@ internal sealed class StatusPresenter
             return new WorkStatusPresentation("IDLE", brushes.Warning, RunIndicatorMode.Idle);
         }
 
-        return new WorkStatusPresentation(defaultWorkStatus, brushes.Warning, RunIndicatorMode.Wait);
+        return new WorkStatusPresentation("N/A", brushes.Warning, RunIndicatorMode.Wait);
     }
 
     public StatusPresentation FormatShellStatus(

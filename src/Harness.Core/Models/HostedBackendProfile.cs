@@ -48,6 +48,15 @@ public sealed record HostedBackendProfile
         CommandGlobals = ["__openclaw", "__OPENCLAW__", "__APP__", "app"],
     };
 
+    private static readonly HostedBackendProfile DeepSeekProfile = new()
+    {
+        Kind = HostedBackendKind.DeepSeek,
+        LatencyProbePath = null,
+        AppStateElement = null,
+        HostCommandEventPrefix = null,
+        CommandGlobals = ["__APP__", "app"],
+    };
+
     private static readonly HostedBackendProfile AutoProfile = OpenClawProfile with
     {
         Kind = HostedBackendKind.Auto,
@@ -68,6 +77,7 @@ public sealed record HostedBackendProfile
     public static HostedBackendProfile For(HostedBackendKind kind) => kind switch
     {
         HostedBackendKind.OpenClaw => OpenClawProfile,
+        HostedBackendKind.DeepSeek => DeepSeekProfile,
         HostedBackendKind.Generic => GenericProfile,
         _ => AutoProfile,
     };

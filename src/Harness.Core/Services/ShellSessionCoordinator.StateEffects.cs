@@ -67,8 +67,7 @@ public sealed partial class ShellSessionCoordinator
         {
             snapshot.BusyStaleSeconds,
             snapshot.WorkState,
-            softResyncAttempts = _softResyncAttempts,
-            activity = string.IsNullOrWhiteSpace(snapshot.ActivitySignature) ? null : snapshot.ActivitySignature
+            softResyncAttempts = _softResyncAttempts
         });
 
         if (_softResyncAttempts >= _recoveryOptions.MaxSoftResyncAttempts)

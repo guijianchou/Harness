@@ -15,6 +15,7 @@ public partial class MainViewModel
         _webViewService.NavigationStartTimedOut += OnNavigationStartTimedOut;
         _webViewService.NavigationCompletionTimedOut += OnNavigationCompletionTimedOut;
         _webViewService.NavigationTimeoutRecovered += OnNavigationTimeoutRecovered;
+        _webViewService.ErrorPageSettingsRequested += OnErrorPageSettingsRequested;
         _webViewService.ControlUiSnapshotUpdated += OnControlUiSnapshotUpdated;
         _webViewService.HeartbeatObserved += OnHeartbeatObserved;
         _latencyService.LatencyUpdated += OnLatencyUpdated;
@@ -27,9 +28,15 @@ public partial class MainViewModel
         _webViewService.NavigationStartTimedOut -= OnNavigationStartTimedOut;
         _webViewService.NavigationCompletionTimedOut -= OnNavigationCompletionTimedOut;
         _webViewService.NavigationTimeoutRecovered -= OnNavigationTimeoutRecovered;
+        _webViewService.ErrorPageSettingsRequested -= OnErrorPageSettingsRequested;
         _webViewService.ControlUiSnapshotUpdated -= OnControlUiSnapshotUpdated;
         _webViewService.HeartbeatObserved -= OnHeartbeatObserved;
         _latencyService.LatencyUpdated -= OnLatencyUpdated;
+    }
+
+    private void OnErrorPageSettingsRequested()
+    {
+        DispatchUiUpdate(() => OpenSettingsRequested?.Invoke());
     }
 
     private void InitializeCoordinator()

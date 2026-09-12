@@ -123,13 +123,13 @@ public partial class WebViewService
     {
         try
         {
-            var result = await ExecuteCommandScriptAsync(coreWebView, WebViewCommandScripts.StopInjection);
+            var result = await ExecuteCommandScriptAsync(coreWebView, pageVersion, WebViewCommandScripts.StopInjection);
             if (!IsStillCurrentWebViewCommandTarget(coreWebView, pageVersion))
             {
                 return false;
             }
 
-            return string.Equals(result?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
+            return result;
         }
         catch (OperationCanceledException)
         {
@@ -152,13 +152,13 @@ public partial class WebViewService
     {
         try
         {
-            var result = await ExecuteCommandScriptAsync(coreWebView, WebViewCommandScripts.AbortRun);
+            var result = await ExecuteCommandScriptAsync(coreWebView, pageVersion, WebViewCommandScripts.AbortRun);
             if (!IsStillCurrentWebViewCommandTarget(coreWebView, pageVersion))
             {
                 return false;
             }
 
-            return string.Equals(result?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
+            return result;
         }
         catch (OperationCanceledException)
         {
@@ -177,11 +177,10 @@ public partial class WebViewService
         }
     }
 
-    private static async Task<string> ExecuteCommandScriptAsync(CoreWebView2 coreWebView, string script)
+    private async Task<bool> ExecuteCommandScriptAsync(CoreWebView2 coreWebView, int pageVersion, string script)
     {
         using var timeout = new CancellationTokenSource(CommandScriptTimeout);
-        return await coreWebView.ExecuteScriptAsync(script)
-            .AsTask(timeout.Token);
+        return await WebViewScriptExecutor.ExecuteBooleanAsync(coreWebView, _messageOwnership, pageVersion, script, timeout.Token);
     }
 
     private bool IsStillCurrentWebViewCommandTarget(CoreWebView2 coreWebView, int pageVersion)

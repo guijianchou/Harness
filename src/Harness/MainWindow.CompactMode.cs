@@ -148,9 +148,24 @@ public sealed partial class MainWindow
 
     private void ApplyCompactTopBarState(bool isCompact)
     {
+        var state = isCompact ? "CompactMode" : RootLayout.ActualWidth switch
+        {
+            < 650 => "SmallMode",
+            < 1100 => "NarrowMode",
+            < 1700 => "MediumMode",
+            _ => "FullMode"
+        };
         VisualStateManager.GoToState(
             RootLayout,
-            isCompact ? "CompactMode" : "FullMode",
+            state,
             useTransitions: false);
+    }
+
+    private void OnRootSizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        if (!_isClosing)
+        {
+            ApplyCompactTopBarState(_isCompactMode);
+        }
     }
 }

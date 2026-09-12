@@ -67,6 +67,7 @@ public partial class WebViewService
 
     private int PrepareNavigationStart()
     {
+        ClearErrorPageOwnership();
         CancelNavigationStartWatchdog();
         CancelNavigationCompletionWatchdog();
         CancelStatusProbeLoop();

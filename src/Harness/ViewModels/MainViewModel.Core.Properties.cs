@@ -14,7 +14,7 @@ public partial class MainViewModel
         get => _selectedEnvironment;
         set
         {
-            if (_selectedEnvironment != value)
+            if (!_isReloadingEnvironments && _selectedEnvironment != value)
             {
                 UpdateEnvironmentSelection(value, persistSelection: true);
             }

@@ -14,9 +14,11 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <ApplicationIcon>Assets\WindowIcon.ico</ApplicationIcon>
-    <Version>5.3.4</Version>
-    <AssemblyVersion>5.3.4.0</AssemblyVersion>
-    <FileVersion>5.3.4.0</FileVersion>
+    <Version>5.3.7</Version>
+    <AssemblyVersion>5.3.7.0</AssemblyVersion>
+    <FileVersion>5.3.7.0</FileVersion>
+    <BaseOutputPath>..\..\bin\$(Configuration)\</BaseOutputPath>
+    <OutputPath>$(BaseOutputPath)$(Version)\</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -57,6 +59,8 @@
   </Target>
 
   <ItemGroup>
+    <EmbeddedResource Include="Assets\ErrorPages\connection-error.html" LogicalName="Harness.Assets.ErrorPages.connection-error.html" />
+    <EmbeddedResource Include="Assets\apple-touch-icon.png" LogicalName="Harness.Assets.ErrorPageIcon.png" />
     <EmbeddedResource Include="Services\HostedUiBridge.Script.js" LogicalName="Harness.Services.HostedUiBridge.Script.js" />
     <EmbeddedResource Include="Services\HostedUiBridge.HostMessaging.js" LogicalName="Harness.Services.HostedUiBridge.HostMessaging.js" />
     <EmbeddedResource Include="Services\HostedUiBridge.MutationFilter.js" LogicalName="Harness.Services.HostedUiBridge.MutationFilter.js" />
@@ -70,6 +74,7 @@
     <EmbeddedResource Include="Services\HostedUiBridge.LabelVocabulary.js" LogicalName="Harness.Services.HostedUiBridge.LabelVocabulary.js" />
     <EmbeddedResource Include="Services\WebViewCommands.StopInjection.js" LogicalName="Harness.Services.WebViewCommands.StopInjection.js" />
     <EmbeddedResource Include="Services\WebViewCommands.AbortRun.js" LogicalName="Harness.Services.WebViewCommands.AbortRun.js" />
+    <EmbeddedResource Include="Services\WebViewCommands.ExecuteAsync.js" LogicalName="Harness.Services.WebViewCommands.ExecuteAsync.js" />
     <EmbeddedResource Include="Services\WebViewStatusInspector.Inspect.js" LogicalName="Harness.Services.WebViewStatusInspector.Inspect.js" />
   </ItemGroup>
 

@@ -2,7 +2,7 @@
 
 **语言：** [English](README.md) | 简体中文
 
-**当前版本：** 5.3.4
+**当前版本：** 5.3.7
 
 Harness 是一个轻量的 Windows 原生客户端，用于承载托管的 agent Control UI，基于 WinUI 3 和 WebView2 构建。
 
@@ -67,9 +67,14 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 - 通过 Cloudflare Tunnel 或反向代理访问它
 - 想用轻量 Windows 原生客户端，而不是一直开着浏览器标签页
 
-## 当前 5.3.4 注意事项
+## 当前 5.3.7 注意事项
 
-- `5.3.4` 增加原生运行完成通知。当托管的运行结束（busy→idle 状态转换）时，Harness 通过系统托盘弹出 Windows 气泡通知。这是浏览器标签无法自主传递的信号。设置项：`Notify when a run finishes`（默认开启）、`Only when Harness is not focused`（默认开启，当你正在观看时抑制冗余通知）和 `Forward notifications from the page`（默认开启，将托管 UI 发出的 Web 通知转发到 Windows）。通知系统遵守专注助手（勿扰时段）设置。
+- `5.3.7` 改进状态栏可靠性：所有状态控件（Model、Heartbeat、Latency、Access、Work Status）在信息不可用时统一显示 "N/A"，而不是显示空白或默认占位文本。这提供了清晰的视觉反馈，明确表示检测失败。
+- OpenClaw 模型检测增强了多层回退机制：从 `<openclaw-app>` 元素直接读取属性（如果暴露）、类模式匹配（`[class*="model-select"]`）、从模型相关按钮的 ARIA 标签提取、以及按钮文本模式检测。这种多层方法使模型检测对 UI 变化更加鲁棒，同时保持源码读取方案。
+- `5.3.6` 保护读取和保存失败后的配置，并合并多实例间互不冲突的修改。同一字段出现冲突时拒绝保存，避免覆盖另一实例的配置。
+- 原生命令等待带页面归属校验的异步回执，活动检测跟踪最新对话输出；日志和诊断导出会脱敏 URL、凭据及活动文本。
+- 连接错误页显示真实失败原因，在首屏提供重试和设置，跟随应用语言与主题，并重新访问网关。环境元数据变更保留当前会话，顶部工具栏适配较窄窗口。
+- `5.3.4` 增加原生运行完成通知。当托管的运行结束（busy→idle 状态转换）时，Harness 通过系统托盘弹出 Windows 气泡通知。这是浏览器标签无法自主传递的信号。设置项：`Notify when a run finishes`（默认开启）、`Only when Harness is not focused`（默认开启，当你正在观看时抑制冗余通知）和 `Forward notifications from the page`（默认开启，将托管 UI 发出的 Web 通知转发到 Windows）。通知系统遵守专注助手（勿扰时段）设置.
 - `5.3.4` 增加多后端支持，通过 `HostedBackendKind`（OpenClaw、Generic、Auto）和 `HostedBackendProfile` 实现。每个后端定义自己的延迟探测路径、应用状态选择器和词汇表（busy/abort 文本匹配）。OpenClaw 使用 `__openclaw__/a2ui/` 探测和英文停止词；Generic 使用网关根路径探测和 CJK + 英文词汇表。DOM 探测和命令分发现在同时支持 OpenClaw 专有方法和通用 CustomEvent 回退。后端选择在设置的 Environments 区域中提供，后端变更会触发自动拓扑检测，要求 WebView 重建。
 - `5.3.3` 在 General 中增加 `Auto refresh` 开关。关闭后会停止自动会话恢复、导航重试、心跳触发的刷新和超时触发的 WebView 重建；手动 Reload/Retry、启动初始化和环境切换仍然可用。
 - `5.3.2` 将原来的 Minimize to tray 和 Close to tray 合并为一个 System tray 开关。最小化始终留在任务栏；开启 System tray 时点击关闭会隐藏到系统托盘，关闭时点击关闭会退出应用。

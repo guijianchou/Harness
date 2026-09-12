@@ -60,6 +60,7 @@ const openClawStatusInspection = (() => {
         isBusy ? activity.collectDomActivitySignature() : ''
       ].filter(Boolean).join('|').slice(0, 512);
       const modelSnapshot = modelReader.readCurrentModel();
+      const effortSnapshot = modelReader.readCurrentEffort();
       const phaseSnapshot = phaseClassifier.classify({
         documentReadyState: document.readyState,
         hasBody: Boolean(document.body),
@@ -80,7 +81,8 @@ const openClawStatusInspection = (() => {
         workState,
         activitySignature,
         currentModel: modelSnapshot.value,
-        currentModelSource: modelSnapshot.source
+        currentModelSource: modelSnapshot.source,
+        currentEffort: effortSnapshot.value
       });
     };
 

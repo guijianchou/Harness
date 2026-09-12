@@ -275,6 +275,9 @@
   <data name="SettingsBackendOpenClaw" xml:space="preserve">
     <value>OpenClaw Gateway</value>
   </data>
+  <data name="SettingsBackendDeepSeek" xml:space="preserve">
+    <value>DeepSeek Harness</value>
+  </data>
   <data name="SettingsBackendGeneric" xml:space="preserve">
     <value>Generic Control UI</value>
   </data>
@@ -730,5 +733,14 @@
   </data>
   <data name="SettingsForwardPageNotificationsDescription" xml:space="preserve">
     <value>Passes web notifications raised by the hosted UI through to Windows instead of dropping them.</value>
+  </data>
+  <data name="ErrorPageTitle" xml:space="preserve">
+    <value>Connection failed</value>
+  </data>
+  <data name="ErrorPageDescription" xml:space="preserve">
+    <value>The gateway could not be reached. Try again or check this environment's address in Settings.</value>
+  </data>
+  <data name="ErrorPageGateway" xml:space="preserve">
+    <value>Gateway</value>
   </data>
 </root>

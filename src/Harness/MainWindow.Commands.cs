@@ -153,11 +153,6 @@ public sealed partial class MainWindow
             ViewModel.RefreshEnvironments();
         }
 
-        if (saveResult.DidChangeSessionTopology)
-        {
-            ScheduleWebViewRecreation("settings_saved_topology_changed");
-        }
-
         if (saveResult.DidChangeLiveShellOptions)
         {
             _liveShellSettingsApplier.Apply(saveResult.LiveShellSettingsChange);

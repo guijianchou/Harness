@@ -2,7 +2,6 @@
 
 using System.IO.Compression;
 using System.Reflection;
-using System.Text.RegularExpressions;
 
 namespace Harness.Services;
 
@@ -29,26 +28,7 @@ public static partial class DiagnosticBundleService
     /// </summary>
     public static string RedactSettingsJson(string json)
     {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return json;
-        }
-
-        // Redact URLs: https://anything.com/path -> https://<host>/<path>
-        var redacted = UrlPattern().Replace(json, match =>
-        {
-            var scheme = match.Groups[1].Value;
-            return $"{scheme}://<host>/<path>";
-        });
-
-        // Redact token/key/secret values
-        redacted = TokenPattern().Replace(redacted, match =>
-        {
-            var prefix = match.Groups[1].Value;
-            return $"{prefix}\"<redacted>\"";
-        });
-
-        return redacted;
+        return DiagnosticRedactor.RedactJson(json, indented: true);
     }
 
     /// <summary>
@@ -132,7 +112,7 @@ public static partial class DiagnosticBundleService
         // 3. Diagnostic summary
         if (!string.IsNullOrWhiteSpace(diagnosticSummary))
         {
-            await AddTextEntryAsync(archive, "diagnostic-summary.txt", diagnosticSummary);
+            await AddTextEntryAsync(archive, "diagnostic-summary.txt", DiagnosticRedactor.RedactText(diagnosticSummary));
         }
 
         // 4. Recent log files
@@ -140,7 +120,7 @@ public static partial class DiagnosticBundleService
         foreach (var logFile in logFiles)
         {
             var entryName = $"logs/{Path.GetFileName(logFile)}";
-            archive.CreateEntryFromFile(logFile, entryName, CompressionLevel.Optimal);
+            await AddRedactedLogAsync(archive, entryName, logFile);
         }
 
         return outputPath;
@@ -153,11 +133,17 @@ public static partial class DiagnosticBundleService
         await writer.WriteAsync(content);
     }
 
-    [GeneratedRegex(@"(https?|wss?)://[^""'\s,}\]]+", RegexOptions.IgnoreCase)]
-    private static partial Regex UrlPattern();
-
-    [GeneratedRegex(@"(""(?:[^""]*(?:token|key|secret|password|credential)[^""]*)""\s*:\s*)""[^""]+""", RegexOptions.IgnoreCase)]
-    private static partial Regex TokenPattern();
+    private static async Task AddRedactedLogAsync(ZipArchive archive, string entryName, string logFile)
+    {
+        using var input = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(input);
+        var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+        await using var writer = new StreamWriter(entry.Open());
+        while (await reader.ReadLineAsync() is { } line)
+        {
+            await writer.WriteLineAsync(DiagnosticRedactor.RedactJson(line));
+        }
+    }
 
     private static string GetAppVersion()
     {

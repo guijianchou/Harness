@@ -1,6 +1,17 @@
 const openClawModelResolver = (() => {
   const compactText = (value) => (value == null ? '' : String(value)).replace(/\s+/g, ' ').trim();
-  const cleanTrustedModelValue = (value) => compactText(value).slice(0, 96);
+  const collapseRepeatedModelLabel = (value) => {
+    const normalized = compactText(value);
+    const providerMatch = normalized.match(/^([^/\s]+\/)(.+)$/);
+    const providerPrefix = providerMatch ? providerMatch[1] : '';
+    const model = providerMatch ? providerMatch[2] : normalized;
+    const hyphenRepeated = model.match(/^([a-z][a-z0-9]*(?:-[a-z0-9.]+)+)-\1$/i);
+    if (hyphenRepeated) return `${providerPrefix}${hyphenRepeated[1]}`;
+
+    const whitespaceRepeated = model.match(/^(.+?)\s+\1$/i);
+    return whitespaceRepeated ? `${providerPrefix}${whitespaceRepeated[1]}` : normalized;
+  };
+  const cleanTrustedModelValue = (value) => collapseRepeatedModelLabel(value).slice(0, 96);
   const readScalarText = (value) => {
     if (value == null) return '';
     return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
@@ -100,11 +111,31 @@ const openClawModelResolver = (() => {
     const cleanModel = cleanTrustedModelValue(model);
     const cleanProvider = cleanTrustedModelValue(provider);
     if (!cleanModel) return '';
+
+    // If no provider or model already has provider prefix, resolve via catalog
     if (!cleanProvider || cleanModel.includes('/')) return resolveCatalogModelValue(cleanModel, catalog);
-    const providerPrefix = `${cleanProvider.toLowerCase()}/`;
-    return cleanModel.toLowerCase().startsWith(providerPrefix)
-      ? cleanModel
-      : `${cleanProvider}/${cleanModel}`;
+
+    // For openclaw and deepseek: full provider/model format support
+    const providerLower = cleanProvider.toLowerCase();
+    const modelLower = cleanModel.toLowerCase();
+    const providerPrefix = `${providerLower}/`;
+
+    // Special handling for known providers
+    if (providerLower === 'openclaw' || providerLower === 'deepseek') {
+      // If model already starts with provider, return as-is
+      if (modelLower.startsWith(providerPrefix)) return cleanModel;
+      // Otherwise format as provider/model
+      return `${cleanProvider}/${cleanModel}`;
+    }
+
+    // Generic provider: try to format nicely, but be permissive
+    if (modelLower.startsWith(providerPrefix)) {
+      return cleanModel;
+    }
+
+    // For generic providers, add prefix only if it looks intentional
+    // (avoid turning "gpt-4" into "openai/gpt-4" if provider comes from somewhere unexpected)
+    return `${cleanProvider}/${cleanModel}`;
   };
 
   const readServerModelValue = (entry, catalog = []) => {

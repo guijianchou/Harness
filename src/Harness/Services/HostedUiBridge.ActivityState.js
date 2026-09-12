@@ -101,25 +101,20 @@ const openClawActivityState = (() => {
         '[role="log"]', '[aria-live]'
       ];
       const fragments = [];
-      const seen = new Set();
+      const elements = document.querySelectorAll(selectors.join(','));
 
-      for (const selector of selectors) {
-        for (const element of document.querySelectorAll(selector)) {
-          if (isStatusProbeExcludedElement(element) || !dom.isVisible(element)) continue;
-          const text = dom.compactText(dom.textOf(element));
-          const id = dom.compactText(
-            element.getAttribute?.('data-message-id') ||
-            element.getAttribute?.('data-run-id') ||
-            element.id ||
-            '');
-          const tail = text.slice(Math.max(0, text.length - 96));
-          const fragment = [selector, id, String(text.length), tail].filter(Boolean).join(':');
-          if (!fragment || seen.has(fragment)) continue;
-          seen.add(fragment);
-          fragments.push(fragment);
-          if (fragments.length >= 4) break;
-        }
-        if (fragments.length >= 4) break;
+      // New output is at the end of the conversation, regardless of which selector matched it.
+      for (let index = elements.length - 1; index >= 0 && fragments.length < 4; index--) {
+        const element = elements[index];
+        if (isStatusProbeExcludedElement(element) || !dom.isVisible(element)) continue;
+        const text = dom.compactText(dom.textOf(element));
+        const id = dom.compactText(
+          element.getAttribute?.('data-message-id') ||
+          element.getAttribute?.('data-run-id') ||
+          element.id ||
+          '').slice(0, 64);
+        const tail = text.slice(Math.max(0, text.length - 96));
+        fragments.push([id, String(text.length), tail].join(':'));
       }
 
       return fragments.join('|').slice(0, 512);

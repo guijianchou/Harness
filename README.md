@@ -2,7 +2,7 @@
 
 **Language:** English | [简体中文](readme_zh.md)
 
-**Current version:** 5.3.4
+**Current version:** 5.3.7
 
 Lightweight Windows-native shell for hosted agent Control UIs, built with WinUI 3 and WebView2.
 
@@ -67,8 +67,13 @@ It is best suited for users who:
 - access it through Cloudflare Tunnel or a reverse proxy
 - want a lightweight Windows-native client instead of keeping a browser tab open
 
-## Current 5.3.4 Notes
+## Current 5.3.7 Notes
 
+- `5.3.7` improves status bar reliability: all status controls (Model, Heartbeat, Latency, Access, Work Status) now display "N/A" when information is unavailable instead of showing blank or default placeholder text. This provides clear visual feedback when detection fails.
+- OpenClaw model detection is enhanced with multiple fallback patterns: direct property reading from `<openclaw-app>` element (if exposed), class pattern matching (`[class*="model-select"]`), ARIA label extraction from model-related buttons, and button text pattern detection. This multi-layered approach makes model detection more resilient to UI changes while maintaining the source code reading approach.
+- `5.3.6` protects settings after read/write failures and merges unrelated changes from multiple instances. Conflicting edits are rejected without overwriting the other instance's settings.
+- Native commands now await owned asynchronous replies, and activity detection follows the newest chat output. Logs and diagnostic exports redact URLs, credentials, and activity text.
+- The connection error page shows the actual failure, keeps Retry and Settings visible, follows the app language/theme, and retries the gateway. Environment metadata changes preserve the active session, and the shell toolbar adapts to narrower windows.
 - `5.3.4` adds native run completion notifications. When a hosted run finishes (busy→idle transition), Harness raises a Windows balloon notification through the system tray. This is the signal a browser tab cannot deliver on its own. Settings: `Notify when a run finishes` (default on), `Only when Harness is not focused` (default on, suppresses redundant notifications while you are watching), and `Forward notifications from the page` (default on, passes web notifications raised by the hosted UI through to Windows). The notification system respects Focus Assist (quiet hours).
 - `5.3.4` adds multi-backend support with `HostedBackendKind` (OpenClaw, DeepSeekWeb, Generic) and `HostedBackendProfile`. Each backend defines its own latency probe path, app state selectors, and vocabularies (busy/abort text matching). OpenClaw uses `__openclaw__/a2ui/` probe and English stop words; DeepSeek uses gateway root probe and CJK + English vocabularies. DOM probing and command dispatch now support both OpenClaw-specific methods and generic CustomEvent fallback. Backend selection is available in Settings under Environments, with automatic topology detection requiring WebView recreation on backend changes.
 - `5.3.3` adds an `Auto refresh` switch under General. When disabled, automatic session recovery, navigation retries, heartbeat-triggered reloads, and timeout-triggered WebView recreation stop; manual Reload/Retry, startup, and environment changes remain available.
