@@ -99,6 +99,7 @@ public sealed partial class ShellSessionCoordinator
     /// </summary>
     public void SetEnvironment(string environmentName, string gatewayUrl)
     {
+        _reportedQuietBusySession = false;
         _currentEnvironmentName = environmentName;
         _currentGatewayUrl = gatewayUrl;
         _logger.Info("environment.changed", new { environmentName, gatewayUrl });
@@ -135,6 +136,7 @@ public sealed partial class ShellSessionCoordinator
     /// </summary>
     public void Reset()
     {
+        _reportedQuietBusySession = false;
         CancelObservedOperations();
         AbortRecoveryOperation();
 

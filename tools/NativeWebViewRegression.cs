@@ -30,6 +30,7 @@ public static class HarnessNativeRegression
             try
             {
                 watchdog.Start();
+                await VerifyProtectedGatewaySettingsAsync(Path.Combine(profile.FullName, "gateway-settings-regression"));
                 var environment = await CoreWebView2Environment.CreateAsync(null, profile.FullName);
                 environment.BrowserProcessExited += (_, _) => browserExited.TrySetResult(true);
                 controller = await environment.CreateCoreWebView2ControllerAsync(form.Handle);
@@ -102,6 +103,71 @@ public static class HarnessNativeRegression
         ownership.AcceptPageToken(core.Source, "next-native-test-page");
         version = ownership.CaptureAcceptedPageVersion();
         Check(await Execute("Promise.resolve(true)"), "command recovers after timeout and page retirement");
+    }
+
+    private static async Task VerifyProtectedGatewaySettingsAsync(string folder)
+    {
+        var storeFolder = Path.Combine(folder, "secrets");
+        var store = new OpenClawCredentialStore(storeFolder);
+        const string syntheticSecret = "synthetic-gateway-test-credential";
+        await store.WriteAsync("original", new OpenClawCredentials(Token: syntheticSecret));
+        Check((await store.ReadAsync("original"))?.Token == syntheticSecret, "protected credential round trips");
+        Check(!Directory.GetFiles(storeFolder).Any(path => File.ReadAllText(path).Contains(syntheticSecret, StringComparison.Ordinal)), "credential is not persisted as plaintext");
+        await store.SaveDeviceTokenAsync("entry-a", "operator", ["operator.read", "operator.write"], "scoped-device-token");
+        Check(await store.ReadDeviceTokenAsync("entry-a", "operator", ["operator.write", "operator.read"]) == "scoped-device-token", "device token scope order is canonical");
+        Check(await store.ReadDeviceTokenAsync("entry-b", "operator", ["operator.read", "operator.write"]) is null, "device token cannot cross endpoints");
+        Check(await store.ReadDeviceTokenAsync("entry-a", "operator", ["operator.read"]) is null, "device token cannot cross approved scope sets");
+        using (var identity = await new OpenClawDeviceIdentityService(store).GetOrCreateAsync("entry-a"))
+        using (var reopened = await new OpenClawDeviceIdentityService(store).GetOrCreateAsync("entry-a"))
+        using (var other = await new OpenClawDeviceIdentityService(store).GetOrCreateAsync("entry-b"))
+        {
+            Check(identity.DeviceId == reopened.DeviceId && identity.PublicKeyBase64Url == reopened.PublicKeyBase64Url, "Ed25519 identity persists across reopening");
+            Check(identity.DeviceId != other.DeviceId, "device identity is isolated by endpoint");
+            const string payload = "v3|synthetic-device-payload";
+            var signature = await identity.SignAsync(payload, CancellationToken.None);
+            static byte[] Decode(string value) => Convert.FromBase64String(value.Replace('-', '+').Replace('_', '/').PadRight((value.Length + 3) / 4 * 4, '='));
+            var publicKey = NSec.Cryptography.PublicKey.Import(NSec.Cryptography.SignatureAlgorithm.Ed25519, Decode(identity.PublicKeyBase64Url), NSec.Cryptography.KeyBlobFormat.RawPublicKey);
+            Check(NSec.Cryptography.SignatureAlgorithm.Ed25519.Verify(publicKey, Encoding.UTF8.GetBytes(payload), Decode(signature)), "device signature validates against raw public key");
+            Check(!NSec.Cryptography.SignatureAlgorithm.Ed25519.Verify(publicKey, Encoding.UTF8.GetBytes(payload + "changed"), Decode(signature)), "device signature rejects changed payload");
+        }
+
+        var failWrites = false;
+        var config = new ConfigurationService(Path.Combine(folder, "settings"), writeAllText: (path, text) =>
+        {
+            if (failWrites) { throw new IOException("Synthetic write failure"); }
+            Harness.Helpers.AtomicFileWriter.WriteAllText(path, text);
+        });
+        config.Load();
+        config.Settings.Environments[0].GatewayUrl = "https://gateway-settings.test";
+        config.Settings.Environments[0].Backend = Harness.Models.HostedBackendKind.OpenClaw;
+        config.Settings.Environments[0].OpenClawConnection = new Harness.Models.OpenClawConnectionOptions { Enabled = true, CredentialReference = "original" };
+        Check(config.Save().Succeeded, "seed protected Gateway settings");
+        var model = new Harness.ViewModels.SettingsViewModel(new SettingsPersistenceAdapter(config, new WebViewService.TestLogger()));
+        model.SelectedEnvironment = model.Environments[0];
+        model.EditGatewaySecret = "replacement-secret";
+        Check(model.TryApplyEdit(), "stage replacement credential");
+        failWrites = true;
+        Check(await model.SaveAllAsync(store) is null, "failed settings write rejects credential replacement");
+        Check(config.Settings.Environments[0].OpenClawConnection!.CredentialReference == "original" && (await store.ReadAsync("original"))?.Token == syntheticSecret, "failed save preserves original credential and reference");
+        failWrites = false;
+        Check(await model.SaveAllAsync(store) is not null, "credential save can be retried");
+        var savedReference = config.Settings.Environments[0].OpenClawConnection!.CredentialReference!;
+        Check((await store.ReadAsync(savedReference))?.Token == "replacement-secret", "successful retry stores replacement credential");
+        Check((await store.ReadAsync(savedReference))?.Endpoint == "wss://gateway-settings.test/", "protected credential is bound to the canonical endpoint");
+        model.EditGatewayAccessToken = "synthetic-access-token";
+        Check(model.TryApplyEdit() && await model.SaveAllAsync(store) is not null, "optional Access token can be saved independently");
+        savedReference = config.Settings.Environments[0].OpenClawConnection!.CredentialReference!;
+        var accessCredential = await store.ReadAsync(savedReference);
+        Check(accessCredential?.Token == "replacement-secret" && accessCredential.AccessToken == "synthetic-access-token", "Access credential edit preserves Gateway authorization");
+        var settingsJson = File.ReadAllText(config.SettingsFilePath);
+        Check(!settingsJson.Contains("replacement-secret", StringComparison.Ordinal) && !settingsJson.Contains("synthetic-access-token", StringComparison.Ordinal), "settings JSON contains credential references only");
+        model.EditGatewayClearAccessToken = true;
+        Check(model.TryApplyEdit() && await model.SaveAllAsync(store) is not null, "Access token can be removed");
+        savedReference = config.Settings.Environments[0].OpenClawConnection!.CredentialReference!;
+        accessCredential = await store.ReadAsync(savedReference);
+        Check(accessCredential?.Token == "replacement-secret" && string.IsNullOrEmpty(accessCredential.AccessToken), "Access token removal preserves Gateway authorization");
+        model.EditUrl = "https://another-gateway.test";
+        Check(model.TryApplyEdit() && model.Environments[0].OpenClawConnection!.CredentialReference is null, "changing the endpoint retires the saved credential");
     }
 
     private static void VerifySettingsAndEnvironment(string folder)
@@ -356,6 +422,7 @@ namespace Harness.ViewModels
         public void Reload() => LoadEnvironments();
         private void OnPropertyChanged(string name) { }
         private void RefreshResourceScheduling() { }
+        private void SynchronizeGatewayEnvironment() { }
         private void ResetTelemetry() { }
         private void ResetResourceProbeProjection() { }
         private void UpdateStatusPresentation() { }

@@ -11,6 +11,7 @@
     mc:Ignorable="d"
     Title="{x:Bind helpers:StringResources.SettingsTitle}">
 
+    <ContentControl x:Name="SettingsInteractionRoot" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
     <Grid x:Name="SettingsRoot"
           Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
@@ -181,7 +182,10 @@
                                           SelectionChanged="OnEnvironmentSelectionChanged">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Name}" FontSize="13" />
+                                            <StackPanel Spacing="3" Padding="0,4">
+                                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding GatewayUrl}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
@@ -223,6 +227,8 @@
                                    FontSize="12"
                                    TextWrapping="Wrap" />
 
+                        <Expander Header="{x:Bind helpers:StringResources.SettingsGatewayAdvanced}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="8">
                         <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint1}"
                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                      FontSize="12"
@@ -242,6 +248,32 @@
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     FontSize="12"
                                     TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Expander>
+
+                        <Expander Header="{x:Bind helpers:StringResources.SettingsGatewayTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True" IsEnabled="{x:Bind ViewModel.IsOpenClawBackend, Mode=OneWay}">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayDescription}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <ToggleSwitch Header="{x:Bind helpers:StringResources.SettingsGatewayEnabled}" IsOn="{x:Bind ViewModel.EditGatewayEnabled, Mode=TwoWay}" />
+                                <ContentControl IsEnabled="{x:Bind ViewModel.EditGatewayEnabled, Mode=OneWay}" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="12">
+                                    <TextBox Header="{x:Bind helpers:StringResources.SettingsGatewayWebSocketUrl}" PlaceholderText="{x:Bind helpers:StringResources.SettingsGatewayWebSocketPlaceholder}" Text="{x:Bind ViewModel.EditGatewayWebSocketUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayRouteHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <ComboBox Header="{x:Bind helpers:StringResources.SettingsGatewayAuthentication}" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.GatewayAuthOptions}" SelectedIndex="{x:Bind ViewModel.EditGatewayAuthModeIndex, Mode=TwoWay}" />
+                                    <PasswordBox Header="{x:Bind helpers:StringResources.SettingsGatewaySecret}" Password="{x:Bind ViewModel.EditGatewaySecret, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.UsesGatewaySecret, Mode=OneWay}" PasswordRevealMode="Peek" />
+                                    <TextBlock Text="{x:Bind ViewModel.GatewayCredentialStatus, Mode=OneWay}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewaySecretHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <Expander Header="{x:Bind helpers:StringResources.SettingsGatewayAccessTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayAccessHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <PasswordBox Header="{x:Bind helpers:StringResources.SettingsGatewayAccessToken}" Password="{x:Bind ViewModel.EditGatewayAccessToken, Mode=TwoWay}" PasswordRevealMode="Peek" />
+                                            <CheckBox Content="{x:Bind helpers:StringResources.SettingsGatewayAccessClear}" IsChecked="{x:Bind ViewModel.EditGatewayClearAccessToken, Mode=TwoWay}" />
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                                </ContentControl>
+                            </StackPanel>
+                        </Expander>
 
                         <Border x:Name="EnvironmentActionsBar"
                                 Background="{ThemeResource LayerFillColorDefaultBrush}"
@@ -284,11 +316,6 @@
                             </Grid>
                         </Border>
 
-                        <InfoBar x:Name="ValidationInfoBar"
-                                 IsOpen="False"
-                                 Severity="Error"
-                                 Title="{x:Bind helpers:StringResources.SettingsValidationError}"
-                                 Message="{x:Bind ViewModel.ValidationMessage, Mode=OneWay}" />
                     </StackPanel>
 
                     <!-- ======= Panel: Sessions ======= -->
@@ -391,17 +418,21 @@
                 BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0"
                 Padding="16,12">
-            <StackPanel Orientation="Horizontal"
+            <StackPanel Spacing="8">
+                <InfoBar x:Name="ValidationInfoBar" IsOpen="False" Severity="Error" Title="{x:Bind helpers:StringResources.SettingsValidationError}" Message="{x:Bind ViewModel.ValidationMessage, Mode=OneWay}" />
+                <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         Spacing="8">
-                <Button Content="{x:Bind helpers:StringResources.Save}"
+                <Button Content="{x:Bind helpers:StringResources.SettingsGatewaySaveClose}"
                         Click="OnSaveClick"
                         Style="{StaticResource AccentButtonStyle}"
                         MinWidth="80" />
                 <Button Content="{x:Bind helpers:StringResources.Cancel}"
                         Click="OnCancelClick"
                         MinWidth="80" />
+                </StackPanel>
             </StackPanel>
         </Border>
     </Grid>
+    </ContentControl>
 </Window>

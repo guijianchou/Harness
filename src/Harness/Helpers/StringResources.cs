@@ -10,6 +10,31 @@ namespace Harness.Helpers;
 /// </summary>
 public static class StringResources
 {
+    public static string SettingsGatewayAccessTitle => Get("SettingsGatewayAccessTitle");
+    public static string SettingsGatewayAccessHint => Get("SettingsGatewayAccessHint");
+    public static string SettingsGatewayAccessToken => Get("SettingsGatewayAccessToken");
+    public static string SettingsGatewayAccessClear => Get("SettingsGatewayAccessClear");
+    public static string SettingsGatewayTitle => Get("SettingsGatewayTitle");
+    public static string SettingsGatewayDescription => Get("SettingsGatewayDescription");
+    public static string SettingsGatewayEnabled => Get("SettingsGatewayEnabled");
+    public static string SettingsGatewayAdvanced => Get("SettingsGatewayAdvanced");
+    public static string SettingsGatewayWebSocketUrl => Get("SettingsGatewayWebSocketUrl");
+    public static string SettingsGatewayWebSocketPlaceholder => Get("SettingsGatewayWebSocketPlaceholder");
+    public static string SettingsGatewayRouteHint => Get("SettingsGatewayRouteHint");
+    public static string SettingsGatewayAuthentication => Get("SettingsGatewayAuthentication");
+    public static string SettingsGatewayAuthToken => Get("SettingsGatewayAuthToken");
+    public static string SettingsGatewayAuthPassword => Get("SettingsGatewayAuthPassword");
+    public static string SettingsGatewayAuthProxy => Get("SettingsGatewayAuthProxy");
+    public static string SettingsGatewaySecret => Get("SettingsGatewaySecret");
+    public static string SettingsGatewayCredentialSaved => Get("SettingsGatewayCredentialSaved");
+    public static string SettingsGatewayCredentialEmpty => Get("SettingsGatewayCredentialEmpty");
+    public static string SettingsGatewaySecretHint => Get("SettingsGatewaySecretHint");
+    public static string SettingsGatewaySecureSaveFailed => Get("SettingsGatewaySecureSaveFailed");
+    public static string SettingsGatewayRequiresOpenClaw => Get("SettingsGatewayRequiresOpenClaw");
+    public static string SettingsGatewayInvalidUrl => Get("SettingsGatewayInvalidUrl");
+    public static string SettingsGatewayDraftApplied => Get("SettingsGatewayDraftApplied");
+    public static string SettingsGatewayDraftHint => Get("SettingsGatewayDraftHint");
+    public static string SettingsGatewaySaveClose => Get("SettingsGatewaySaveClose");
     private static ResourceLoader? _loader;
 
     public static void Initialize()

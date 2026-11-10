@@ -10,7 +10,7 @@ const openClawStatusInspection = (() => {
 
     const hasVisibleElement = (selector, predicate) => {
       return Array.from(document.querySelectorAll(selector))
-        .some((el) => !isStatusProbeExcludedElement(el) && dom.isVisible(el) && (!predicate || predicate(el)));
+        .some((el) => !isStatusProbeExcludedElement(el) && (!predicate || predicate(el)) && dom.isVisible(el));
     };
 
     const readFocusedInputState = () => {

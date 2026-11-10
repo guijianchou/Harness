@@ -10,7 +10,9 @@ if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$corePath = Join-Path $repoRoot 'src/Harness.Core/bin/Debug/net10.0/Harness.Core.dll'
+$coreProject = [xml](Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness.Core/Harness.Core.csproj') -Raw)
+$coreVersion = $coreProject.Project.PropertyGroup.Version
+$corePath = Join-Path $repoRoot "bin/Debug/$coreVersion/net10.0/Harness.Core.dll"
 $lock = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/packages.lock.json') -Raw | ConvertFrom-Json
 $webViewVersion = $null
 foreach ($framework in $lock.dependencies.PSObject.Properties) {
@@ -23,6 +25,12 @@ $nativeCorePath = Join-Path $sdk 'lib/net462/Microsoft.Web.WebView2.Core.dll'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -Path $nativeCorePath
 Add-Type -Path $corePath
+$protectedDataPath = Join-Path $env:USERPROFILE '.nuget/packages/system.security.cryptography.protecteddata/10.0.8/lib/net10.0/System.Security.Cryptography.ProtectedData.dll'
+Add-Type -Path $protectedDataPath
+$nsecPath = Join-Path $env:USERPROFILE '.nuget/packages/nsec.cryptography/26.4.0/lib/net9.0/NSec.Cryptography.dll'
+$sodiumPath = Join-Path $env:USERPROFILE '.nuget/packages/libsodium/1.0.22/runtimes/win-x64/native/libsodium.dll'
+[Runtime.InteropServices.NativeLibrary]::Load($sodiumPath) | Out-Null
+Add-Type -Path $nsecPath
 Add-Type -TypeDefinition @'
 public static class HarnessRegressionResource {
     public static System.Func<System.IO.Stream> Open(string path) => () => System.IO.File.OpenRead(path);
@@ -39,6 +47,9 @@ $sourceFiles = @(
     'src/Harness/Services/WebViewService.HostMessages.cs',
     'src/Harness/Services/SettingsPersistenceAdapter.cs',
     'src/Harness/ViewModels/SettingsViewModel.cs',
+    'src/Harness/ViewModels/SettingsViewModel.Gateway.cs',
+    'src/Harness/Services/OpenClawCredentialStore.cs',
+    'src/Harness/Services/OpenClawDeviceIdentityService.cs',
     'src/Harness/ViewModels/MainViewModel.Environment.cs',
     'tools/NativeWebViewRegression.cs'
 )
@@ -76,7 +87,7 @@ $trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText('namespac
 $trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText('global using System; global using System.IO; global using System.Linq; global using System.Collections.Generic; global using System.Threading; global using System.Threading.Tasks;', $parseOptions))
 
 $referencePaths = @((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)
-$referencePaths += @($corePath, $nativeCorePath)
+$referencePaths += @($corePath, $nativeCorePath, $protectedDataPath, $nsecPath)
 foreach ($name in @('System.Windows.Forms.dll', 'System.Windows.Forms.Primitives.dll', 'System.Drawing.Common.dll', 'System.Private.Windows.Core.dll')) {
     $referencePaths += Join-Path $PSHOME $name
 }

@@ -1,5 +1,7 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Harness.Helpers;
@@ -475,6 +477,20 @@ public partial class ConfigurationService
         {
             settings.Environments = [];
             changed = true;
+        }
+
+        var environmentIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < settings.Environments.Count; index++)
+        {
+            var environment = settings.Environments[index];
+            if (string.IsNullOrWhiteSpace(environment.Id) || !environmentIds.Add(environment.Id))
+            {
+                // Deterministic legacy migration lets two instances normalize the same file safely.
+                environment.Id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+                    $"Harness.environment.v1|{index}|{environment.Name}|{environment.GatewayUrl}")))[..32].ToLowerInvariant();
+                environmentIds.Add(environment.Id);
+                changed = true;
+            }
         }
 
         if (settings.RecoveryPolicy is null)

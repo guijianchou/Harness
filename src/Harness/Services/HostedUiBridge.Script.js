@@ -129,6 +129,7 @@ __OPENCLAW_COMMAND_DISPATCH_SCRIPT__
 
   let scheduledPost = 0;
   let scheduledPostDelay = 0;
+  let lastScheduledInspectionAt = 0;
   const scheduleAfter = (delay) => {
     if (scheduledPost && delay >= scheduledPostDelay) return;
     if (scheduledPost) {
@@ -139,6 +140,7 @@ __OPENCLAW_COMMAND_DISPATCH_SCRIPT__
     scheduledPost = window.setTimeout(() => {
       scheduledPost = 0;
       scheduledPostDelay = 0;
+      lastScheduledInspectionAt = Date.now();
       const snapshot = inspectControlUi();
       postStatus(snapshot);
       checkSessionReady(snapshot);
@@ -146,7 +148,10 @@ __OPENCLAW_COMMAND_DISPATCH_SCRIPT__
   };
 
   const schedule = () => {
-    scheduleAfter(document.visibilityState === 'visible' ? 220 : 1200);
+    // Merge mutations while streaming without resetting the pending deadline:
+    // the final mutation is always sampled, even if no further event arrives.
+    const interval = document.visibilityState === 'visible' ? 800 : 1500;
+    scheduleAfter(Math.max(220, interval - (Date.now() - lastScheduledInspectionAt)));
   };
 
   const scheduleFromInteraction = (event) => {

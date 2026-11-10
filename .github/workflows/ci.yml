@@ -58,6 +58,10 @@ jobs:
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-bridge-scripts.ps1
 
+      - name: Verify OpenClaw page selection
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-openclaw-selection.ps1
+
       - name: Verify whitespace
         shell: pwsh
         run: git diff --check

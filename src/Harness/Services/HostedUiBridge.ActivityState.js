@@ -107,14 +107,15 @@ const openClawActivityState = (() => {
       for (let index = elements.length - 1; index >= 0 && fragments.length < 4; index--) {
         const element = elements[index];
         if (isStatusProbeExcludedElement(element) || !dom.isVisible(element)) continue;
-        const text = dom.compactText(dom.textOf(element));
+        const sample = dom.textSampleOf?.(element, true, 384);
+        const text = dom.compactText(sample?.text ?? dom.textOf(element));
         const id = dom.compactText(
           element.getAttribute?.('data-message-id') ||
           element.getAttribute?.('data-run-id') ||
           element.id ||
           '').slice(0, 64);
         const tail = text.slice(Math.max(0, text.length - 96));
-        fragments.push([id, String(text.length), tail].join(':'));
+        fragments.push([id, String(sample?.length ?? text.length), tail].join(':'));
       }
 
       return fragments.join('|').slice(0, 512);

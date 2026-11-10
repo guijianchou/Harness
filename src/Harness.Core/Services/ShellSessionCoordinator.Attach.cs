@@ -102,6 +102,7 @@ public sealed partial class ShellSessionCoordinator
         DetachServiceSubscriptions();
         CancelObservedOperations();
         AbortRecoveryOperation();
+        _reportedQuietBusySession = false;
         _webViewService = null;
         _bridge = null;
     }

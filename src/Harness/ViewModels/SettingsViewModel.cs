@@ -13,7 +13,7 @@ namespace Harness.ViewModels;
 /// ViewModel for the Settings dialog.
 /// Manages CRUD operations on gateway environment configurations.
 /// </summary>
-public class SettingsViewModel : INotifyPropertyChanged
+public partial class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly Dictionary<EnvironmentConfig, string> _originalNames = [];
     private readonly Dictionary<EnvironmentConfig, EnvironmentConfig> _originalSnapshots = [];
@@ -133,6 +133,7 @@ public class SettingsViewModel : INotifyPropertyChanged
 
             _editBackend = kind;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsOpenClawBackend));
         }
     }
 
@@ -297,6 +298,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         var env = new EnvironmentConfig
         {
+            Id = Guid.NewGuid().ToString("N"),
             Name = string.Format(StringResources.SettingsGeneratedEnvironmentName, Environments.Count + 1),
             GatewayUrl = "https://",
             IsDefault = Environments.Count == 0,
@@ -322,6 +324,7 @@ public class SettingsViewModel : INotifyPropertyChanged
 
         _originalNames.Remove(_selectedEnvironment);
         _originalSnapshots.Remove(_selectedEnvironment);
+        _pendingCredentials.Remove(_selectedEnvironment.Id);
         Environments.Remove(_selectedEnvironment);
         DidChangeEnvironmentState = true;
         DidChangeSessionTopology = true;
@@ -347,7 +350,9 @@ public class SettingsViewModel : INotifyPropertyChanged
             return false;
         }
 
+        RetireChangedGatewayCredential(draft);
         _selectedEnvironment.ApplyFrom(draft);
+        StageGatewayCredential();
         DidChangeEnvironmentState |= DidEnvironmentMetadataChange(_selectedEnvironment);
         DidChangeSessionTopology |= DidEnvironmentSessionIdentityChange(_selectedEnvironment);
 
@@ -364,7 +369,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             _selectedEnvironment.IsDefault = false;
         }
 
-        IsEditing = false;
+        IsEditing = true;
 
         ValidationMessage = StringResources.SettingsValidationDefaultMessage;
         return true;
@@ -447,6 +452,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             EditUrl = _selectedEnvironment.GatewayUrl;
             EditIsDefault = _selectedEnvironment.IsDefault;
             EditBackendIndex = (int)_selectedEnvironment.Backend;
+            LoadGatewayFields();
             IsEditing = true;
         }
         else
@@ -455,6 +461,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             EditUrl = string.Empty;
             EditIsDefault = false;
             EditBackendIndex = (int)HostedBackendKind.Auto;
+            LoadGatewayFields();
             IsEditing = false;
         }
     }
@@ -492,6 +499,8 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     private EnvironmentConfig CreateDraftEnvironment() => new()
     {
+        Id = _selectedEnvironment?.Id ?? Guid.NewGuid().ToString("N"),
+        OpenClawConnection = CreateGatewayOptions(),
         Name = EditName.Trim(),
         GatewayUrl = EditUrl.Trim(),
         IsDefault = EditIsDefault,
@@ -594,7 +603,8 @@ public class SettingsViewModel : INotifyPropertyChanged
         // WebView is recreated.
         return !string.Equals(original.Name, environment.Name, StringComparison.Ordinal) ||
                !string.Equals(original.GatewayUrl, environment.GatewayUrl, StringComparison.Ordinal) ||
-               original.Backend != environment.Backend;
+               original.Backend != environment.Backend ||
+               original.OpenClawConnection != environment.OpenClawConnection;
     }
 
     private bool DidEnvironmentMetadataChange(EnvironmentConfig environment)
@@ -607,7 +617,8 @@ public class SettingsViewModel : INotifyPropertyChanged
         return !string.Equals(original.Name, environment.Name, StringComparison.Ordinal) ||
                !string.Equals(original.GatewayUrl, environment.GatewayUrl, StringComparison.Ordinal) ||
                original.IsDefault != environment.IsDefault ||
-               original.Backend != environment.Backend;
+               original.Backend != environment.Backend ||
+               original.OpenClawConnection != environment.OpenClawConnection;
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
@@ -644,7 +655,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
 
         errorMessage = StringResources.SettingsValidationDefaultMessage;
-        return true;
+        return TryValidateGatewayOptions(environment, out errorMessage);
     }
 
     private bool TryValidateHotkey(out string errorMessage)

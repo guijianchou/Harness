@@ -2,7 +2,7 @@
 
 **Language:** English | [简体中文](readme_zh.md)
 
-**Current version:** 5.3.7
+**Current version:** 5.3.8
 
 Lightweight Windows-native shell for hosted agent Control UIs, built with WinUI 3 and WebView2.
 
@@ -10,20 +10,22 @@ Harness is a thin desktop shell for a remote agent gateway's web Control UI. It 
 
 | Backend | Status |
 |---|---|
-| OpenClaw Gateway | Supported and verified |
+| OpenClaw Gateway | Hosted Web UI supported; optional native Gateway v4 controls require deployment testing |
 | DeepSeek Harness | Web UI test passed |
+
+An optional OpenClaw Gateway v4 connection now adds native session browsing, empty-session creation, model selection, precise run cancellation, and run notifications while retaining the hosted web workspace. Enable it per environment in Settings. See [OpenClaw integration](docs/openclaw-integration.md) for authentication, Cloudflare Access, compatibility boundaries, and validation; the new native path still requires testing against your deployment.
 
 ---
 
 ## Why the rename
 
-This project began as **OpenClaw Manager**, a WebView2 + WinUI 3 client written specifically for OpenClaw's Control UI. In practice almost none of it is OpenClaw-specific: window chrome, tray, global hotkey, per-environment session isolation, heartbeat, navigation recovery, diagnostics, and logging are generic hosted-UI shell concerns. Only the hosted page URL and the in-page DOM bridge actually know which product is on the other end.
+This project began as **OpenClaw Manager**, a WebView2 + WinUI 3 client written specifically for OpenClaw's Control UI. Window chrome, tray, global hotkey, per-environment session isolation, heartbeat, navigation recovery, diagnostics, and logging are shared hosted-UI shell features. Backend profiles, the page bridge, and the optional native OpenClaw Gateway connection provide product-specific behavior.
 
 Renaming the app to **Harness** marks the shift from "an OpenClaw client" to "a general client for hosted agent Control UIs", with OpenClaw and DeepSeek Harness as the first two intended backends.
 
-This release does the rename only. Backend abstraction — a pluggable bridge so a non-OpenClaw Control UI can be hosted — is the next step, not part of this change. The hosted shell has since also passed a manual test with the DeepSeek Harness Web UI.
+The rename shipped in 5.3.0. Harness now supports backend profiles and has passed a manual hosted Web UI test with DeepSeek Harness. Version 5.3.8 also adds optional OpenClaw Gateway v4 controls alongside the hosted workspace.
 
-### What the rename covers
+### What changed in the 5.3.0 rename
 
 | Area | Change |
 |---|---|
@@ -57,6 +59,7 @@ This project keeps the existing hosted web experience, but wraps it in a native 
 
 - environment switching
 - per-environment WebView2 session isolation
+- optional native OpenClaw Gateway v4 session and model controls
 - connection recovery and heartbeat monitoring
 - diagnostics and structured logs
 - native theme and window integration
@@ -67,7 +70,19 @@ It is best suited for users who:
 - access it through Cloudflare Tunnel or a reverse proxy
 - want a lightweight Windows-native client instead of keeping a browser tab open
 
-## Current 5.3.7 Notes
+## Current 5.3.8 Notes
+
+Released on **2026-11-10**.
+
+- Add opt-in OpenClaw Gateway v4 controls for session browsing and search, empty-session creation, model selection, exact run cancellation, and observed run completion notifications. Chat input, attachments, and rendering remain in the hosted Web UI.
+- Configure the native connection per environment in Settings, with protected credentials, a persistent signed device identity, optional Cloudflare Access user tokens, and explicit pairing and connection feedback. Native Gateway authentication does not automatically share the web page's login or cookies.
+- Add a session workspace, responsive toolbar actions, first-run guidance, and Settings draft/save feedback.
+- Update the purple/pink branding across window, tray, application, and DPI assets. A targeted Windows shell icon refresh tool is available when Explorer retains the old executable icon.
+- Reduce the DOM inspection work that contributes to chat-page stalls through bounded text sampling, early model-control matches, and coalesced mutation checks. A connected run with quiet visible output no longer triggers automatic resync or reload solely because it is quiet; disconnected and stalled-connection recovery remains available.
+- Performance validation used a synthetic WebView2 page with **1,000 messages**. This measures bridge inspection cost, not typing, scrolling, or folding frame rates in a real authenticated deployment. Real VPS / Cloudflare end-to-end testing is still required.
+- WebView2 remains the rendering engine and its Runtime remains an external dependency. This release does not bundle a standalone Chromium engine. See [OpenClaw integration](docs/openclaw-integration.md) for authentication boundaries and validation details.
+
+### Earlier changes
 
 - `5.3.7` improves status bar reliability: all status controls (Model, Heartbeat, Latency, Access, Work Status) now display "N/A" when information is unavailable instead of showing blank or default placeholder text. This provides clear visual feedback when detection fails.
 - OpenClaw model detection is enhanced with multiple fallback patterns: direct property reading from `<openclaw-app>` element (if exposed), class pattern matching (`[class*="model-select"]`), ARIA label extraction from model-related buttons, and button text pattern detection. This multi-layered approach makes model detection more resilient to UI changes while maintaining the source code reading approach.
@@ -81,7 +96,7 @@ It is best suited for users who:
 - `5.3.1` shows `N/A` instead of `ERR` in the top status bar's latency badge when the Control UI latency probe fails.
 - `5.3.0` renames the application from `OpenClaw Manager` to `Harness` across the solution, both projects, the test project, every namespace, the executable, and all user-visible surfaces. See [Why the rename](#why-the-rename) for what did and did not move.
 - **Breaking:** local data moved from `%LOCALAPPDATA%\OpenClaw\` to `%LOCALAPPDATA%\Harness\` with no automatic migration, so 5.3.0 starts with a clean profile. Re-add gateway environments in Settings and sign in to the hosted Control UI again. The old folder is left in place untouched.
-- New Harness whale logo. `Assets/harness-logo.png` is the source artwork; the window/tray icon, tiles, splash, store, lock-screen, and in-app brand images are generated from it, and `WindowIcon.ico` is now multi-resolution (16–256px).
+- Harness uses the purple and pink layered logo in `Assets/harness-logo.png`. Window/tray icons, tiles, splash, store, lock-screen, and in-app images are generated with `python tools/regenerate-assets.py` (Pillow required), including 100–400% DPI assets and a multi-resolution `WindowIcon.ico` (16–256px).
 - The published output now carries the app's generated `.pri` and its `Assets/` folder. Before this, `dotnet publish` produced a folder that threw `XamlParseException` on the first window and ran without any icon.
 - `5.2.0` hardens persistence and recovery after an engineering review: a corrupt `settings.json` is backed up to `settings.json.corrupt-<timestamp>` before defaults are written, and a transient read failure (file lock, permissions) no longer overwrites the user's settings file.
 - Per-environment WebView2 session isolation now uses an explicit `CoreWebView2Environment` created with the environment's user data folder. The previous `WEBVIEW2_USER_DATA_FOLDER` environment-variable approach only affected the process-wide default environment and could silently share cookies/session state across gateway environments after a runtime switch.
@@ -134,6 +149,7 @@ It is best suited for users who:
 | Feature | Description |
 |---|---|
 | WebView2 Shell | Hosts the remote Control UI inside a native window |
+| OpenClaw Gateway Controls | Optional session workspace, model selection, exact run cancellation, and run notifications |
 | Environment Switching | Manage multiple hosted Control UI endpoints |
 | Connection Status | Status bar, error InfoBar, retry support |
 | Auto-Reconnect | Retries failed navigation automatically when Auto refresh is enabled |
@@ -160,7 +176,7 @@ It is best suited for users who:
 |---|---|
 | .NET | 10.0 |
 | Windows App SDK | 1.8.x |
-| WebView2 | Bundled via WinAppSDK |
+| WebView2 | SDK supplied via WinAppSDK; Runtime installed separately |
 | MVVM | CommunityToolkit.Mvvm 8.x |
 | UI Language | English + Simplified Chinese |
 | Packaging | Unpackaged, self-contained |
@@ -246,7 +262,7 @@ Harness/
 
 ## Development Prerequisites
 
-- Windows 10 1809+ or Windows 11
+- Windows 11 24H2 (build 26100) or later; older Windows versions are not validated for this release
 - Visual Studio 2026
 - .NET Desktop Development workload
 - Windows App SDK C# templates
@@ -272,7 +288,7 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 
 ### Active Verification
 
-Automated verification is restore, the Core regression test suite, x64 build, format, repository guardrails, bridge script checks, and whitespace checks. The same steps run in CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)):
+Automated verification is restore, the Core regression test suite, x64 build, format, repository guardrails, bridge script checks, OpenClaw page selection checks, and whitespace checks. The same steps run in CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)):
 
 ```powershell
 dotnet restore Harness.sln --locked-mode
@@ -281,12 +297,13 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 $env:Platform='x64'; dotnet format Harness.sln --verify-no-changes --no-restore
 powershell -ExecutionPolicy Bypass -File tools\verify-repo-structure.ps1
 powershell -ExecutionPolicy Bypass -File tools\verify-bridge-scripts.ps1
+powershell -ExecutionPolicy Bypass -File tools\verify-openclaw-selection.ps1
 git diff --check
 ```
 
 `tools\verify-bridge-scripts.ps1` requires Node.js by default because it is the active behavior check for embedded bridge assets. Set `OPENCLAW_NODE` to a specific Node executable when the default `node` on `PATH` is blocked or unavailable; set `OPENCLAW_ALLOW_NODE_SKIP=1` only for an explicit local skip.
 
-Bridge script verification is the active behavior check for the split hosted bridge JS assets. It requires Node.js by default; set `OPENCLAW_NODE` to a specific Node executable when the default `node` on `PATH` is blocked or unavailable, or `OPENCLAW_ALLOW_NODE_SKIP=1` only for an explicit local skip.
+`tools\verify-openclaw-selection.ps1` checks the authored page selection script, including session identity and draft/attachment guards. It requires Node.js and accepts `OPENCLAW_NODE` as an executable override.
 
 VS2026 manual debug remains required for real WebView2, Gateway, Cloudflare Tunnel, tray, hotkey, and compact-mode behavior.
 
@@ -310,6 +327,8 @@ Manual debug should explicitly cover:
 - Bridge script behavior is covered by `tools\verify-bridge-scripts.ps1`, but browser-runtime behavior still needs WebView2/VS2026 debug.
 - `WebViewService` is split into focused partials; new lifecycle, navigation, inspection, heartbeat, command, and profile/session behavior should stay in the matching partial instead of the root file.
 - Real Gateway, Cloudflare Tunnel, reverse-proxy error pages, tray, hotkey, single-instance, DWM title-bar, and compact-mode behavior still need VS2026 manual debug.
+- Native OpenClaw Gateway v4 controls use a separate connection and device identity. Web login does not authenticate this connection; real VPS / Cloudflare end-to-end validation remains required.
+- The 1,000-message synthetic WebView2 performance experiment measures bridge inspection work and does not establish real-page interaction frame rates.
 
 ### Development Notes
 
@@ -332,6 +351,19 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
+### Release Packaging
+
+From the repository root, use PowerShell 7 to build the self-contained Windows x64 package:
+
+```powershell
+dotnet restore Harness.sln --locked-mode
+pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
+```
+
+The script creates a new version directory such as `artifacts/release/5.3.8`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
+
+Pushing a numeric version tag such as `5.3.8` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
+
 ### First Launch
 
 1. The app starts with a placeholder environment and does not navigate WebView2 until a real Control UI URL is configured.
@@ -343,8 +375,8 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 
 If your OpenClaw Gateway runs on a VPS behind Cloudflare Tunnel:
 
-- use the public HTTPS Control UI URL in Harness
-- do not use the raw Gateway WebSocket URL
+- use the public HTTPS Control UI URL for the hosted workspace
+- use the separate optional Gateway WebSocket field for native controls; do not put a WebSocket URL in the workspace URL field
 - make sure the same public origin is listed in `gateway.controlUi.allowedOrigins`
 - if you use `gateway.auth.mode: "trusted-proxy"`, make sure identity headers are forwarded on both HTTP requests and WebSocket upgrades
 - do not mix trusted-proxy mode with shared token auth unless upstream explicitly documents that combination as supported
@@ -363,14 +395,14 @@ The Settings window is organized into five sections:
 |---|---|
 | Language | Display language |
 | General | Window, tray, global hotkey, always-on-top, and multiple-instance behavior |
-| Environments | Add, edit, remove, and choose default hosted Control UI endpoints |
+| Environments | Hosted Control UI endpoints and optional OpenClaw Gateway connection, credentials, and Cloudflare Access token |
 | Sessions | Clear WebView2 session data for a specific environment |
 | Developer Tools | Diagnostics, logs, DevTools |
 
 ### Environment URL Rules
 
 - Use the hosted Control UI page URL with `http://` or `https://`
-- Do not use the raw Gateway WebSocket URL with `ws://` or `wss://`
+- Do not put a `ws://` or `wss://` Gateway address in the hosted workspace URL field; native controls have a separate optional WebSocket field
 - For Cloudflare Tunnel or reverse-proxy deployments, always use the exact public browser-facing origin
 
 ---
@@ -389,14 +421,13 @@ All local data is stored under `%LOCALAPPDATA%\Harness\`.
 
 ## Runtime Requirements
 
-The compiled application requires:
+The current Release targets **Windows 11 24H2 (build 26100) or later**. Older Windows versions have not been validated. The self-contained distribution includes .NET and the Windows App SDK; WebView2 Runtime is an external prerequisite:
 
 | Dependency | Download |
 |---|---|
-| .NET 10 Desktop Runtime | [Download](https://dotnet.microsoft.com/download/dotnet/10.0) |
 | WebView2 Runtime | [Download](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) |
 
-Windows 11 usually already includes WebView2 Runtime. Windows 10 users may need to install it manually.
+Windows 11 usually already includes WebView2 Runtime. Install it if it is missing; the Release package does not include a fixed WebView2 Runtime or standalone Chromium engine. Framework-dependent builds additionally require the matching [.NET 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ---
 

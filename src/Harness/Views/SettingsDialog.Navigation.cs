@@ -93,14 +93,23 @@ public sealed partial class SettingsDialog
 
     private void OnEnvironmentSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_isRestoringEnvironmentSelection) { return; }
         if (EnvironmentList.SelectedItem is EnvironmentConfig environment)
         {
+            if (ViewModel.SelectedEnvironment is not null && ViewModel.SelectedEnvironment != environment && ViewModel.IsEditing && !TryApplyEdit())
+            {
+                _isRestoringEnvironmentSelection = true;
+                EnvironmentList.SelectedItem = ViewModel.SelectedEnvironment;
+                _isRestoringEnvironmentSelection = false;
+                return;
+            }
             ViewModel.SelectedEnvironment = environment;
         }
     }
 
     private void OnAddClick(object sender, RoutedEventArgs e)
     {
+        if (ViewModel.SelectedEnvironment is not null && ViewModel.IsEditing && !TryApplyEdit()) { return; }
         ViewModel.AddEnvironment();
         SelectEnvironment(ViewModel.SelectedEnvironment);
     }

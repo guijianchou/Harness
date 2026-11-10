@@ -198,16 +198,15 @@ const openClawModelDomFallback = (() => {
         return /true|selected|checked|active|current/.test(selected) ? 18 : 0;
       };
 
-      const viewportBoostOf = (el) => {
-        if (!el || typeof el.getBoundingClientRect !== 'function') return 0;
-        const top = el.getBoundingClientRect().top;
-        return Number.isFinite(top) && top >= 0 && top <= 260 ? 8 : 0;
-      };
-
       const pushCandidate = (text, score, el, source) => {
         const label = sanitizeModelLabel(text);
         if (!label) return;
-        candidates.push({ label, source, score: score + selectionBoostOf(el) + viewportBoostOf(el) });
+        candidates.push({ label, source, score: score + selectionBoostOf(el) });
+      };
+      const bestCandidate = () => {
+        if (candidates.length === 0) return emptyModelResult();
+        candidates.sort((left, right) => right.score - left.score || left.label.length - right.label.length);
+        return modelResult(candidates[0].label, candidates[0].source);
       };
 
       // Priority 1: OpenClaw's model label must stay inside the model summary.
@@ -218,12 +217,14 @@ const openClawModelDomFallback = (() => {
         '.chat-controls__model-picker .chat-controls__inline-select-label'))
         .filter((el) => !isStatusProbeExcludedElement(el) && dom.isVisible(el))
         .forEach((el) => pushCandidate(dom.textOf(el), 150, el, 'dom:openclaw-model-label'));
+      if (candidates.length > 0) return bestCandidate();
 
       // Priority 2: DeepSeek's model control is the button whose accessible
       // name contains "Select model". Other triggerLabel elements, such as
       // Settings, are unrelated controls and must not be considered.
       Array.from(document.querySelectorAll('button[aria-label], [role="button"][aria-label]'))
-        .filter((el) => !isStatusProbeExcludedElement(el) && dom.isVisible(el))
+        .filter((el) => /\bselect\s+model\b/i.test(el.getAttribute('aria-label') || '') &&
+          !isStatusProbeExcludedElement(el) && dom.isVisible(el))
         .forEach((el) => {
           const ariaLabel = el.getAttribute('aria-label') || '';
           if (!/\bselect\s+model\b/i.test(ariaLabel)) return;
@@ -244,11 +245,13 @@ const openClawModelDomFallback = (() => {
           const titleModel = title.split(/\s*[·|]\s*/, 1)[0];
           if (titleModel) pushCandidate(titleModel, 142, el, 'dom:deepseek-model-title');
         });
+      if (candidates.length > 0) return bestCandidate();
 
       // Priority 3: Generic data attributes
       Array.from(document.querySelectorAll('[data-current-model], [data-selected-model], [data-model-name]'))
         .filter((el) => !isStatusProbeExcludedElement(el) && dom.isVisible(el))
         .forEach((el) => pushCandidate(dom.textOf(el), 120, el, 'dom:data-model'));
+      if (candidates.length > 0) return bestCandidate();
 
       Array.from(document.querySelectorAll('select'))
         .filter((el) => !isStatusProbeExcludedElement(el) && dom.isVisible(el))
@@ -263,21 +266,17 @@ const openClawModelDomFallback = (() => {
         });
 
       Array.from(document.querySelectorAll('[role="combobox"], button[aria-haspopup="listbox"], button, [role="button"], input[type="text"], input:not([type])'))
-        .filter((el) => !isStatusProbeExcludedElement(el) && dom.isVisible(el))
+        .filter((el) => !isStatusProbeExcludedElement(el))
         .forEach((el) => {
           const rawValue = 'value' in el && typeof el.value === 'string' ? el.value : '';
-          const combined = [dom.labelOf(el), rawValue, el.getAttribute?.('placeholder')].filter(Boolean).join(' ').trim();
-          if (!/\bmodel\b/i.test(combined) && !modelPattern.test(rawValue) && !modelPattern.test(dom.textOf(el))) return;
+          const text = dom.textOf(el);
+          const combined = [el.getAttribute?.('aria-label'), el.getAttribute?.('title'), text, rawValue, el.getAttribute?.('placeholder')].filter(Boolean).join(' ').trim();
+          if ((!/\bmodel\b/i.test(combined) && !modelPattern.test(rawValue) && !modelPattern.test(text)) || !dom.isVisible(el)) return;
           const score = /\bmodel\b/i.test(combined) ? 105 : 80;
-          pushCandidate(rawValue || dom.textOf(el) || combined, score, el, 'dom:control');
+          pushCandidate(rawValue || text || combined, score, el, 'dom:control');
         });
 
-      if (candidates.length === 0) return emptyModelResult();
-      candidates.sort((left, right) => {
-        if (right.score !== left.score) return right.score - left.score;
-        return left.label.length - right.label.length;
-      });
-      return modelResult(candidates[0].label, candidates[0].source);
+      return bestCandidate();
     };
 
     const MODEL_SOURCE_READERS = [

@@ -14,9 +14,9 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <ApplicationIcon>Assets\WindowIcon.ico</ApplicationIcon>
-    <Version>5.3.7</Version>
-    <AssemblyVersion>5.3.7.0</AssemblyVersion>
-    <FileVersion>5.3.7.0</FileVersion>
+    <Version>5.3.8</Version>
+    <AssemblyVersion>5.3.8.0</AssemblyVersion>
+    <FileVersion>5.3.8.0</FileVersion>
     <BaseOutputPath>..\..\bin\$(Configuration)\</BaseOutputPath>
     <OutputPath>$(BaseOutputPath)$(Version)\</OutputPath>
   </PropertyGroup>
@@ -26,6 +26,8 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260416003" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1839" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="NSec.Cryptography" Version="26.4.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
   </ItemGroup>
 
   <ItemGroup>

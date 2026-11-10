@@ -8,6 +8,18 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 
 ## English
 
+### v5.3.8 (2026-11-10)
+
+- Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.8`.
+- Added opt-in OpenClaw Gateway v4 integration for session browsing, pagination and search, empty-session creation, model selection, exact run cancellation, and observed run completion notifications. Chat input, attachments, and rendering remain in the hosted Web UI.
+- Added per-endpoint protected credentials, persistent signed device identity, optional Cloudflare Access user tokens, and explicit pairing/connection errors. The native connection does not automatically share the web page's authentication or cookies.
+- Added the session workspace, responsive toolbar actions, first-run guidance, and Settings draft/save feedback. See [integration and validation notes](docs/openclaw-integration.md).
+- Replaced the brand artwork with the supplied transparent purple/pink logo and regenerated all application assets, DPI variants, and multi-resolution icons using a repeatable asset script. Added a targeted Windows shell refresh tool for executable icons; the preview EXE's embedded icon and Windows system icon list were verified against the new artwork.
+- Reduced hosted chat inspection cost with bounded text samples, early returns after trusted model-control matches, and coalesced DOM mutation checks. Connected runs no longer trigger automatic resync or reload solely because visible output is quiet; recovery remains available for disconnected or stalled-connection states.
+- Validated bridge inspection cost on a synthetic WebView2 page with 1,000 messages. This experiment does not establish real authenticated-page typing, scrolling, or folding frame rates. Real VPS / Cloudflare end-to-end validation remains required.
+- Clarified deployment requirements: the self-contained Release targets Windows 11 24H2 (build 26100) or later and includes .NET and the Windows App SDK. WebView2 Runtime remains an external dependency; no standalone Chromium engine is bundled. Older Windows versions are not validated.
+- Included the status-bar fallback improvements from the unpublished 5.3.7 work: unavailable Model, Heartbeat, Latency, Access, and Work Status values display `N/A`, with expanded OpenClaw model detection.
+
 ### v5.3.6 (2026-09-07)
 
 - Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.6`.
@@ -381,6 +393,18 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 ---
 
 ## 简体中文
+
+### v5.3.8 (2026-11-10)
+
+- 将 app、assembly、file、package manifest、application manifest、README、中文 README 和 changelog 元数据同步到 `5.3.8`。
+- 增加按需启用的 OpenClaw Gateway v4 集成，支持会话浏览、分页与搜索、新建空会话、模型选择、精确停止运行及已观察运行的完成通知。聊天输入、附件和渲染继续由托管 Web UI 负责。
+- 增加按 endpoint 隔离的受保护凭据、持久签名设备身份、可选 Cloudflare Access 用户令牌及明确的配对/连接错误。原生连接不会自动共享网页的认证或 Cookie。
+- 增加会话工作区、适配窄窗的工具栏操作、首次使用引导及设置草稿/保存反馈。详见[集成与验证说明](docs/openclaw-integration.md)。
+- 使用提供的透明紫粉色 logo 更新品牌，通过可重复执行的脚本重新生成应用资源、DPI 变体和多分辨率图标。增加针对单个 EXE 的 Windows 图标刷新工具，预览版 EXE 内嵌图标及 Windows 系统图标列表已与新图形核对。
+- 通过有界文本采样、命中可信模型控件后提前返回及合并 DOM 变更检查，降低聊天页面探测开销。已连接的运行不再仅因可见输出静默而自动重同步或刷新；断线或连接卡住时仍保留恢复能力。
+- 在包含 1000 条消息的合成 WebView2 页面上验证 bridge 探测开销；该实验不能证明真实登录页面输入、滚动或折叠操作的帧率。真实 VPS / Cloudflare 端到端流程仍需验证。
+- 明确部署要求：自包含 Release 面向 Windows 11 24H2（版本 26100）及以上，包含 .NET 和 Windows App SDK；WebView2 Runtime 仍是外部依赖，未打包独立 Chromium 内核。更早的 Windows 版本尚未验证。
+- 纳入未发布的 5.3.7 工作中的状态栏回退改进：Model、Heartbeat、Latency、Access 和 Work Status 信息不可用时显示 `N/A`，并扩展 OpenClaw 模型检测。
 
 ### v5.3.6 (2026-09-07)
 

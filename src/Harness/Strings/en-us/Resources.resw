@@ -743,4 +743,238 @@
   <data name="ErrorPageGateway" xml:space="preserve">
     <value>Gateway</value>
   </data>
+  <data name="SettingsGatewayTitle" xml:space="preserve">
+    <value>OpenClaw connection</value>
+  </data>
+  <data name="SettingsGatewayDescription" xml:space="preserve">
+    <value>Use Gateway session and run controls while keeping the web workspace. Select OpenClaw as the backend to enable this connection.</value>
+  </data>
+  <data name="SettingsGatewayEnabled" xml:space="preserve">
+    <value>Enable Gateway controls</value>
+  </data>
+  <data name="SettingsGatewayAdvanced" xml:space="preserve">
+    <value>Address help</value>
+  </data>
+  <data name="SettingsGatewayWebSocketUrl" xml:space="preserve">
+    <value>Gateway WebSocket address (optional)</value>
+  </data>
+  <data name="SettingsGatewayWebSocketPlaceholder" xml:space="preserve">
+    <value>Automatic from the workspace address</value>
+  </data>
+  <data name="SettingsGatewayRouteHint" xml:space="preserve">
+    <value>Use the current direct or Cloudflare entry. Changing either address requires entering its credential again. Routes are not switched automatically.</value>
+  </data>
+  <data name="SettingsGatewayAuthentication" xml:space="preserve">
+    <value>Gateway authentication</value>
+  </data>
+  <data name="SettingsGatewayAuthToken" xml:space="preserve">
+    <value>Gateway token</value>
+  </data>
+  <data name="SettingsGatewayAuthPassword" xml:space="preserve">
+    <value>Gateway password</value>
+  </data>
+  <data name="SettingsGatewayAuthProxy" xml:space="preserve">
+    <value>Existing trusted proxy</value>
+  </data>
+  <data name="SettingsGatewaySecret" xml:space="preserve">
+    <value>Token or password</value>
+  </data>
+  <data name="SettingsGatewayCredentialSaved" xml:space="preserve">
+    <value>A credential is saved or staged. Leave this field blank to keep it.</value>
+  </data>
+  <data name="SettingsGatewayCredentialEmpty" xml:space="preserve">
+    <value>No credential saved for this connection.</value>
+  </data>
+  <data name="SettingsGatewaySecretHint" xml:space="preserve">
+    <value>Use the same Gateway authorization as the web workspace. Credentials are protected for this Windows account and excluded from settings exports.</value>
+  </data>
+  <data name="SettingsGatewaySecureSaveFailed" xml:space="preserve">
+    <value>Could not save the protected credential or settings. Your previous saved configuration is intact.</value>
+  </data>
+  <data name="SettingsGatewayRequiresOpenClaw" xml:space="preserve">
+    <value>Choose the OpenClaw backend before enabling Gateway controls.</value>
+  </data>
+  <data name="SettingsGatewayInvalidUrl" xml:space="preserve">
+    <value>Enter an absolute ws:// or wss:// address without credentials, query parameters, or a fragment.</value>
+  </data>
+  <data name="SettingsGatewayDraftApplied" xml:space="preserve">
+    <value>Environment updated in this draft</value>
+  </data>
+  <data name="SettingsGatewayDraftHint" xml:space="preserve">
+    <value>Choose Save and close to persist all changes, or Cancel to discard them.</value>
+  </data>
+  <data name="SettingsGatewaySaveClose" xml:space="preserve">
+    <value>Save and close</value>
+  </data>
+  <data name="ShellGatewayPanelTitle" xml:space="preserve">
+    <value>OpenClaw</value>
+  </data>
+  <data name="ShellGatewayPanelSubtitle" xml:space="preserve">
+    <value>Sessions and run controls</value>
+  </data>
+  <data name="ShellGatewayClosePanel" xml:space="preserve">
+    <value>Close session panel</value>
+  </data>
+  <data name="ShellGatewayRefresh" xml:space="preserve">
+    <value>Refresh sessions</value>
+  </data>
+  <data name="ShellGatewayNewSession" xml:space="preserve">
+    <value>New session</value>
+  </data>
+  <data name="ShellGatewaySearchSessions" xml:space="preserve">
+    <value>Search loaded sessions</value>
+  </data>
+  <data name="ShellGatewaySessions" xml:space="preserve">
+    <value>Sessions</value>
+  </data>
+  <data name="ShellGatewayNoSessions" xml:space="preserve">
+    <value>No sessions to show</value>
+  </data>
+  <data name="ShellGatewayNoSessionsHint" xml:space="preserve">
+    <value>Connect to the Gateway, refresh, or try another search.</value>
+  </data>
+  <data name="ShellGatewaySelectedSession" xml:space="preserve">
+    <value>Selected session</value>
+  </data>
+  <data name="ShellGatewayModel" xml:space="preserve">
+    <value>Session model</value>
+  </data>
+  <data name="ShellGatewayChooseModel" xml:space="preserve">
+    <value>Choose a model</value>
+  </data>
+  <data name="ShellGatewayApplyModel" xml:space="preserve">
+    <value>Apply model</value>
+  </data>
+  <data name="ShellGatewayStopRun" xml:space="preserve">
+    <value>Stop current run</value>
+  </data>
+  <data name="ShellGatewayMore" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="ShellGatewayTheme" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="ShellGatewayCompactMode" xml:space="preserve">
+    <value>Toggle compact mode</value>
+  </data>
+  <data name="ShellGatewayWelcomeTitle" xml:space="preserve">
+    <value>Connect your workspace</value>
+  </data>
+  <data name="ShellGatewayWelcomeHint" xml:space="preserve">
+    <value>Add your Gateway address to open its workspace and manage OpenClaw sessions.</value>
+  </data>
+  <data name="ShellGatewayConfigure" xml:space="preserve">
+    <value>Configure Gateway</value>
+  </data>
+  <data name="ShellGatewayBrowserLoading" xml:space="preserve">
+    <value>Loading workspace</value>
+  </data>
+  <data name="ShellGatewayConnectionDetails" xml:space="preserve">
+    <value>Connection details</value>
+  </data>
+  <data name="GatewayClientDisconnected" xml:space="preserve">
+    <value>Gateway disconnected</value>
+  </data>
+  <data name="GatewayClientConnecting" xml:space="preserve">
+    <value>Connecting to Gateway…</value>
+  </data>
+  <data name="GatewayClientConnected" xml:space="preserve">
+    <value>Gateway connected</value>
+  </data>
+  <data name="GatewayClientReconnecting" xml:space="preserve">
+    <value>Reconnecting…</value>
+  </data>
+  <data name="GatewayClientSelectSession" xml:space="preserve">
+    <value>Select a session</value>
+  </data>
+  <data name="GatewayClientUnknownRun" xml:space="preserve">
+    <value>Run state unavailable</value>
+  </data>
+  <data name="GatewayClientRunning" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="GatewayClientIdle" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="GatewayClientWaitingForPage" xml:space="preserve">
+    <value>Open the OpenClaw chat page to bind a session.</value>
+  </data>
+  <data name="GatewayClientDefaultModel" xml:space="preserve">
+    <value>Use agent default</value>
+  </data>
+  <data name="GatewayClientCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="GatewayClientStopped" xml:space="preserve">
+    <value>Stopped</value>
+  </data>
+  <data name="GatewayClientFailed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="GatewayClientToolRunning" xml:space="preserve">
+    <value>Running a tool</value>
+  </data>
+  <data name="GatewayClientRunCompleted" xml:space="preserve">
+    <value>{0} finished.</value>
+  </data>
+  <data name="GatewayClientNewSession" xml:space="preserve">
+    <value>New session</value>
+  </data>
+  <data name="GatewayClientDraftBeforeSwitch" xml:space="preserve">
+    <value>Send or clear the draft in the page before switching sessions.</value>
+  </data>
+  <data name="GatewayClientSelectionNotConfirmed" xml:space="preserve">
+    <value>The page has not confirmed the selected session. Retry after it loads.</value>
+  </data>
+  <data name="GatewayClientNoExactRun" xml:space="preserve">
+    <value>No confirmed active run. Refresh the session before stopping.</value>
+  </data>
+  <data name="GatewayClientStopping" xml:space="preserve">
+    <value>Stop requested; waiting for confirmation…</value>
+  </data>
+  <data name="GatewayClientReconciling" xml:space="preserve">
+    <value>Checking current run…</value>
+  </data>
+  <data name="GatewayClientPairing" xml:space="preserve">
+    <value>Approve device request {0} on your Gateway, then reconnect.</value>
+  </data>
+  <data name="GatewayClientUnsupportedProtocol" xml:space="preserve">
+    <value>This Gateway protocol is not supported. The native client requires protocol v4.</value>
+  </data>
+  <data name="GatewayClientTimeout" xml:space="preserve">
+    <value>Request timed out. Its result is unknown; refresh before retrying a write.</value>
+  </data>
+  <data name="GatewayClientRejected" xml:space="preserve">
+    <value>Gateway rejected the request ({0}). Check authorization and permissions.</value>
+  </data>
+  <data name="GatewayClientTransportError" xml:space="preserve">
+    <value>Could not connect. Check the WebSocket address and any Cloudflare Access sign-in.</value>
+  </data>
+  <data name="GatewayClientOperationFailed" xml:space="preserve">
+    <value>Operation failed. Refresh or check the connection settings.</value>
+  </data>
+  <data name="GatewayClientInvalidEndpoint" xml:space="preserve">
+    <value>Enter a valid Gateway WebSocket address in Settings.</value>
+  </data>
+  <data name="ShellGatewayLoadMore" xml:space="preserve">
+    <value>Load more sessions</value>
+  </data>
+  <data name="SettingsGatewayAccessTitle" xml:space="preserve">
+    <value>Cloudflare Access (optional)</value>
+  </data>
+  <data name="SettingsGatewayAccessHint" xml:space="preserve">
+    <value>Only needed when Cloudflare Access protects this entry. Paste the Access token from your existing cloudflared login. Leave blank to keep the saved token.</value>
+  </data>
+  <data name="SettingsGatewayAccessToken" xml:space="preserve">
+    <value>Access token</value>
+  </data>
+  <data name="SettingsGatewayAccessClear" xml:space="preserve">
+    <value>Remove the saved Access token</value>
+  </data>
+  <data name="GatewayClientAccessRequired" xml:space="preserve">
+    <value>The Gateway entry requires authentication. Check the address and, if Cloudflare Access is enabled, renew its Access token in Settings.</value>
+  </data>
+  <data name="GatewayClientCredentialEndpointChanged" xml:space="preserve">
+    <value>This saved credential belongs to a different address. Enter the Gateway credential again in Settings.</value>
+  </data>
 </root>

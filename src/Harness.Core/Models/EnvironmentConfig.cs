@@ -20,6 +20,10 @@ public class EnvironmentConfig : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public string Id { get; set; } = string.Empty;
+
+    public OpenClawConnectionOptions? OpenClawConnection { get; set; }
+
     /// <summary>
     /// Gets or sets the display name of this environment (e.g., "Production", "Test").
     /// </summary>
@@ -74,6 +78,8 @@ public class EnvironmentConfig : INotifyPropertyChanged
     /// </summary>
     public EnvironmentConfig Clone() => new()
     {
+        Id = Id,
+        OpenClawConnection = OpenClawConnection is null ? null : OpenClawConnection with { },
         Name = Name,
         GatewayUrl = GatewayUrl,
         IsDefault = IsDefault,
@@ -86,6 +92,8 @@ public class EnvironmentConfig : INotifyPropertyChanged
     public void ApplyFrom(EnvironmentConfig other)
     {
         ArgumentNullException.ThrowIfNull(other);
+        Id = other.Id;
+        OpenClawConnection = other.OpenClawConnection is null ? null : other.OpenClawConnection with { };
         Name = other.Name;
         GatewayUrl = other.GatewayUrl;
         IsDefault = other.IsDefault;

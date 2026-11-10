@@ -38,6 +38,74 @@ public sealed class ShellSessionCoordinatorTests
     }
 
     [TestMethod]
+    public async Task QuietConnectedRunDoesNotIssueRecoveryCommandsForRepeatedSnapshots()
+    {
+        var webView = new FakeShellWebView();
+        var bridge = new FakeShellBridge();
+        using var coordinator = new ShellSessionCoordinator();
+        await coordinator.AttachAsync(webView, bridge);
+        var quietRun = ConnectedSnapshot() with { IsBusy = true, WorkState = "busy", IsBusyStale = true, BusyStaleSeconds = 120 };
+
+        for (var index = 0; index < 60; index++)
+        {
+            webView.RaiseSnapshot(quietRun with { BusyStaleSeconds = 120 + index * 4 });
+        }
+
+        Assert.AreEqual(0, bridge.LightweightSyncCount, "A quiet tool or reasoning step must not trigger unsupported sync commands.");
+        Assert.AreEqual(0, bridge.RecentMessagesCount);
+        Assert.AreEqual(0, webView.InspectionCount);
+        Assert.AreEqual(0, webView.ReloadCount);
+        Assert.IsFalse(coordinator.IsRecoveryInProgress);
+        Assert.AreEqual(RecoveryState.Ready, coordinator.CurrentRecoveryState);
+    }
+
+    [TestMethod]
+    public async Task AutomaticRefreshKeepsAConnectedRunEvenWhenDomActivityIsQuiet()
+    {
+        var webView = new FakeShellWebView();
+        var bridge = new FakeShellBridge();
+        using var coordinator = new ShellSessionCoordinator();
+        await coordinator.AttachAsync(webView, bridge);
+
+        var refresh = coordinator.RequestHardRefreshAsync("transport_recovered");
+        await webView.WaitForInspectionRequestAsync();
+        webView.CompleteInspection(ConnectedSnapshot() with
+        {
+            IsBusy = true,
+            IsBusyStale = true,
+            BusyStaleSeconds = 180,
+            WorkState = "busy"
+        });
+        await refresh;
+
+        Assert.AreEqual(0, webView.ReloadCount, "Visible progress is not required to keep a healthy authenticated session.");
+        Assert.AreEqual(RecoveryState.Ready, coordinator.CurrentRecoveryState);
+    }
+
+    [TestMethod]
+    public async Task QuietBusySnapshotDoesNotBlockRecoveryWhenGatewayIsStillConnecting()
+    {
+        var webView = new FakeShellWebView();
+        var bridge = new FakeShellBridge();
+        using var coordinator = new ShellSessionCoordinator();
+        await coordinator.AttachAsync(webView, bridge);
+
+        var refresh = coordinator.RequestHardRefreshAsync("connection_stalled");
+        await webView.WaitForInspectionRequestAsync();
+        webView.CompleteInspection(ConnectedSnapshot() with
+        {
+            Phase = ControlUiPhase.GatewayConnecting,
+            IsBusy = true,
+            IsBusyStale = true,
+            BusyStaleSeconds = 180
+        });
+        await refresh;
+
+        Assert.AreEqual(1, webView.ReloadCount);
+        Assert.AreEqual(RecoveryState.Connecting, coordinator.CurrentRecoveryState);
+    }
+
+    [TestMethod]
     public async Task HardRefreshReloadsWhenSessionIsDead()
     {
         var webView = new FakeShellWebView();
@@ -208,6 +276,8 @@ public sealed class ShellSessionCoordinatorTests
         }
 
         public void RaiseHeartbeatFailure(string message) => HeartbeatFailed?.Invoke(message);
+
+        public void RaiseSnapshot(ControlUiProbeSnapshot snapshot) => ControlUiSnapshotUpdated?.Invoke(snapshot);
 
         private static TaskCompletionSource<ControlUiProbeSnapshot> CreateCompletion() =>
             new(TaskCreationOptions.RunContinuationsAsynchronously);

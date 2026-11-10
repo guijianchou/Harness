@@ -40,6 +40,7 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CurrentUrl));
         OnPropertyChanged(nameof(SelectedEnvironmentName));
         OnPropertyChanged(nameof(IsPlaceholderEnvironment));
+        SynchronizeGatewayEnvironment();
 
         if (sameSession)
         {

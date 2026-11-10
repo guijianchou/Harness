@@ -1,0 +1,193 @@
+name: Release
+
+on:
+  push:
+    tags: ['[0-9]*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish Windows x64 release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      REF_NAME: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate release version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:REF_NAME -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw 'Release tags must use a numeric major.minor.patch version without a v prefix.'
+          }
+          [xml]$project = Get-Content -LiteralPath src/Harness/Harness.csproj -Raw
+          $versions = @($project.SelectNodes('/Project/PropertyGroup/Version'))
+          if ($versions.Count -ne 1 -or $versions[0].InnerText -cne $env:REF_NAME) {
+            throw 'The release tag must match the Version in Harness.csproj.'
+          }
+          $notesPath = Join-Path 'docs/releases' ($env:REF_NAME + '.md')
+          if (-not (Test-Path -LiteralPath $notesPath -PathType Leaf)) {
+            throw "Release notes are missing: $notesPath"
+          }
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+
+      - name: Restore locked packages
+        shell: pwsh
+        run: dotnet restore Harness.sln --locked-mode
+
+      - name: Run Core regression tests
+        shell: pwsh
+        run: dotnet test tests/Harness.Core.Tests/Harness.Core.Tests.csproj -c Debug --no-restore
+
+      - name: Build WinUI x64
+        shell: pwsh
+        run: dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
+
+      - name: Verify formatting
+        shell: pwsh
+        run: |
+          $env:Platform = 'x64'
+          dotnet format Harness.sln --verify-no-changes --no-restore
+
+      - name: Verify repository guardrails
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-repo-structure.ps1
+
+      - name: Verify embedded bridge scripts
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-bridge-scripts.ps1
+
+      - name: Verify OpenClaw page selection
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-openclaw-selection.ps1
+
+      - name: Verify whitespace
+        shell: pwsh
+        run: git diff --check
+
+      - name: Package portable release
+        shell: pwsh
+        run: ./tools/publish-release.ps1 -OutputRoot artifacts/release
+
+      - name: Preserve release package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Harness-${{ env.REF_NAME }}-win-x64
+          path: |
+            artifacts/release/${{ env.REF_NAME }}/Harness-${{ env.REF_NAME }}-win-x64.zip
+            artifacts/release/${{ env.REF_NAME }}/Harness-${{ env.REF_NAME }}-win-x64.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload assets and publish release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs/promises');
+            const path = require('node:path');
+            const crypto = require('node:crypto');
+            const version = process.env.REF_NAME;
+            if (!/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(version ?? '')) {
+              throw new Error('Invalid release version.');
+            }
+            const { owner, repo } = context.repo;
+            const notes = await fs.readFile(path.join('docs', 'releases', `${version}.md`), 'utf8');
+            if (!notes.trim()) {
+              throw new Error('Release notes must not be empty.');
+            }
+            const zipName = `Harness-${version}-win-x64.zip`;
+            const names = [zipName, `${zipName}.sha256`];
+            const assets = await Promise.all(names.map(async name => {
+              const data = await fs.readFile(path.join('artifacts', 'release', version, name));
+              if (!data.length) {
+                throw new Error(`Release asset is empty: ${name}`);
+              }
+              return { name, data, digest: `sha256:${crypto.createHash('sha256').update(data).digest('hex')}` };
+            }));
+            const checksum = assets[1].data.toString('utf8').replace(/^\uFEFF/, '').trim().split(/\s+/);
+            if (!/^[a-fA-F0-9]{64}$/.test(checksum[0] ?? '') || checksum.length > 2 ||
+                (checksum.length === 2 && checksum[1].replace(/^\*/, '') !== zipName) ||
+                assets[0].digest !== `sha256:${checksum[0].toLowerCase()}`) {
+              throw new Error('The SHA-256 file does not match the release ZIP.');
+            }
+
+            const releases = await github.paginate(github.rest.repos.listReleases, { owner, repo, per_page: 100 });
+            const matching = releases.filter(release => release.tag_name === version);
+            if (matching.some(release => !release.draft)) {
+              throw new Error(`A public release already exists for ${version}; it will not be changed.`);
+            }
+            if (matching.length > 1) {
+              throw new Error(`Multiple drafts exist for ${version}; resolve them before retrying.`);
+            }
+            const release = matching[0] ?? (await github.rest.repos.createRelease({
+              owner, repo, tag_name: version, name: `Harness ${version}`,
+              body: notes, draft: true, prerelease: false
+            })).data;
+            let existing = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner, repo, release_id: release.id, per_page: 100
+            });
+            if (existing.some(asset => !names.includes(asset.name))) {
+              throw new Error('The draft contains unexpected assets; it will remain unpublished.');
+            }
+            for (const asset of assets) {
+              const duplicates = existing.filter(remote => remote.name === asset.name);
+              if (duplicates.length > 1) {
+                throw new Error(`The draft contains duplicate assets named ${asset.name}.`);
+              }
+              if (duplicates.length === 1) {
+                const remote = duplicates[0];
+                if (remote.state !== 'uploaded' || remote.size !== asset.data.length || remote.digest !== asset.digest) {
+                  throw new Error(`Existing asset ${asset.name} could not be verified against the local file; nothing will be overwritten.`);
+                }
+                core.info(`Reusing verified asset ${asset.name}.`);
+                continue;
+              }
+              const uploaded = (await github.rest.repos.uploadReleaseAsset({
+                owner, repo, release_id: release.id, name: asset.name,
+                data: asset.data,
+                headers: {
+                  'content-type': asset.name.endsWith('.zip') ? 'application/zip' : 'text/plain',
+                  'content-length': asset.data.length
+                }
+              })).data;
+              if (uploaded.state !== 'uploaded' || uploaded.size !== asset.data.length ||
+                  (uploaded.digest && uploaded.digest !== asset.digest)) {
+                throw new Error(`Upload verification failed for ${asset.name}; the release remains a draft.`);
+              }
+            }
+            existing = await github.paginate(github.rest.repos.listReleaseAssets, {
+              owner, repo, release_id: release.id, per_page: 100
+            });
+            if (existing.length !== assets.length || assets.some(asset =>
+                existing.filter(remote => remote.name === asset.name && remote.state === 'uploaded' &&
+                  remote.size === asset.data.length && (!remote.digest || remote.digest === asset.digest)).length !== 1)) {
+              throw new Error('The final draft asset set does not match the release package.');
+            }
+            const current = (await github.rest.repos.getRelease({ owner, repo, release_id: release.id })).data;
+            if (!current.draft || current.tag_name !== version) {
+              throw new Error('Release state changed during upload; publishing was stopped.');
+            }
+            const published = (await github.rest.repos.updateRelease({
+              owner, repo, release_id: release.id, name: `Harness ${version}`,
+              body: notes, draft: false, prerelease: false, make_latest: 'true'
+            })).data;
+            core.info(`Published ${published.html_url}`);

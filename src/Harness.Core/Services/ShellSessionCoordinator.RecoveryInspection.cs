@@ -83,7 +83,7 @@ public sealed partial class ShellSessionCoordinator
             return true;
         }
 
-        if (!IsSessionAlive(snapshot) || snapshot.IsBusyStale)
+        if (!IsSessionAlive(snapshot) || (snapshot.IsBusyStale && snapshot.Phase != ControlUiPhase.Connected))
         {
             return false;
         }

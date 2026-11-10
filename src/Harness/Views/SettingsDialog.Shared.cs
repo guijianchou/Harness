@@ -18,6 +18,8 @@ public sealed partial class SettingsDialog
     private bool _hasRestoredSettingsBoundsAfterActivation;
     private bool _isDarkThemeActive;
     private bool _isSyncingLanguageSelection;
+    private bool _isSaving;
+    private bool _isRestoringEnvironmentSelection;
     private readonly SettingsPersistenceAdapter _settingsPersistence;
 
     public SettingsViewModel ViewModel { get; private set; }

@@ -743,4 +743,238 @@
   <data name="ErrorPageGateway" xml:space="preserve">
     <value>网关</value>
   </data>
+  <data name="SettingsGatewayTitle" xml:space="preserve">
+    <value>OpenClaw 连接</value>
+  </data>
+  <data name="SettingsGatewayDescription" xml:space="preserve">
+    <value>通过 Gateway 管理会话与运行状态，保留网页工作空间。选择 OpenClaw 后端后可启用连接。</value>
+  </data>
+  <data name="SettingsGatewayEnabled" xml:space="preserve">
+    <value>启用 Gateway 控制</value>
+  </data>
+  <data name="SettingsGatewayAdvanced" xml:space="preserve">
+    <value>地址说明</value>
+  </data>
+  <data name="SettingsGatewayWebSocketUrl" xml:space="preserve">
+    <value>Gateway WebSocket 地址（可选）</value>
+  </data>
+  <data name="SettingsGatewayWebSocketPlaceholder" xml:space="preserve">
+    <value>留空则从工作空间地址推导</value>
+  </data>
+  <data name="SettingsGatewayRouteHint" xml:space="preserve">
+    <value>使用当前直连或 Cloudflare 入口。修改任一地址后需重新输入凭据，不会自动切换链路。</value>
+  </data>
+  <data name="SettingsGatewayAuthentication" xml:space="preserve">
+    <value>Gateway 授权方式</value>
+  </data>
+  <data name="SettingsGatewayAuthToken" xml:space="preserve">
+    <value>Gateway 令牌</value>
+  </data>
+  <data name="SettingsGatewayAuthPassword" xml:space="preserve">
+    <value>Gateway 密码</value>
+  </data>
+  <data name="SettingsGatewayAuthProxy" xml:space="preserve">
+    <value>已有受信代理授权</value>
+  </data>
+  <data name="SettingsGatewaySecret" xml:space="preserve">
+    <value>令牌或密码</value>
+  </data>
+  <data name="SettingsGatewayCredentialSaved" xml:space="preserve">
+    <value>已保存或暂存凭据。留空可保留当前凭据。</value>
+  </data>
+  <data name="SettingsGatewayCredentialEmpty" xml:space="preserve">
+    <value>此连接尚未保存凭据。</value>
+  </data>
+  <data name="SettingsGatewaySecretHint" xml:space="preserve">
+    <value>使用与网页工作空间相同的 Gateway 授权材料。凭据由当前 Windows 账户保护，不写入设置导出。</value>
+  </data>
+  <data name="SettingsGatewaySecureSaveFailed" xml:space="preserve">
+    <value>无法保存受保护凭据或设置，之前保存的配置仍然保留。</value>
+  </data>
+  <data name="SettingsGatewayRequiresOpenClaw" xml:space="preserve">
+    <value>启用 Gateway 控制前，请选择 OpenClaw 后端。</value>
+  </data>
+  <data name="SettingsGatewayInvalidUrl" xml:space="preserve">
+    <value>请输入完整的 ws:// 或 wss:// 地址，不要包含凭据、查询参数或片段。</value>
+  </data>
+  <data name="SettingsGatewayDraftApplied" xml:space="preserve">
+    <value>已更新当前环境草稿</value>
+  </data>
+  <data name="SettingsGatewayDraftHint" xml:space="preserve">
+    <value>选择“保存并关闭”以保存全部更改，或选择“取消”放弃更改。</value>
+  </data>
+  <data name="SettingsGatewaySaveClose" xml:space="preserve">
+    <value>保存并关闭</value>
+  </data>
+  <data name="ShellGatewayPanelTitle" xml:space="preserve">
+    <value>OpenClaw</value>
+  </data>
+  <data name="ShellGatewayPanelSubtitle" xml:space="preserve">
+    <value>会话与运行控制</value>
+  </data>
+  <data name="ShellGatewayClosePanel" xml:space="preserve">
+    <value>关闭会话面板</value>
+  </data>
+  <data name="ShellGatewayRefresh" xml:space="preserve">
+    <value>刷新会话</value>
+  </data>
+  <data name="ShellGatewayNewSession" xml:space="preserve">
+    <value>新建会话</value>
+  </data>
+  <data name="ShellGatewaySearchSessions" xml:space="preserve">
+    <value>搜索已加载的会话</value>
+  </data>
+  <data name="ShellGatewaySessions" xml:space="preserve">
+    <value>会话</value>
+  </data>
+  <data name="ShellGatewayNoSessions" xml:space="preserve">
+    <value>暂无可显示的会话</value>
+  </data>
+  <data name="ShellGatewayNoSessionsHint" xml:space="preserve">
+    <value>连接 Gateway 后刷新，或尝试其他搜索词。</value>
+  </data>
+  <data name="ShellGatewaySelectedSession" xml:space="preserve">
+    <value>当前会话</value>
+  </data>
+  <data name="ShellGatewayModel" xml:space="preserve">
+    <value>会话模型</value>
+  </data>
+  <data name="ShellGatewayChooseModel" xml:space="preserve">
+    <value>选择模型</value>
+  </data>
+  <data name="ShellGatewayApplyModel" xml:space="preserve">
+    <value>应用模型</value>
+  </data>
+  <data name="ShellGatewayStopRun" xml:space="preserve">
+    <value>停止当前运行</value>
+  </data>
+  <data name="ShellGatewayMore" xml:space="preserve">
+    <value>更多操作</value>
+  </data>
+  <data name="ShellGatewayTheme" xml:space="preserve">
+    <value>外观</value>
+  </data>
+  <data name="ShellGatewayCompactMode" xml:space="preserve">
+    <value>切换迷你模式</value>
+  </data>
+  <data name="ShellGatewayWelcomeTitle" xml:space="preserve">
+    <value>连接你的工作空间</value>
+  </data>
+  <data name="ShellGatewayWelcomeHint" xml:space="preserve">
+    <value>添加 Gateway 地址，打开工作空间并管理 OpenClaw 会话。</value>
+  </data>
+  <data name="ShellGatewayConfigure" xml:space="preserve">
+    <value>配置 Gateway</value>
+  </data>
+  <data name="ShellGatewayBrowserLoading" xml:space="preserve">
+    <value>正在加载工作空间</value>
+  </data>
+  <data name="ShellGatewayConnectionDetails" xml:space="preserve">
+    <value>连接详情</value>
+  </data>
+  <data name="GatewayClientDisconnected" xml:space="preserve">
+    <value>网关未连接</value>
+  </data>
+  <data name="GatewayClientConnecting" xml:space="preserve">
+    <value>正在连接网关…</value>
+  </data>
+  <data name="GatewayClientConnected" xml:space="preserve">
+    <value>网关已连接</value>
+  </data>
+  <data name="GatewayClientReconnecting" xml:space="preserve">
+    <value>正在重新连接…</value>
+  </data>
+  <data name="GatewayClientSelectSession" xml:space="preserve">
+    <value>选择会话</value>
+  </data>
+  <data name="GatewayClientUnknownRun" xml:space="preserve">
+    <value>运行状态未知</value>
+  </data>
+  <data name="GatewayClientRunning" xml:space="preserve">
+    <value>运行中</value>
+  </data>
+  <data name="GatewayClientIdle" xml:space="preserve">
+    <value>就绪</value>
+  </data>
+  <data name="GatewayClientWaitingForPage" xml:space="preserve">
+    <value>打开 OpenClaw 聊天页面以关联会话。</value>
+  </data>
+  <data name="GatewayClientDefaultModel" xml:space="preserve">
+    <value>使用 Agent 默认模型</value>
+  </data>
+  <data name="GatewayClientCompleted" xml:space="preserve">
+    <value>已完成</value>
+  </data>
+  <data name="GatewayClientStopped" xml:space="preserve">
+    <value>已停止</value>
+  </data>
+  <data name="GatewayClientFailed" xml:space="preserve">
+    <value>失败</value>
+  </data>
+  <data name="GatewayClientToolRunning" xml:space="preserve">
+    <value>正在执行工具</value>
+  </data>
+  <data name="GatewayClientRunCompleted" xml:space="preserve">
+    <value>{0} 已完成。</value>
+  </data>
+  <data name="GatewayClientNewSession" xml:space="preserve">
+    <value>新会话</value>
+  </data>
+  <data name="GatewayClientDraftBeforeSwitch" xml:space="preserve">
+    <value>请先发送或清空页面中的草稿，再切换会话。</value>
+  </data>
+  <data name="GatewayClientSelectionNotConfirmed" xml:space="preserve">
+    <value>页面尚未确认所选会话，请加载完成后重试。</value>
+  </data>
+  <data name="GatewayClientNoExactRun" xml:space="preserve">
+    <value>没有已确认的活动任务，请刷新会话后再停止。</value>
+  </data>
+  <data name="GatewayClientStopping" xml:space="preserve">
+    <value>已请求停止，等待确认…</value>
+  </data>
+  <data name="GatewayClientReconciling" xml:space="preserve">
+    <value>正在核对当前任务…</value>
+  </data>
+  <data name="GatewayClientPairing" xml:space="preserve">
+    <value>请在网关批准设备请求 {0}，然后重新连接。</value>
+  </data>
+  <data name="GatewayClientUnsupportedProtocol" xml:space="preserve">
+    <value>当前网关协议不受支持，原生接口需要协议 v4。</value>
+  </data>
+  <data name="GatewayClientTimeout" xml:space="preserve">
+    <value>请求超时，结果尚不确定；重试写入操作前请先刷新。</value>
+  </data>
+  <data name="GatewayClientRejected" xml:space="preserve">
+    <value>网关拒绝请求（{0}），请检查授权和权限。</value>
+  </data>
+  <data name="GatewayClientTransportError" xml:space="preserve">
+    <value>无法连接，请检查 WebSocket 地址以及 Cloudflare Access 登录状态。</value>
+  </data>
+  <data name="GatewayClientOperationFailed" xml:space="preserve">
+    <value>操作失败，请刷新或检查连接设置。</value>
+  </data>
+  <data name="GatewayClientInvalidEndpoint" xml:space="preserve">
+    <value>请在设置中填写有效的网关 WebSocket 地址。</value>
+  </data>
+  <data name="ShellGatewayLoadMore" xml:space="preserve">
+    <value>加载更多会话</value>
+  </data>
+  <data name="SettingsGatewayAccessTitle" xml:space="preserve">
+    <value>Cloudflare Access（可选）</value>
+  </data>
+  <data name="SettingsGatewayAccessHint" xml:space="preserve">
+    <value>仅在 Cloudflare Access 保护此入口时需要。粘贴通过现有 cloudflared 登录获得的 Access 令牌。留空保留已保存的令牌。</value>
+  </data>
+  <data name="SettingsGatewayAccessToken" xml:space="preserve">
+    <value>Access 令牌</value>
+  </data>
+  <data name="SettingsGatewayAccessClear" xml:space="preserve">
+    <value>移除已保存的 Access 令牌</value>
+  </data>
+  <data name="GatewayClientAccessRequired" xml:space="preserve">
+    <value>网关入口需要认证，请检查地址；若启用了 Cloudflare Access，请在设置中更新 Access 令牌。</value>
+  </data>
+  <data name="GatewayClientCredentialEndpointChanged" xml:space="preserve">
+    <value>此凭据属于其他地址，请在设置中重新输入 Gateway 凭据。</value>
+  </data>
 </root>

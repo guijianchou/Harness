@@ -49,6 +49,12 @@ public partial class MainViewModel
 
     private async Task OnStopAsync()
     {
+        if (IsOpenClawAvailable)
+        {
+            await StopGatewayRunAsync();
+            return;
+        }
+
         await _webViewService.StopAsync();
     }
 

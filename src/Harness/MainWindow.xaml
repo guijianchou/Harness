@@ -22,6 +22,8 @@
                             <Setter Target="UrlDisplay.Visibility" Value="Collapsed" />
                             <Setter Target="HeartbeatIndicatorSegment.Visibility" Value="Collapsed" />
                             <Setter Target="RunIndicatorSegment.Visibility" Value="Collapsed" />
+                            <Setter Target="ThemeSwitcherContainer.Visibility" Value="Collapsed" />
+                            <Setter Target="AboutButton.Visibility" Value="Collapsed" />
                             <Setter Target="TopStatusPill.MinWidth" Value="0" />
                             <Setter Target="TopStatusPill.Margin" Value="8,0" />
                             <Setter Target="TopStatusContent.ColumnSpacing" Value="8" />
@@ -31,6 +33,7 @@
                     </VisualState>
                     <VisualState x:Name="NarrowMode">
                         <VisualState.Setters>
+                            <Setter Target="GatewayWorkspace.DisplayMode" Value="Overlay" />
                             <Setter Target="UrlDisplay.Visibility" Value="Collapsed" />
                             <Setter Target="LatencyBadge.Visibility" Value="Collapsed" />
                             <Setter Target="TopStatusPill.MinWidth" Value="0" />
@@ -48,6 +51,7 @@
                     </VisualState>
                     <VisualState x:Name="SmallMode">
                         <VisualState.Setters>
+                            <Setter Target="GatewayWorkspace.DisplayMode" Value="Overlay" />
                             <Setter Target="EnvironmentSummaryGroup.(Grid.ColumnSpan)" Value="4" />
                             <Setter Target="EnvironmentSummaryGroup.Margin" Value="0,0,0,8" />
                             <Setter Target="TopStatusPill.(Grid.Row)" Value="1" />
@@ -87,6 +91,8 @@
                             <Setter Target="RunIndicatorSegment.Visibility" Value="Collapsed" />
                             <Setter Target="ThemeSwitcherContainer.Visibility" Value="Collapsed" />
                             <Setter Target="AboutButton.Visibility" Value="Collapsed" />
+                            <Setter Target="GatewayPanelButton.Visibility" Value="Collapsed" />
+                            <Setter Target="BrowserContentGrid.Visibility" Value="Collapsed" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -164,6 +170,7 @@
                           SelectedItem="{x:Bind ViewModel.SelectedEnvironment, Mode=TwoWay}"
                           DisplayMemberPath="Name"
                           VerticalAlignment="Center"
+                          AutomationProperties.Name="{x:Bind helpers:StringResources.SelectEnvironment}"
                           ToolTipService.ToolTip="{x:Bind helpers:StringResources.SelectEnvironment}" />
 
                 <TextBlock x:Name="UrlDisplay"
@@ -246,13 +253,13 @@
                         <TextBlock Grid.Column="0"
                                     Text="{x:Bind helpers:StringResources.MainModelLabel}"
                                     Style="{StaticResource TopStatusLabelTextBlockStyle}"
-                                    Foreground="{StaticResource SuccessBrush}" />
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
                         <TextBlock Grid.Column="1"
                                     Text="{x:Bind ViewModel.ModelSummaryText, Mode=OneWay}"
                                     Style="{StaticResource TopStatusModelValueTextBlockStyle}"
                                     TextTrimming="CharacterEllipsis"
-                                    Foreground="{StaticResource SuccessBrush}" />
+                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Grid>
 
                     <Grid x:Name="AccessStatusSegment"
@@ -337,8 +344,18 @@
                         Grid.Column="3"
                         Orientation="Horizontal"
                         Spacing="4">
+                <Button x:Name="GatewayPanelButton"
+                        Command="{x:Bind ViewModel.ToggleGatewayPanelCommand}"
+                        Visibility="{x:Bind ViewModel.GatewayEntryVisibility, Mode=OneWay}"
+                        AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.PanelTitle}"
+                        ToolTipService.ToolTip="{x:Bind helpers:ShellGatewayLocalization.PanelSubtitle}"
+                        Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE8F1;" FontSize="16" />
+                </Button>
+
                 <Button x:Name="PinButton"
                         Click="OnPinClick"
+                        AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsAlwaysOnTop}"
                         ToolTipService.ToolTip="{x:Bind helpers:StringResources.SettingsAlwaysOnTop}"
                         Style="{StaticResource SubtleButtonStyle}">
                     <FontIcon Glyph="&#xE718;" FontSize="14" />
@@ -346,6 +363,7 @@
 
                 <Button x:Name="ReloadButton"
                         Command="{x:Bind ViewModel.ReloadCommand}"
+                        AutomationProperties.Name="{x:Bind helpers:StringResources.Reload}"
                         ToolTipService.ToolTip="{x:Bind helpers:StringResources.Reload}"
                         Style="{StaticResource SubtleButtonStyle}">
                     <FontIcon Glyph="&#xE72C;" FontSize="14" />
@@ -353,6 +371,7 @@
 
                 <Button x:Name="StopButton"
                         Command="{x:Bind ViewModel.StopCommand}"
+                        AutomationProperties.Name="{x:Bind helpers:StringResources.Stop}"
                         ToolTipService.ToolTip="{x:Bind helpers:StringResources.Stop}"
                         Style="{StaticResource SubtleButtonStyle}">
                     <FontIcon Glyph="&#xE71A;" FontSize="14" />
@@ -369,6 +388,7 @@
                         <Button x:Name="SystemThemeButton"
                                 Tag="System"
                                 Click="OnThemeSelectionClick"
+                                AutomationProperties.Name="{x:Bind helpers:StringResources.ThemeSystem}"
                                 ToolTipService.ToolTip="{x:Bind helpers:StringResources.ThemeSystem}"
                                 Style="{StaticResource ThemeSegmentButtonStyle}">
                             <FontIcon Glyph="&#xE7F4;" FontSize="13" />
@@ -377,6 +397,7 @@
                         <Button x:Name="LightThemeButton"
                                 Tag="Light"
                                 Click="OnThemeSelectionClick"
+                                AutomationProperties.Name="{x:Bind helpers:StringResources.ThemeLight}"
                                 ToolTipService.ToolTip="{x:Bind helpers:StringResources.ThemeLight}"
                                 Style="{StaticResource ThemeSegmentButtonStyle}">
                             <FontIcon Glyph="&#xE706;" FontSize="13" />
@@ -385,6 +406,7 @@
                         <Button x:Name="DarkThemeButton"
                                 Tag="Dark"
                                 Click="OnThemeSelectionClick"
+                                AutomationProperties.Name="{x:Bind helpers:StringResources.ThemeDark}"
                                 ToolTipService.ToolTip="{x:Bind helpers:StringResources.ThemeDark}"
                                 Style="{StaticResource ThemeSegmentButtonStyle}">
                             <FontIcon Glyph="&#xE708;" FontSize="13" />
@@ -394,6 +416,7 @@
 
                 <Button x:Name="SettingsButton"
                         Click="OnSettingsClick"
+                        AutomationProperties.Name="{x:Bind helpers:StringResources.Settings}"
                         ToolTipService.ToolTip="{x:Bind helpers:StringResources.Settings}"
                         Style="{StaticResource SubtleButtonStyle}">
                     <FontIcon Glyph="&#xE713;" FontSize="14" />
@@ -401,10 +424,35 @@
 
                 <Button x:Name="AboutButton"
                         Click="OnAboutClick"
+                        AutomationProperties.Name="{x:Bind helpers:StringResources.AboutTitle}"
                         ToolTipService.ToolTip="{x:Bind helpers:StringResources.AboutTitle}"
                         Style="{StaticResource SubtleButtonStyle}">
                     <FontIcon Glyph="&#xE946;" FontSize="14" />
                 </Button>
+
+                <DropDownButton x:Name="ShellOverflowButton"
+                                AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.More}"
+                                ToolTipService.ToolTip="{x:Bind helpers:ShellGatewayLocalization.More}"
+                                Style="{StaticResource SubtleDropDownButtonStyle}">
+                    <FontIcon Glyph="&#xE712;" FontSize="16" />
+                    <DropDownButton.Flyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="{x:Bind helpers:ShellGatewayLocalization.CompactMode}"
+                                            Click="OnCompactModeMenuClick">
+                                <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE740;" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutSubItem Text="{x:Bind helpers:ShellGatewayLocalization.Theme}">
+                                <MenuFlyoutItem Text="{x:Bind helpers:StringResources.ThemeSystem}" Tag="System" Click="OnOverflowThemeClick" />
+                                <MenuFlyoutItem Text="{x:Bind helpers:StringResources.ThemeLight}" Tag="Light" Click="OnOverflowThemeClick" />
+                                <MenuFlyoutItem Text="{x:Bind helpers:StringResources.ThemeDark}" Tag="Dark" Click="OnOverflowThemeClick" />
+                            </MenuFlyoutSubItem>
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Text="{x:Bind helpers:StringResources.AboutTitle}" Click="OnAboutClick">
+                                <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE946;" /></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
             </StackPanel>
         </Grid>
 
@@ -433,16 +481,225 @@
                  IsClosable="True"
                  Closed="OnDiagnosticInfoBarClosed" />
 
-        <Grid Grid.Row="4">
-            <Grid x:Name="WebViewHost" />
+        <Grid x:Name="BrowserContentGrid" Grid.Row="4">
+            <SplitView x:Name="GatewayWorkspace"
+                       DisplayMode="Inline"
+                       OpenPaneLength="304"
+                       IsPaneOpen="{x:Bind ViewModel.IsOpenClawPanelOpen, Mode=TwoWay}"
+                       PaneBackground="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}">
+                <SplitView.Pane>
+                    <ScrollViewer x:Name="GatewayPaneViewport"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollMode="Disabled"
+                                  VerticalScrollBarVisibility="Auto"
+                                  SizeChanged="OnGatewayPaneSizeChanged"
+                                  Visibility="{x:Bind ViewModel.GatewayPanelVisibility, Mode=OneWay}">
+                        <Grid x:Name="GatewayPaneLayout"
+                              Height="640"
+                              Padding="16"
+                              RowSpacing="12"
+                              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                              BorderThickness="0,0,1,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-            <ProgressRing x:Name="LoadingRing"
-                          Width="48"
-                          Height="48"
-                          HorizontalAlignment="Center"
-                          VerticalAlignment="Center"
-                          IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
-                          Visibility="Collapsed" />
+                            <Grid x:Name="GatewayPaneHeader" RowSpacing="12" SizeChanged="OnGatewayPaneSizeChanged">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.PanelTitle}"
+                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                        <TextBlock Text="{x:Bind ViewModel.GatewayStatusText, Mode=OneWay}"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            VerticalAlignment="Top"
+                                            Command="{x:Bind ViewModel.ToggleGatewayPanelCommand}"
+                                            AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.ClosePanel}"
+                                            ToolTipService.ToolTip="{x:Bind helpers:ShellGatewayLocalization.ClosePanel}"
+                                            Style="{StaticResource SubtleButtonStyle}">
+                                        <FontIcon Glyph="&#xE711;" FontSize="14" />
+                                    </Button>
+                                </Grid>
+
+                                <InfoBar Grid.Row="1"
+                                         IsOpen="{x:Bind ViewModel.GatewayHasError, Mode=OneWay}"
+                                         Message="{x:Bind ViewModel.GatewayErrorText, Mode=OneWay}"
+                                         Severity="Warning"
+                                         IsClosable="False" />
+
+                                <Grid Grid.Row="2" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="{x:Bind helpers:ShellGatewayLocalization.NewSession}"
+                                            Command="{x:Bind ViewModel.NewGatewaySessionCommand}"
+                                            IsEnabled="{x:Bind ViewModel.CanCreateGatewaySession, Mode=OneWay}"
+                                            HorizontalAlignment="Stretch"
+                                            Style="{ThemeResource AccentButtonStyle}" />
+                                    <Button Grid.Column="1"
+                                            Command="{x:Bind ViewModel.RefreshGatewayCommand}"
+                                            AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.Refresh}"
+                                            ToolTipService.ToolTip="{x:Bind helpers:ShellGatewayLocalization.Refresh}">
+                                        <FontIcon Glyph="&#xE72C;" FontSize="16" />
+                                    </Button>
+                                </Grid>
+
+                                <TextBox Grid.Row="3"
+                                         Text="{x:Bind ViewModel.GatewaySearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="{x:Bind helpers:ShellGatewayLocalization.SearchSessions}"
+                                         AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.SearchSessions}" />
+
+                                <Grid Grid.Row="4">
+                                    <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.Sessions}"
+                                               Style="{StaticResource GatewaySectionLabelStyle}" />
+                                    <ProgressBar Height="2"
+                                                 VerticalAlignment="Bottom"
+                                                 Margin="0,20,0,0"
+                                                 IsIndeterminate="True"
+                                                 Visibility="{x:Bind ShowWhen(ViewModel.GatewayBusy), Mode=OneWay}" />
+                                </Grid>
+                            </Grid>
+
+                            <Grid x:Name="GatewaySessionArea" Grid.Row="1" MinHeight="160">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <ListView x:Name="GatewaySessionList"
+                                          ItemsSource="{x:Bind ViewModel.GatewaySessions}"
+                                          SelectedItem="{x:Bind ViewModel.SelectedGatewaySession, Mode=TwoWay}"
+                                          SelectionMode="Single"
+                                          HorizontalContentAlignment="Stretch"
+                                          AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.Sessions}">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Padding="0,6" Spacing="4">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Subtitle}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                                <StackPanel Spacing="8"
+                                            Margin="8,12"
+                                            VerticalAlignment="Center"
+                                            Visibility="{x:Bind ShowGatewayEmptyState(ViewModel.GatewaySessions.Count, ViewModel.GatewayBusy, ViewModel.GatewayHasError), Mode=OneWay}">
+                                    <FontIcon Glyph="&#xE8F2;" FontSize="28"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.NoSessions}"
+                                               FontWeight="SemiBold"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.NoSessionsHint}"
+                                               FontSize="12"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <Button Grid.Row="1"
+                                        Margin="0,8,0,0"
+                                        HorizontalAlignment="Stretch"
+                                        Content="{x:Bind helpers:ShellGatewayLocalization.LoadMore}"
+                                        Command="{x:Bind ViewModel.LoadMoreGatewaySessionsCommand}"
+                                        Visibility="{x:Bind ShowWhen(ViewModel.GatewayHasMore), Mode=OneWay}" />
+                            </Grid>
+
+                            <ScrollViewer x:Name="GatewayPaneDetails"
+                                          Grid.Row="2"
+                                          MaxHeight="280"
+                                          VerticalScrollBarVisibility="Auto"
+                                          SizeChanged="OnGatewayPaneSizeChanged">
+                                <StackPanel Spacing="10" Padding="0,12,0,0">
+                                    <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" />
+                                    <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.SelectedSession}"
+                                               Style="{StaticResource GatewaySectionLabelStyle}" />
+                                    <TextBlock Text="{x:Bind ViewModel.GatewaySessionTitle, Mode=OneWay}"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTipService.ToolTip="{x:Bind ViewModel.GatewaySessionTitle, Mode=OneWay}" />
+                                    <TextBlock Text="{x:Bind ViewModel.GatewayRunText, Mode=OneWay}"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               AutomationProperties.LiveSetting="Polite"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <ComboBox ItemsSource="{x:Bind ViewModel.GatewayModels}"
+                                              SelectedItem="{x:Bind ViewModel.SelectedGatewayModel, Mode=TwoWay}"
+                                              DisplayMemberPath="DisplayName"
+                                              Header="{x:Bind helpers:ShellGatewayLocalization.Model}"
+                                              PlaceholderText="{x:Bind helpers:ShellGatewayLocalization.ChooseModel}"
+                                              AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.Model}"
+                                              IsEnabled="{x:Bind ViewModel.CanModifyGatewaySession, Mode=OneWay}"
+                                              HorizontalAlignment="Stretch" />
+                                    <Button Content="{x:Bind helpers:ShellGatewayLocalization.ApplyModel}"
+                                            Command="{x:Bind ViewModel.ApplyGatewayModelCommand}"
+                                            IsEnabled="{x:Bind ViewModel.CanModifyGatewaySession, Mode=OneWay}"
+                                            HorizontalAlignment="Stretch" />
+                                    <Button Content="{x:Bind helpers:ShellGatewayLocalization.StopRun}"
+                                            Command="{x:Bind ViewModel.StopGatewayRunCommand}"
+                                            IsEnabled="{x:Bind ViewModel.CanStopGatewayRun, Mode=OneWay}"
+                                            HorizontalAlignment="Stretch" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </ScrollViewer>
+                </SplitView.Pane>
+                <Grid>
+                    <Grid x:Name="WebViewHost" />
+                    <StackPanel MaxWidth="380"
+                                Margin="24"
+                                Spacing="16"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{x:Bind ShowWhen(ViewModel.IsPlaceholderEnvironment), Mode=OneWay}">
+                        <FontIcon Glyph="&#xE774;" FontSize="40"
+                                  Foreground="{ThemeResource SystemControlHighlightAccentBrush}" />
+                        <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.WelcomeTitle}"
+                                   Style="{ThemeResource TitleTextBlockStyle}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.WelcomeHint}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Button Content="{x:Bind helpers:ShellGatewayLocalization.Configure}"
+                                Click="OnSettingsClick"
+                                HorizontalAlignment="Center"
+                                Style="{ThemeResource AccentButtonStyle}" />
+                    </StackPanel>
+                    <ProgressRing x:Name="LoadingRing"
+                                  Width="40"
+                                  Height="40"
+                                  AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.BrowserLoading}"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                                  Visibility="Collapsed" />
+                </Grid>
+            </SplitView>
         </Grid>
 
         <Grid x:Name="StatusBarSurface"
@@ -471,6 +728,8 @@
                             Grid.Column="1"
                             VerticalAlignment="Center"
                             TextTrimming="CharacterEllipsis"
+                            AutomationProperties.LiveSetting="Polite"
+                            ToolTipService.ToolTip="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
                             Style="{StaticResource StatusBarTextBlockStyle}"
                             Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
             </Grid>
@@ -481,7 +740,8 @@
                         VerticalAlignment="Center"
                         Style="{StaticResource StatusBarTextBlockStyle}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind ViewModel.SelectedEnvironmentName, Mode=OneWay}" />
+                        Visibility="{x:Bind ViewModel.GatewayEntryVisibility, Mode=OneWay}"
+                        Text="{x:Bind ViewModel.GatewayVersionText, Mode=OneWay}" />
         </Grid>
         </Grid>
     </UserControl>

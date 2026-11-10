@@ -32,13 +32,15 @@ public sealed partial class SettingsDialog
     private void InitializeEnvironmentBindings()
     {
         EnvironmentList.ItemsSource = ViewModel.Environments;
-        SelectFirstEnvironment();
+        var selectedId = _settingsPersistence.GetSelectedEnvironment()?.Id;
+        SelectEnvironment(ViewModel.Environments.FirstOrDefault(environment => environment.Id == selectedId)
+            ?? ViewModel.Environments.FirstOrDefault());
     }
 
     private void InitializeNavigationState()
     {
         PopulateLanguageOptions();
-        NavList.SelectedIndex = 0;
+        NavList.SelectedIndex = 2;
     }
 
     private void RestoreSettingsWindowBounds()

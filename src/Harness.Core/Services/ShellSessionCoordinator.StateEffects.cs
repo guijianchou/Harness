@@ -6,6 +6,8 @@ namespace Harness.Services;
 
 public sealed partial class ShellSessionCoordinator
 {
+    private bool _reportedQuietBusySession;
+
     private void UpdateSnapshotActivity()
     {
         _lastTransportActivityAt = DateTimeOffset.Now;
@@ -33,10 +35,7 @@ public sealed partial class ShellSessionCoordinator
 
     private void ApplyHostedUiRecoveryState(ControlUiProbeSnapshot snapshot)
     {
-        if (TryRecoverStaleBusySession(snapshot))
-        {
-            return;
-        }
+        ObserveQuietBusySession(snapshot);
 
         switch (snapshot.Phase)
         {
@@ -56,44 +55,23 @@ public sealed partial class ShellSessionCoordinator
         }
     }
 
-    private bool TryRecoverStaleBusySession(ControlUiProbeSnapshot snapshot)
+    private void ObserveQuietBusySession(ControlUiProbeSnapshot snapshot)
     {
-        if (!AutoRefreshEnabled || !snapshot.IsBusyStale || _isInBackground)
+        var quietBusySession = snapshot.Phase == ControlUiPhase.Connected && snapshot.IsBusyStale;
+        if (!quietBusySession)
         {
-            return false;
+            _reportedQuietBusySession = false;
+            return;
+        }
+        if (_reportedQuietBusySession)
+        {
+            return;
         }
 
-        _logger.Warning("stream.busy_stale.detected", new
-        {
-            snapshot.BusyStaleSeconds,
-            snapshot.WorkState,
-            softResyncAttempts = _softResyncAttempts
-        });
-
-        if (_softResyncAttempts >= _recoveryOptions.MaxSoftResyncAttempts)
-        {
-            SafeFireAndForget(
-                async token =>
-                {
-                    token.ThrowIfCancellationRequested();
-                    await RequestHardRefreshAsync(
-                        $"Hosted Control UI busy for {snapshot.BusyStaleSeconds}s without chat progress after {_softResyncAttempts} soft resync attempt(s).",
-                        token);
-                },
-                "stream.busy_stale.hard_refresh");
-            return true;
-        }
-
-        SafeFireAndForget(
-            async token =>
-            {
-                token.ThrowIfCancellationRequested();
-                await RequestSoftResyncAsync(
-                    $"Hosted Control UI busy for {snapshot.BusyStaleSeconds}s without chat progress.",
-                    token);
-            },
-            "stream.busy_stale.soft_resync");
-        return true;
+        // A model thinking or a tool running can leave the DOM unchanged for minutes.
+        // Silence alone is not a failed connection and must not resync or reload the page.
+        _reportedQuietBusySession = true;
+        _logger.Info("stream.busy_quiet.observed", new { snapshot.BusyStaleSeconds, snapshot.WorkState });
     }
 
     private void LogIgnoredGap(EventGapEventArgs args)

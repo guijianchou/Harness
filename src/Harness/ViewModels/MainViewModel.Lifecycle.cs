@@ -148,6 +148,7 @@ public partial class MainViewModel
     {
         _isDisposed = true;
         _lifetimeCts.Cancel();
+        StopGatewayRuntime();
         UnsubscribeFromServiceEvents();
 
         if (_coordinator is not null)
@@ -185,6 +186,11 @@ public partial class MainViewModel
         _autoRefresh = enabled;
         _webViewService.SetAutoRefresh(enabled);
         _coordinator?.SetAutoRefresh(enabled);
+        _gatewayRuntime?.SetAutoRefresh(enabled);
+        if (enabled && IsOpenClawAvailable && _gatewayRuntime?.Client?.IsConnected != true)
+        {
+            SynchronizeGatewayEnvironment(force: true);
+        }
     }
 
     /// <summary>

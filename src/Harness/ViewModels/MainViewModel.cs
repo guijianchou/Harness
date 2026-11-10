@@ -22,6 +22,7 @@ public partial class MainViewModel : INotifyPropertyChanged, IDisposable
         _webViewService.SetAutoRefresh(_autoRefresh);
         _hostedUiBridge = new HostedUiBridge(runtime.Logger, _messageOwnership);
         InitializeCommands();
+        InitializeGatewayCommands();
         SubscribeToServiceEvents();
         InitializeCoordinator();
         LoadEnvironments();

@@ -15,7 +15,15 @@ $commandDispatchPath = Join-Path $servicesRoot 'HostedUiBridge.CommandDispatch.j
 $labelVocabularyPath = Join-Path $servicesRoot 'HostedUiBridge.LabelVocabulary.js'
 $bridgeScriptPath = Join-Path $servicesRoot 'HostedUiBridge.Script.js'
 
-$bridgeScriptTemplate = Get-Content -LiteralPath $bridgeScriptPath -Raw
+function Read-Utf8Script {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    # Read a plain string so Windows PowerShell does not serialize provider
+    # metadata along with script text when passing it to ConvertTo-Json.
+    return [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+}
+
+$bridgeScriptTemplate = Read-Utf8Script $bridgeScriptPath
 if ($bridgeScriptTemplate -notmatch 'nextPollAt' -or $bridgeScriptTemplate -notmatch 'scheduleNextPoll') {
     throw 'Bridge polling must use drift-aware scheduling.'
 }
@@ -106,16 +114,16 @@ $scriptReplacements = [ordered]@{
     '__OPENCLAW_BRIDGE_STRINGS_JSON__' = $bridgeStrings
     '__OPENCLAW_OWNER_TOKEN_JSON__' = '"owner-token-test"'
     '__HARNESS_BACKEND_PROFILE_JSON__' = $backendProfileJson
-    '__HARNESS_LABEL_VOCABULARY_SCRIPT__' = Get-Content -LiteralPath $labelVocabularyPath -Raw
-    '__OPENCLAW_HOST_MESSAGING_SCRIPT__' = Get-Content -LiteralPath $hostMessagingPath -Raw
-    '__OPENCLAW_MUTATION_FILTER_SCRIPT__' = Get-Content -LiteralPath $mutationFilterPath -Raw
-    '__OPENCLAW_MODEL_RESOLVER_SCRIPT__' = Get-Content -LiteralPath $resolverPath -Raw
-    '__OPENCLAW_DOM_UTILITIES_SCRIPT__' = Get-Content -LiteralPath $domUtilitiesPath -Raw
-    '__OPENCLAW_MODEL_DOM_FALLBACK_SCRIPT__' = Get-Content -LiteralPath $modelDomFallbackPath -Raw
-    '__OPENCLAW_ACTIVITY_STATE_SCRIPT__' = Get-Content -LiteralPath $activityStatePath -Raw
-    '__OPENCLAW_PHASE_CLASSIFIER_SCRIPT__' = Get-Content -LiteralPath $phaseClassifierPath -Raw
-    '__OPENCLAW_STATUS_INSPECTION_SCRIPT__' = Get-Content -LiteralPath $statusInspectionPath -Raw
-    '__OPENCLAW_COMMAND_DISPATCH_SCRIPT__' = Get-Content -LiteralPath $commandDispatchPath -Raw
+    '__HARNESS_LABEL_VOCABULARY_SCRIPT__' = Read-Utf8Script $labelVocabularyPath
+    '__OPENCLAW_HOST_MESSAGING_SCRIPT__' = Read-Utf8Script $hostMessagingPath
+    '__OPENCLAW_MUTATION_FILTER_SCRIPT__' = Read-Utf8Script $mutationFilterPath
+    '__OPENCLAW_MODEL_RESOLVER_SCRIPT__' = Read-Utf8Script $resolverPath
+    '__OPENCLAW_DOM_UTILITIES_SCRIPT__' = Read-Utf8Script $domUtilitiesPath
+    '__OPENCLAW_MODEL_DOM_FALLBACK_SCRIPT__' = Read-Utf8Script $modelDomFallbackPath
+    '__OPENCLAW_ACTIVITY_STATE_SCRIPT__' = Read-Utf8Script $activityStatePath
+    '__OPENCLAW_PHASE_CLASSIFIER_SCRIPT__' = Read-Utf8Script $phaseClassifierPath
+    '__OPENCLAW_STATUS_INSPECTION_SCRIPT__' = Read-Utf8Script $statusInspectionPath
+    '__OPENCLAW_COMMAND_DISPATCH_SCRIPT__' = Read-Utf8Script $commandDispatchPath
 }
 
 foreach ($entry in $scriptReplacements.GetEnumerator()) {
@@ -125,19 +133,19 @@ foreach ($entry in $scriptReplacements.GetEnumerator()) {
 $assembledBridgeScriptLiteral = $assembledBridgeScript | ConvertTo-Json -Compress
 
 $runner = @(
-    Get-Content -LiteralPath $labelVocabularyPath -Raw
-    Get-Content -LiteralPath $hostMessagingPath -Raw
-    Get-Content -LiteralPath $mutationFilterPath -Raw
-    Get-Content -LiteralPath $resolverPath -Raw
-    Get-Content -LiteralPath $domUtilitiesPath -Raw
-    Get-Content -LiteralPath $modelDomFallbackPath -Raw
-    Get-Content -LiteralPath $activityStatePath -Raw
-    Get-Content -LiteralPath $phaseClassifierPath -Raw
-    Get-Content -LiteralPath $statusInspectionPath -Raw
-    Get-Content -LiteralPath $commandDispatchPath -Raw
+    Read-Utf8Script $labelVocabularyPath
+    Read-Utf8Script $hostMessagingPath
+    Read-Utf8Script $mutationFilterPath
+    Read-Utf8Script $resolverPath
+    Read-Utf8Script $domUtilitiesPath
+    Read-Utf8Script $modelDomFallbackPath
+    Read-Utf8Script $activityStatePath
+    Read-Utf8Script $phaseClassifierPath
+    Read-Utf8Script $statusInspectionPath
+    Read-Utf8Script $commandDispatchPath
 ) -join "`n"
 
-$asyncExecutionLiteral = Get-Content -LiteralPath (Join-Path $servicesRoot 'WebViewCommands.ExecuteAsync.js') -Raw | ConvertTo-Json -Compress
+$asyncExecutionLiteral = Read-Utf8Script (Join-Path $servicesRoot 'WebViewCommands.ExecuteAsync.js') | ConvertTo-Json -Compress
 $runner += "`nconst asyncExecutionTemplate = $asyncExecutionLiteral;`n"
 
 $runner += @'
@@ -246,7 +254,7 @@ const runModelDomFixture = (kind) => {
   const effortLabel = makeVisibleElement({ text: 'High' });
   const modelButton = makeVisibleElement({
     ariaLabel: 'Select model, current DeepSeek-V4-Flash, reasoning effort High',
-    title: 'DeepSeek-V4-Flash · High',
+    title: 'DeepSeek-V4-Flash \u00b7 High',
     child: modelLabel
   });
   globalThis.window = { getComputedStyle: () => ({ display: 'block', visibility: 'visible' }) };
@@ -531,10 +539,10 @@ assertTrue('mutation filter ignores settings/config/cron/sidebar mutations',
 // still register, or WORK state stays stuck at idle and stale-stream recovery
 // loses its only input.
 assertTrue('vocabulary matches CJK stop labels',
-  harnessLabelVocabulary.matchesStop('停止') === true &&
-  harnessLabelVocabulary.matchesStop('中止') === true &&
-  harnessLabelVocabulary.matchesStop('取消') === true &&
-  harnessLabelVocabulary.matchesStop('生成を停止') === true);
+  harnessLabelVocabulary.matchesStop('\u505c\u6b62') === true &&
+  harnessLabelVocabulary.matchesStop('\u4e2d\u6b62') === true &&
+  harnessLabelVocabulary.matchesStop('\u53d6\u6d88') === true &&
+  harnessLabelVocabulary.matchesStop('\u751f\u6210\u3092\u505c\u6b62') === true);
 
 assertTrue('vocabulary still matches Latin stop labels on word boundaries',
   harnessLabelVocabulary.matchesStop('Stop') === true &&
@@ -543,10 +551,10 @@ assertTrue('vocabulary still matches Latin stop labels on word boundaries',
   harnessLabelVocabulary.matchesStop('') === false);
 
 assertTrue('vocabulary matches CJK auth and connecting phrases',
-  harnessLabelVocabulary.matchesAuth('请登录后继续') === true &&
-  harnessLabelVocabulary.matchesAuth('会话已过期') === true &&
-  harnessLabelVocabulary.matchesConnecting('正在连接...') === true &&
-  harnessLabelVocabulary.matchesGatewayError('无法连接到服务器') === true);
+  harnessLabelVocabulary.matchesAuth('\u8bf7\u767b\u5f55\u540e\u7ee7\u7eed') === true &&
+  harnessLabelVocabulary.matchesAuth('\u4f1a\u8bdd\u5df2\u8fc7\u671f') === true &&
+  harnessLabelVocabulary.matchesConnecting('\u6b63\u5728\u8fde\u63a5...') === true &&
+  harnessLabelVocabulary.matchesGatewayError('\u65e0\u6cd5\u8fde\u63a5\u5230\u670d\u52a1\u5668') === true);
 
 assertTrue('vocabulary rejects unrelated text',
   harnessLabelVocabulary.matchesStop('send message') === false &&

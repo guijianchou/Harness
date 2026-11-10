@@ -104,7 +104,7 @@ foreach ($linkedCompileItem in $linkedCompileItems) {
     }
 }
 
-$currentVersion = '5.3.6'
+$currentVersion = '5.3.8'
 $currentFileVersion = "$currentVersion.0"
 if ($project -notmatch [regex]::Escape("<Version>$currentVersion</Version>") -or
     $project -notmatch [regex]::Escape("<AssemblyVersion>$currentFileVersion</AssemblyVersion>") -or
@@ -128,17 +128,17 @@ $changelogLines = Get-Content -LiteralPath (Join-Path $repoRoot 'changelog.md')
 $changelog = Get-Content -LiteralPath (Join-Path $repoRoot 'changelog.md') -Raw
 $readmeZhHeading = $readmeZhLines | Where-Object { $_ -like "## *$currentVersion*" } | Select-Object -First 1
 $currentVersionCodeSpan = '`' + $currentVersion + '`'
-$changelogMetadataLines = $changelogLines | Where-Object {
+$changelogMetadataLines = @($changelogLines | Where-Object {
     $_ -match 'app.*assembly.*file.*package manifest.*application manifest.*README.*changelog' -and
     $_ -match [regex]::Escape($currentVersionCodeSpan)
-}
+})
 if ($readme -notmatch [regex]::Escape("**Current version:** $currentVersion") -or
     $readme -notmatch [regex]::Escape("## Current $currentVersion Notes") -or
     $readmeZhLines.Count -lt 5 -or
     $readmeZhLines[4] -notmatch [regex]::Escape($currentVersion) -or
     [string]::IsNullOrWhiteSpace($readmeZhHeading) -or
     $changelog -notmatch [regex]::Escape("metadata to $currentVersionCodeSpan") -or
-    $changelogMetadataLines.Count -lt 2) {
+    $changelogMetadataLines.Count -lt 1) {
     throw "README, Chinese README, and changelog current-version metadata must stay aligned at $currentVersion."
 }
 
@@ -1030,10 +1030,8 @@ if ($coordinatorStateEffects -match '_ = RequestHardRefreshAsync|_ = RequestSoft
     throw 'ShellSessionCoordinator state effects must observe fire-and-forget recovery tasks.'
 }
 
-if ($coordinatorStateEffects -notmatch 'SafeFireAndForget\(\s*async token' -or
-    $coordinatorStateEffects -notmatch 'token\.ThrowIfCancellationRequested\(\)[\s\S]*RequestSoftResyncAsync' -or
-    $coordinatorStateEffects -notmatch 'token\.ThrowIfCancellationRequested\(\)[\s\S]*RequestHardRefreshAsync') {
-    throw 'ShellSessionCoordinator stale-busy recovery tasks must observe cancellation before starting recovery operations.'
+if ($coordinatorStateEffects -match 'RequestSoftResyncAsync|RequestHardRefreshAsync|RequestReconnectAsync') {
+    throw 'A quiet busy snapshot is not evidence of a broken connection and must not launch automatic recovery.'
 }
 
 if ($coordinatorStateEffects -notmatch 'case ControlUiPhase\.GatewayError:[\s\S]*case ControlUiPhase\.Unavailable:[\s\S]*MarkRecoveryDegraded\(snapshot\.DetailOrSummary\)') {

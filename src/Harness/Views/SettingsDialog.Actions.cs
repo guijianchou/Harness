@@ -9,20 +9,32 @@ namespace Harness.Views;
 
 public sealed partial class SettingsDialog
 {
-    private void OnSaveClick(object sender, RoutedEventArgs e)
+    private async void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        if (!TrySaveSettings(out var saveResult))
+        if (_isSaving || (ViewModel.IsEditing && !TryApplyEdit()))
         {
             return;
         }
-
-        if (saveResult.DidChangeLanguage)
+        _isSaving = true;
+        SettingsInteractionRoot.IsEnabled = false;
+        try
         {
-            App.ApplyLanguage(ViewModel.SelectedLanguage);
+            var result = await ViewModel.SaveAllAsync(new Services.OpenClawCredentialStore());
+            if (result is not { } saveResult)
+            {
+                ShowEnvironmentMessage(ValidationErrorTitle, InfoBarSeverity.Error);
+                return;
+            }
+            if (saveResult.DidChangeLanguage) { App.ApplyLanguage(ViewModel.SelectedLanguage); }
+            SettingsSaved?.Invoke(saveResult);
+            this.Close();
         }
-
-        SettingsSaved?.Invoke(saveResult);
-        this.Close();
+        catch (Exception ex)
+        {
+            App.Logger.Warning($"Settings save failed: {ex.GetType().Name}");
+            ShowEnvironmentMessage(ValidationErrorTitle, InfoBarSeverity.Error, StringResources.SettingsGatewaySecureSaveFailed);
+        }
+        finally { _isSaving = false; SettingsInteractionRoot.IsEnabled = true; }
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e)
@@ -67,7 +79,7 @@ public sealed partial class SettingsDialog
             return;
         }
 
-        ValidationInfoBar.IsOpen = false;
+        ShowEnvironmentMessage(StringResources.SettingsGatewayDraftApplied, InfoBarSeverity.Informational, StringResources.SettingsGatewayDraftHint);
     }
 
     private async void OnClearEnvironmentSessionClick(object sender, RoutedEventArgs e)
@@ -144,20 +156,4 @@ public sealed partial class SettingsDialog
         return false;
     }
 
-    private bool TrySaveSettings(out SettingsSaveResult result)
-    {
-        result = default;
-        if (ViewModel.IsEditing && !TryApplyEdit())
-        {
-            return false;
-        }
-
-        if (ViewModel.SaveAll(out result))
-        {
-            return true;
-        }
-
-        ShowEnvironmentMessage(ValidationErrorTitle, InfoBarSeverity.Error);
-        return false;
-    }
 }

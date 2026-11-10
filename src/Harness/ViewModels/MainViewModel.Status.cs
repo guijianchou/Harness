@@ -130,6 +130,11 @@ public partial class MainViewModel
 
     private void ApplyModelSummary(ControlUiProbeSnapshot snapshot)
     {
+        if (IsOpenClawAvailable && _gatewayHistory is not null)
+        {
+            return;
+        }
+
         var modelSummary = _statusPresenter.FormatModelSummary(snapshot.CurrentModel, snapshot.CurrentEffort, DefaultModelSummary);
         if (modelSummary != DefaultModelSummary)
         {
@@ -169,6 +174,11 @@ public partial class MainViewModel
 
     private void ApplyWorkStatus(ControlUiProbeSnapshot snapshot)
     {
+        if (IsOpenClawAvailable)
+        {
+            return;
+        }
+
         var presentation = _statusPresenter.FormatWorkStatus(snapshot, CurrentStatusBrushes, DefaultWorkStatus);
         WorkStatusText = presentation.Text;
         WorkStatusBrush = presentation.Brush;

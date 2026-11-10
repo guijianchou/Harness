@@ -57,6 +57,8 @@ project.nuget.cache
 # Local SDK and app data caches
 .dotnet/
 .appdata/
+__pycache__/
+*.py[cod]
 
 # Editor state
 .vscode/*

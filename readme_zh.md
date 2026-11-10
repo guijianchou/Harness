@@ -2,7 +2,7 @@
 
 **语言：** [English](README.md) | 简体中文
 
-**当前版本：** 5.3.7
+**当前版本：** 5.3.8
 
 Harness 是一个轻量的 Windows 原生客户端，用于承载托管的 agent Control UI，基于 WinUI 3 和 WebView2 构建。
 
@@ -10,20 +10,22 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 
 | 后端 | 状态 |
 |---|---|
-| OpenClaw Gateway | 已支持并验证 |
+| OpenClaw Gateway | 已支持托管 Web UI；可选的原生 Gateway v4 控制仍需实际部署联调 |
 | DeepSeek Harness | Web UI 测试通过 |
+
+可按环境启用 OpenClaw Gateway v4 原生连接，提供会话列表、新建空会话、模型选择、精确停止运行及完成通知，同时保留网页工作空间。入口位于设置的环境编辑中。授权、Cloudflare Access、兼容边界和验证方法见 [OpenClaw 集成说明](docs/openclaw-integration.md)；新增原生路径仍需针对实际部署联调。
 
 ---
 
 ## 为什么改名
 
-本项目最初叫 **OpenClaw Manager**，是专门为 OpenClaw Control UI 写的 WebView2 + WinUI 3 客户端。但实际上其中几乎没有 OpenClaw 专属的东西：窗口 chrome、托盘、全局热键、按环境隔离的会话、心跳、导航恢复、诊断和日志，都是通用的托管 UI 外壳能力。真正知道对端是什么产品的，只有托管页面 URL 和页内 DOM bridge。
+本项目最初叫 **OpenClaw Manager**，是专门为 OpenClaw Control UI 写的 WebView2 + WinUI 3 客户端。窗口 chrome、托盘、全局热键、按环境隔离的会话、心跳、导航恢复、诊断和日志属于共享的托管 UI 外壳能力；后端配置、页内 bridge 和可选的原生 OpenClaw Gateway 连接负责各产品的专属行为。
 
 把应用改名为 **Harness**，标记的是从"OpenClaw 的客户端"到"托管 agent Control UI 的通用客户端"的定位转变，OpenClaw 和 DeepSeek Harness 是最初计划支持的两个后端。
 
-本次改动只做改名。后端抽象——也就是让非 OpenClaw 的 Control UI 也能被托管的可插拔 bridge——是下一步，不在本次范围内。此后已通过 DeepSeek Harness Web UI 的手动测试。
+改名已在 5.3.0 完成。Harness 目前支持后端配置，并已通过 DeepSeek Harness 托管 Web UI 的手动测试。5.3.8 进一步在网页工作空间之外提供可选的 OpenClaw Gateway v4 原生控制。
 
-### 本次改名覆盖的范围
+### 5.3.0 改名覆盖的范围
 
 | 范围 | 变更 |
 |---|---|
@@ -57,6 +59,7 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 
 - 环境切换
 - 每个环境独立的 WebView2 会话隔离
+- 可选的原生 OpenClaw Gateway v4 会话和模型控制
 - 连接恢复和心跳监控
 - 诊断和结构化日志
 - 原生主题和窗口集成
@@ -67,7 +70,19 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 - 通过 Cloudflare Tunnel 或反向代理访问它
 - 想用轻量 Windows 原生客户端，而不是一直开着浏览器标签页
 
-## 当前 5.3.7 注意事项
+## 当前 5.3.8 注意事项
+
+发布日期：**2026-11-10**。
+
+- 增加按需启用的 OpenClaw Gateway v4 控制，支持会话浏览与搜索、新建空会话、模型选择、精确停止运行及已观察运行的完成通知。聊天输入、附件和渲染继续由托管 Web UI 负责。
+- 在设置中按环境配置原生连接，支持受保护的凭据、持久签名设备身份、可选 Cloudflare Access 用户令牌，以及明确的配对和连接反馈。原生 Gateway 认证不会自动共享网页登录或 Cookie。
+- 增加会话工作区、适配窄窗的工具栏操作、首次使用引导和设置草稿/保存反馈。
+- 将紫粉色品牌图形应用到窗口、托盘、应用和各 DPI 资源。Explorer 保留旧 EXE 图标时，可使用针对单个可执行文件的 Windows 图标刷新工具。
+- 通过有界文本采样、模型控件命中后提前返回和合并 DOM 变更检查，降低造成聊天页面卡顿的 DOM 探测开销。已连接的运行不再仅因可见输出暂时静默而自动重同步或刷新；断线和连接卡住时的恢复仍然保留。
+- 性能验证使用包含 **1000 条消息**的合成 WebView2 页面，衡量的是 bridge 探测开销，并非真实登录环境下输入、滚动或折叠操作的帧率。真实 VPS / Cloudflare 端到端流程仍需测试。
+- 渲染引擎仍为 WebView2，其 Runtime 仍是外部依赖；本版本未打包独立 Chromium 内核。认证边界和验证方法见 [OpenClaw 集成说明](docs/openclaw-integration.md)。
+
+### 历史变更
 
 - `5.3.7` 改进状态栏可靠性：所有状态控件（Model、Heartbeat、Latency、Access、Work Status）在信息不可用时统一显示 "N/A"，而不是显示空白或默认占位文本。这提供了清晰的视觉反馈，明确表示检测失败。
 - OpenClaw 模型检测增强了多层回退机制：从 `<openclaw-app>` 元素直接读取属性（如果暴露）、类模式匹配（`[class*="model-select"]`）、从模型相关按钮的 ARIA 标签提取、以及按钮文本模式检测。这种多层方法使模型检测对 UI 变化更加鲁棒，同时保持源码读取方案。
@@ -81,7 +96,7 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 - `5.3.1` 顶部状态栏的延迟徽标在 Control UI 延迟探测失败时显示 `N/A`，不再显示 `ERR`。
 - `5.3.0` 把应用从 `OpenClaw Manager` 改名为 `Harness`，覆盖解决方案、两个项目、测试项目、全部命名空间、可执行文件以及所有用户可见界面。哪些改了、哪些没改见[为什么改名](#为什么改名)。
 - **破坏性变更：** 本地数据目录从 `%LOCALAPPDATA%\OpenClaw\` 迁到 `%LOCALAPPDATA%\Harness\`，且不自动搬运，因此 5.3.0 会以全新配置启动。请在设置中重新添加网关环境，并重新登录托管 Control UI。旧目录原样保留。
-- 全新的 Harness 鲸鱼 logo。源文件为 `Assets/harness-logo.png`，窗口/托盘图标、磁贴、启动图、商店图、锁屏图和应用内品牌图都由它生成，`WindowIcon.ico` 现在是多分辨率（16–256px）。
+- Harness 使用紫粉色叠层 logo，源文件为 `Assets/harness-logo.png`。运行 `python tools/regenerate-assets.py`（需要 Pillow）可生成窗口/托盘、磁贴、启动图、商店、锁屏和应用内图标，包含 100–400% DPI 资源和多分辨率 `WindowIcon.ico`（16–256px）。
 - 发布产物现在会带上应用自己的 `.pri` 和 `Assets/` 目录。在此之前 `dotnet publish` 生成的目录会在创建首个窗口时抛 `XamlParseException`，而且完全没有图标。
 - `5.2.0` 按工程审查结论加固持久化与恢复：`settings.json` 损坏时先备份为 `settings.json.corrupt-<时间戳>` 再写默认值；文件被锁等暂时性读失败只使用内存默认值，不再覆盖用户的设置文件。
 - 按环境隔离的 WebView2 会话现在通过显式 `CoreWebView2Environment`（指定该环境的 user data folder）创建。原先的 `WEBVIEW2_USER_DATA_FOLDER` 环境变量只影响进程级默认 environment，运行期切换环境时会静默共享 cookie/会话状态。
@@ -139,6 +154,7 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 | 功能 | 说明 |
 |---|---|
 | WebView2 Shell | 在原生窗口内托管远程 Control UI |
+| OpenClaw Gateway Controls | 可选的会话工作区、模型选择、精确停止运行和完成通知 |
 | Environment Switching | 管理多个托管 Control UI 端点 |
 | Connection Status | 状态栏、错误 InfoBar 和重试支持 |
 | Auto-Reconnect | 开启 Auto refresh 时，导航失败后自动重试 |
@@ -165,7 +181,7 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 |---|---|
 | .NET | 10.0 |
 | Windows App SDK | 1.8.x |
-| WebView2 | 通过 WinAppSDK 捆绑 |
+| WebView2 | SDK 随 WinAppSDK 提供；Runtime 需单独安装 |
 | MVVM | CommunityToolkit.Mvvm 8.x |
 | UI 语言 | 英文 + 简体中文 |
 | 打包方式 | Unpackaged, self-contained |
@@ -251,7 +267,7 @@ Harness/
 
 ## 开发前置条件
 
-- Windows 10 1809+ 或 Windows 11
+- Windows 11 24H2（版本 26100）及以上；本次发布未验证更早的 Windows 版本
 - Visual Studio 2026
 - .NET Desktop Development workload
 - Windows App SDK C# templates
@@ -277,7 +293,7 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 
 ### 当前验证方式
 
-现行自动验证由 restore、Core 回归测试、x64 build、format、仓库结构 guardrail、bridge 脚本检查和空白差异检查组成，与 CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）一致：
+现行自动验证由 restore、Core 回归测试、x64 build、format、仓库结构 guardrail、bridge 脚本检查、OpenClaw 页面选择检查和空白差异检查组成，与 CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）一致：
 
 ```powershell
 dotnet restore Harness.sln --locked-mode
@@ -286,12 +302,13 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 $env:Platform='x64'; dotnet format Harness.sln --verify-no-changes --no-restore
 powershell -ExecutionPolicy Bypass -File tools\verify-repo-structure.ps1
 powershell -ExecutionPolicy Bypass -File tools\verify-bridge-scripts.ps1
+powershell -ExecutionPolicy Bypass -File tools\verify-openclaw-selection.ps1
 git diff --check
 ```
 
 `tools\verify-bridge-scripts.ps1` 默认要求 Node.js，因为它是当前 embedded bridge assets 的行为验证入口。默认 `PATH` 上的 `node` 被阻止或不可用时，可以用 `OPENCLAW_NODE` 指定 Node 可执行文件；只有明确设置 `OPENCLAW_ALLOW_NODE_SKIP=1` 时才会跳过。
 
-Bridge 脚本验证是当前用于拆分后的 hosted bridge JS assets 的行为检查。
+`tools\verify-openclaw-selection.ps1` 验证实际页面选择脚本，包括会话身份及草稿/附件保护。该检查需要 Node.js，可用 `OPENCLAW_NODE` 指定可执行文件。
 
 真实 WebView2、Gateway、Cloudflare Tunnel、tray、hotkey 和 compact mode 行为仍需要 VS2026 manual debug。
 
@@ -315,6 +332,8 @@ Manual debug 需要明确覆盖：
 - Bridge 脚本行为由 `tools\verify-bridge-scripts.ps1` 覆盖，但浏览器运行时行为仍需要 WebView2/VS2026 debug。
 - `WebViewService` 已拆成聚焦 partial；新的 lifecycle、navigation、inspection、heartbeat、command 和 profile/session 行为应放到对应 partial，而不是继续塞进 root 文件。
 - 真实 Gateway、Cloudflare Tunnel、反代错误页、tray、hotkey、single-instance、DWM title-bar 和 compact mode 行为仍需要 VS2026 manual debug。
+- 原生 OpenClaw Gateway v4 控制使用独立连接和设备身份，网页登录不会自动授权该连接；真实 VPS / Cloudflare 端到端流程仍需验证。
+- 1000 条消息的合成 WebView2 性能实验仅衡量 bridge 探测开销，不能证明真实页面交互帧率。
 
 ### 开发日志
 
@@ -337,6 +356,19 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
+### Release 打包
+
+在仓库根目录使用 PowerShell 7 构建自包含 Windows x64 分发包：
+
+```powershell
+dotnet restore Harness.sln --locked-mode
+pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
+```
+
+脚本会创建新的版本目录，例如 `artifacts/release/5.3.8`，验证发布文件并生成 ZIP 和 SHA-256 校验文件。已有版本目录不会被覆盖；再次构建时请选择其他 `OutputRoot`。
+
+推送 `5.3.8` 这样的纯数字版本 tag（不带 `v` 前缀）后，[.github/workflows/release.yml](.github/workflows/release.yml) 会自动执行。tag 必须与项目版本一致，并有对应的 `docs/releases/<version>.md` 发布说明。工作流完成验证和打包后，会将 ZIP 及 SHA-256 校验文件发布到 GitHub Releases。
+
 ### 首次启动
 
 1. 应用会使用一个占位环境启动，在配置真实 Control UI URL 前不会导航 WebView2。
@@ -348,8 +380,8 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 
 如果你的 OpenClaw Gateway 运行在 VPS 上并位于 Cloudflare Tunnel 后面：
 
-- 在 Harness 中使用公共 HTTPS Control UI URL
-- 不要使用原始 Gateway WebSocket URL
+- 网页工作空间使用公共 HTTPS Control UI URL
+- 原生控制使用单独的可选 Gateway WebSocket 地址字段，不要将 WebSocket URL 填入网页工作空间地址
 - 确保同一个公共 origin 已列入 `gateway.controlUi.allowedOrigins`
 - 如果使用 `gateway.auth.mode: "trusted-proxy"`，确保 HTTP 请求和 WebSocket upgrade 都转发身份头
 - 除非上游明确说明支持，不要混用 trusted-proxy 模式和 shared token auth
@@ -368,14 +400,14 @@ Settings 窗口包含五个部分：
 |---|---|
 | Language | 显示语言 |
 | General | 窗口、托盘、全局热键、窗口置顶和多实例行为 |
-| Environments | 添加、编辑、删除和选择默认托管 Control UI 端点 |
+| Environments | 托管 Control UI 端点及可选 OpenClaw Gateway 连接、凭据、Cloudflare Access 令牌 |
 | Sessions | 清理指定环境的 WebView2 会话数据 |
 | Developer Tools | 诊断、日志、DevTools |
 
 ### 环境 URL 规则
 
 - 使用带 `http://` 或 `https://` 的托管 Control UI 页面 URL
-- 不要使用 `ws://` 或 `wss://` 的原始 Gateway WebSocket URL
+- 不要在网页工作空间地址中填写 `ws://` 或 `wss://` Gateway 地址；原生控制有单独的可选 WebSocket 字段
 - 对 Cloudflare Tunnel 或反向代理部署，始终使用浏览器可访问的精确公共 origin
 
 ---
@@ -394,14 +426,13 @@ Settings 窗口包含五个部分：
 
 ## 运行时要求
 
-编译后的应用需要：
+当前 Release 面向 **Windows 11 24H2（版本 26100）及以上**，更早的 Windows 版本尚未验证。自包含分发包包含 .NET 和 Windows App SDK；WebView2 Runtime 仍需由系统提供或单独安装：
 
 | 依赖 | 下载 |
 |---|---|
-| .NET 10 Desktop Runtime | [Download](https://dotnet.microsoft.com/download/dotnet/10.0) |
 | WebView2 Runtime | [Download](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) |
 
-Windows 11 通常已经内置 WebView2 Runtime。Windows 10 用户可能需要手动安装。
+Windows 11 通常已包含 WebView2 Runtime；缺失时请安装。Release 包不包含固定版本 WebView2 Runtime 或独立 Chromium 内核。使用依赖框架的构建时，还需安装匹配的 [.NET 10 运行时](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 ---
 

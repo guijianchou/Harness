@@ -37,6 +37,89 @@ public sealed class ConfigurationServiceTests
     private string SettingsPath => Path.Combine(_tempFolder, "settings.json");
 
     [TestMethod]
+    public void GatewayEndpointCanonicalizationMatchesWebSocketOriginAndPath()
+    {
+        Assert.AreEqual("wss://gateway.test/control", OpenClawEndpoint.Resolve("https://GATEWAY.test:443/control?session=old#token", null).AbsoluteUri);
+        Assert.AreEqual("ws://127.0.0.1:18789/", OpenClawEndpoint.Resolve("http://127.0.0.1:18789/", null).AbsoluteUri);
+        Assert.AreEqual("wss://other.test/socket", OpenClawEndpoint.Resolve("https://gateway.test", "wss://other.test/socket").AbsoluteUri);
+        Assert.ThrowsExactly<UriFormatException>(() => OpenClawEndpoint.Resolve("https://user:password@gateway.test", null));
+    }
+
+    [TestMethod]
+    public void LegacyEnvironmentIdentityPersistsAcrossRenameAndReload()
+    {
+        File.WriteAllText(SettingsPath, """{"environments":[{"name":"VPS","gatewayUrl":"https://gateway.test","backend":"OpenClaw"}]}""");
+        var service = CreateService();
+        service.Load();
+        var identity = service.Settings.Environments[0].Id;
+        Assert.IsFalse(string.IsNullOrWhiteSpace(identity));
+        Assert.IsNull(service.Settings.Environments[0].OpenClawConnection);
+        var draft = service.CreateSnapshot();
+        draft.Environments[0].Name = "Renamed";
+        Assert.IsTrue(service.Save(draft).Succeeded);
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.AreEqual(identity, reloaded.Settings.Environments[0].Id);
+    }
+
+    [TestMethod]
+    public void EnvironmentCloneAndApplyOwnIndependentGatewayOptions()
+    {
+        var original = new EnvironmentConfig { Id = "stable", OpenClawConnection = new OpenClawConnectionOptions { Enabled = true, CredentialReference = "reference-only" } };
+        var draft = original.Clone();
+        draft.OpenClawConnection!.CredentialReference = "replacement";
+        Assert.AreEqual("reference-only", original.OpenClawConnection.CredentialReference);
+        original.ApplyFrom(draft);
+        draft.OpenClawConnection.Enabled = false;
+        Assert.AreEqual("stable", original.Id);
+        Assert.IsTrue(original.OpenClawConnection!.Enabled);
+    }
+
+    [TestMethod]
+    public void FailedGatewayConfigurationSavePreservesPriorReference()
+    {
+        var failWrites = false;
+        var service = new ConfigurationService(_tempFolder, writeAllText: (path, content) =>
+        {
+            if (failWrites) { throw new IOException("Synthetic failure"); }
+            AtomicFileWriter.WriteAllText(path, content);
+        });
+        service.Load();
+        var draft = service.CreateSnapshot();
+        draft.Environments[0].OpenClawConnection = new OpenClawConnectionOptions { CredentialReference = "original" };
+        Assert.IsTrue(service.Save(draft).Succeeded);
+        draft = service.CreateSnapshot();
+        draft.Environments[0].OpenClawConnection!.CredentialReference = "new";
+        failWrites = true;
+        Assert.IsFalse(service.Save(draft).Succeeded);
+        Assert.AreEqual("original", service.Settings.Environments[0].OpenClawConnection!.CredentialReference);
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.AreEqual("original", reloaded.Settings.Environments[0].OpenClawConnection!.CredentialReference);
+    }
+
+    [TestMethod]
+    public void GatewayConfigurationMergesUnrelatedWindowEditAndRejectsCompetingEndpointEdit()
+    {
+        var first = CreateService();
+        first.Load();
+        var second = CreateService();
+        second.Load();
+        var firstDraft = first.CreateSnapshot();
+        firstDraft.Environments[0].OpenClawConnection = new OpenClawConnectionOptions { Enabled = true, WebSocketUrl = "wss://gateway.test", CredentialReference = "reference-only" };
+        Assert.IsTrue(first.Save(firstDraft).Succeeded);
+        var secondDraft = second.CreateSnapshot();
+        secondDraft.WindowWidth = 1400;
+        Assert.IsTrue(second.Save(secondDraft).Succeeded);
+        secondDraft.Environments[0].OpenClawConnection = new OpenClawConnectionOptions { WebSocketUrl = "wss://different.test" };
+        Assert.IsFalse(second.Save(secondDraft).Succeeded);
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.AreEqual(1400d, reloaded.Settings.WindowWidth);
+        Assert.AreEqual("wss://gateway.test", reloaded.Settings.Environments[0].OpenClawConnection!.WebSocketUrl);
+    }
+
+    [TestMethod]
     public void LoadWithMissingFileCreatesPlaceholderDefaults()
     {
         var service = CreateService();
