@@ -22,17 +22,17 @@ public partial class WebViewService
         try
         {
             var folder = GetUserDataFolderForEnvironment(environmentName);
-            if (!Directory.Exists(folder))
-            {
-                return;
-            }
-
             Directory.Delete(folder, recursive: true);
             logger?.Info($"Deleted WebView2 profile folder for environment '{environmentName}'.");
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // An absent profile already has no persisted session to clear.
         }
         catch (Exception ex)
         {
             logger?.Warning($"Failed to delete WebView2 profile folder for environment '{environmentName}': {ex.Message}");
+            throw;
         }
     }
 

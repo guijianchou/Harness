@@ -23,7 +23,6 @@ internal sealed class TrayIconService : IDisposable
     private const int MenuReload = 103;
     private const int MenuViewLogs = 104;
     private const int MenuStatusHeader = 105;
-    private const int MenuCompactMode = 106;
 
     private readonly IAppLogger _logger;
     private readonly TrayMenuStrings _menuStrings;
@@ -33,6 +32,7 @@ internal sealed class TrayIconService : IDisposable
     private IntPtr _iconHandle;
     private bool _isDisposed;
     private bool _isIconAdded;
+    private uint _taskbarCreatedMessage;
     private string _statusText = "WAIT";
 
     public TrayIconService(string iconPath, IAppLogger logger)
@@ -63,7 +63,7 @@ internal sealed class TrayIconService : IDisposable
 
     public event Action? ViewLogsRequested;
 
-    public event Action? CompactModeRequested;
+    public event Action? AvailabilityLost;
 
     public bool IsAvailable => _isIconAdded;
 
@@ -156,6 +156,13 @@ internal sealed class TrayIconService : IDisposable
 
     private void Initialize(string iconPath)
     {
+        _taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
+        if (_taskbarCreatedMessage == 0)
+        {
+            _logger.Warning($"Failed to register taskbar recovery message: {Marshal.GetLastWin32Error()}");
+            return;
+        }
+
         var moduleHandle = GetModuleHandle(null);
         var windowClass = new WindowClassEx
         {
@@ -203,20 +210,47 @@ internal sealed class TrayIconService : IDisposable
             return;
         }
 
+        TryAddIcon();
+    }
+
+    private bool TryAddIcon()
+    {
+        if (_isDisposed || _messageWindowHandle == IntPtr.Zero || _iconHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
         var data = CreateNotifyIconData(NotifyIconFlags.Message | NotifyIconFlags.Icon | NotifyIconFlags.Tip);
         if (!ShellNotifyIcon(NotifyIconMessage.Add, ref data))
         {
             _logger.Warning($"Failed to add tray icon: {Marshal.GetLastWin32Error()}");
-            return;
+            return false;
+        }
+
+        data.uTimeoutOrVersion = NotifyIconVersion4;
+        if (!ShellNotifyIcon(NotifyIconMessage.SetVersion, ref data))
+        {
+            _logger.Warning($"Failed to set tray callback version: {Marshal.GetLastWin32Error()}");
+            ShellNotifyIcon(NotifyIconMessage.Delete, ref data);
+            return false;
         }
 
         _isIconAdded = true;
-        data.uTimeoutOrVersion = NotifyIconVersion4;
-        ShellNotifyIcon(NotifyIconMessage.SetVersion, ref data);
+        return true;
     }
 
     private IntPtr OnWindowMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam)
     {
+        if (!_isDisposed && _taskbarCreatedMessage != 0 && message == _taskbarCreatedMessage)
+        {
+            _isIconAdded = false;
+            if (!TryAddIcon())
+            {
+                AvailabilityLost?.Invoke();
+            }
+            return IntPtr.Zero;
+        }
+
         if (message == TrayCallbackMessage)
         {
             HandleTrayCallback(LowWord(lParam));
@@ -257,7 +291,6 @@ internal sealed class TrayIconService : IDisposable
             AppendMenu(menu, MenuFlags.String, MenuOpenApp, _menuStrings.OpenLabel);
             AppendMenu(menu, MenuFlags.String, MenuReload, _menuStrings.ReloadLabel);
             AppendMenu(menu, MenuFlags.String, MenuViewLogs, _menuStrings.ViewLogsLabel);
-            AppendMenu(menu, MenuFlags.String, MenuCompactMode, _menuStrings.CompactModeLabel);
             AppendMenu(menu, MenuFlags.Separator, 0, null);
             AppendMenu(menu, MenuFlags.String, MenuSettings, _menuStrings.SettingsLabel);
             AppendMenu(menu, MenuFlags.Separator, 0, null);
@@ -301,9 +334,6 @@ internal sealed class TrayIconService : IDisposable
             case MenuViewLogs:
                 ViewLogsRequested?.Invoke();
                 break;
-            case MenuCompactMode:
-                CompactModeRequested?.Invoke();
-                break;
             case MenuSettings:
                 OpenSettingsRequested?.Invoke();
                 break;
@@ -343,6 +373,9 @@ internal sealed class TrayIconService : IDisposable
     [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ShellNotifyIcon(uint dwMessage, ref NotifyIconData lpData);
+
+    [DllImport("user32.dll", EntryPoint = "RegisterWindowMessageW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint RegisterWindowMessage(string lpString);
 
     [DllImport("user32.dll", EntryPoint = "RegisterClassExW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern ushort RegisterClassEx(ref WindowClassEx lpwcx);

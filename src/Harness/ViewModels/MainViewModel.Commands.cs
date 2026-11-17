@@ -26,6 +26,11 @@ public partial class MainViewModel
 
     private void OnRetry()
     {
+        if (TryRequestManualHostRecreation("manual_retry"))
+        {
+            return;
+        }
+
         if (_webViewService.RetryNavigation())
         {
             IsErrorVisible = false;
@@ -40,6 +45,11 @@ public partial class MainViewModel
 
     private void OnReload()
     {
+        if (TryRequestManualHostRecreation("manual_reload"))
+        {
+            return;
+        }
+
         if (_webViewService.Reload())
         {
             IsErrorVisible = false;
@@ -49,6 +59,17 @@ public partial class MainViewModel
 
     private async Task OnStopAsync()
     {
+        if (!CanStop)
+        {
+            return;
+        }
+
+        if (IsLoading)
+        {
+            await _webViewService.StopAsync();
+            return;
+        }
+
         if (IsOpenClawAvailable)
         {
             await StopGatewayRunAsync();
@@ -56,6 +77,17 @@ public partial class MainViewModel
         }
 
         await _webViewService.StopAsync();
+    }
+
+    private bool TryRequestManualHostRecreation(string reason)
+    {
+        if (_isDisposed || _webViewService.IsInitialized || _selectedEnvironment is null || _selectedEnvironment.IsPlaceholder)
+        {
+            return false;
+        }
+
+        WebViewRecreationRequested?.Invoke(reason);
+        return true;
     }
 
     private void OnDevTools()

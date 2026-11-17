@@ -29,22 +29,4 @@ public sealed partial class MainWindow
             GatewayPaneLayout.Height = height;
         }
     }
-
-    private void OnCompactModeMenuClick(object sender, RoutedEventArgs e) => ToggleCompactMode();
-
-    private void OnOverflowThemeClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem { Tag: string theme })
-        {
-            return;
-        }
-
-        var themeButton = theme switch
-        {
-            "Light" => LightThemeButton,
-            "Dark" => DarkThemeButton,
-            _ => SystemThemeButton,
-        };
-        OnThemeSelectionClick(themeButton, e);
-    }
 }

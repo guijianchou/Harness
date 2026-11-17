@@ -22,6 +22,26 @@ public partial class ConfigurationService
         return JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings)!;
     }
 
+    private void CommitSavedSettings(AppSettings committedSettings, JsonObject committedValues, JsonObject runtimeBeforeSave)
+    {
+        var runtimeNow = JsonSerializer.SerializeToNode(Settings, AppSettingsJsonContext.Default.AppSettings)!.AsObject();
+        foreach (var property in AppSettingsJsonContext.Default.AppSettings.Properties)
+        {
+            if (property.Get is null || property.Set is null ||
+                !JsonNode.DeepEquals(runtimeNow[property.Name], runtimeBeforeSave[property.Name]) ||
+                JsonNode.DeepEquals(runtimeNow[property.Name], committedValues[property.Name]))
+            {
+                continue;
+            }
+
+            // Keep the live root and unchanged option graphs. Edits made while disk I/O
+            // was in progress remain pending against the newly committed disk baseline.
+            property.Set(Settings, property.Get(committedSettings));
+        }
+
+        NormalizeSettings(Settings);
+    }
+
     private string? ReadSettingsFile()
     {
         try

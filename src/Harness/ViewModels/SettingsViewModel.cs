@@ -67,6 +67,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
         _enableGlobalHotkey = settings.EnableGlobalHotkey;
         _globalHotkey = settings.GlobalHotkey;
         _alwaysOnTop = settings.AlwaysOnTop;
+        LoadAppearanceSettings(settings);
         _validationMessage = StringResources.SettingsValidationDefaultMessage;
     }
 
@@ -106,7 +107,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
     /// <summary>
     /// Gets the selectable backend labels, in <see cref="HostedBackendKind"/> order.
     /// </summary>
-    public IReadOnlyList<string> BackendOptions { get; } =
+    public IReadOnlyList<string> BackendOptions { get; } = (string[])
     [
         StringResources.SettingsBackendAuto,
         StringResources.SettingsBackendOpenClaw,
@@ -383,6 +384,11 @@ public partial class SettingsViewModel : INotifyPropertyChanged
     {
         result = default;
 
+        if (!TryValidateAppearanceSettings())
+        {
+            return false;
+        }
+
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var env in Environments)
         {
@@ -407,7 +413,8 @@ public partial class SettingsViewModel : INotifyPropertyChanged
 
         var settings = _settingsPersistence.CreateDraft();
         var didChangeEnvironmentState = DidChangeEnvironmentState || HasEnvironmentMetadataChanges();
-        var didChangeSessionTopology = DidChangeSessionTopology || HasEnvironmentSessionIdentityChanges();
+        var beforeEnvironments = settings.Environments;
+        var beforeSelectedEnvironment = settings.SelectedEnvironmentName;
         var beforeLanguage = settings.AppLanguage ?? "System";
         var beforeLiveSettings = LiveShellSettings.From(settings);
 
@@ -435,13 +442,42 @@ public partial class SettingsViewModel : INotifyPropertyChanged
         }
 
         ValidationMessage = StringResources.SettingsValidationDefaultMessage;
-        var afterLiveSettings = LiveShellSettings.From(settings);
+        var committedSettings = _settingsPersistence.Current;
+        var afterLiveSettings = LiveShellSettings.From(committedSettings);
+        var didChangeSelection = !string.Equals(beforeSelectedEnvironment, committedSettings.SelectedEnvironmentName, StringComparison.Ordinal);
         result = new SettingsSaveResult(
-            didChangeEnvironmentState,
-            didChangeSessionTopology,
-            !string.Equals(beforeLanguage, settings.AppLanguage ?? "System", StringComparison.Ordinal),
+            didChangeSelection || HaveCommittedEnvironmentsChanged(beforeEnvironments, committedSettings.Environments, includeDefault: true),
+            didChangeSelection || HaveCommittedEnvironmentsChanged(beforeEnvironments, committedSettings.Environments, includeDefault: false),
+            !string.Equals(beforeLanguage, committedSettings.AppLanguage ?? "System", StringComparison.Ordinal),
             new LiveShellSettingsChange(beforeLiveSettings, afterLiveSettings));
         return true;
+    }
+
+    private static bool HaveCommittedEnvironmentsChanged(
+        IReadOnlyList<EnvironmentConfig> before,
+        IReadOnlyList<EnvironmentConfig> after,
+        bool includeDefault)
+    {
+        if (before.Count != after.Count)
+        {
+            return true;
+        }
+
+        for (var index = 0; index < before.Count; index++)
+        {
+            var previous = before[index];
+            var current = after[index];
+            if (!string.Equals(previous.Id, current.Id, StringComparison.Ordinal) ||
+                !string.Equals(previous.Name, current.Name, StringComparison.Ordinal) ||
+                !string.Equals(previous.GatewayUrl, current.GatewayUrl, StringComparison.Ordinal) ||
+                previous.Backend != current.Backend || previous.OpenClawConnection != current.OpenClawConnection ||
+                (includeDefault && previous.IsDefault != current.IsDefault))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void LoadEditFields()
@@ -524,6 +560,8 @@ public partial class SettingsViewModel : INotifyPropertyChanged
 
     private void ApplyChangedShellSettings(AppSettings settings)
     {
+        ApplyChangedAppearanceSettings(settings);
+
         if (_didEditSelectedLanguage)
         {
             settings.AppLanguage = SelectedLanguage;

@@ -14,6 +14,7 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
     private WebView2? _webView;
     private CoreWebView2? _coreWebView;
     private bool _isInitialized;
+    private bool _requiresHostRecreation;
     private volatile bool _autoRefresh = true;
     private string? _lastNavigatedUrl;
     private int _retryCount;
@@ -99,6 +100,11 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
     public event Action<string>? NavigationErrorOccurred;
 
     /// <summary>
+    /// Raised when the browser process exits and its closed WebView must be replaced.
+    /// </summary>
+    public event Action? HostRecreationRequired;
+
+    /// <summary>
     /// Raised when navigation completed successfully.
     /// </summary>
     public event Action<string?>? NavigationCompleted;
@@ -132,6 +138,11 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
     /// Gets whether the WebView2 control is initialized and ready.
     /// </summary>
     public bool IsInitialized => _isInitialized;
+
+    /// <summary>
+    /// Gets whether the browser process closed the current host and requires a replacement.
+    /// </summary>
+    public bool RequiresHostRecreation => _requiresHostRecreation;
 
     /// <summary>
     /// Gets the environment profile currently backing the active WebView2 instance.

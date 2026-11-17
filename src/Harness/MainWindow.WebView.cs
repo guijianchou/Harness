@@ -80,7 +80,7 @@ public sealed partial class MainWindow
         }
 
         if (!ViewModel.AutoRefreshEnabled &&
-            WebViewRecreationService.IsNavigationTimeoutRecoveryReason(reason))
+            WebViewRecreationService.IsAutomaticRecoveryReason(reason))
         {
             RecordInstrumentationEvent("webview.recreation.suppressed_auto_refresh_disabled", new { reason });
             return;
@@ -182,11 +182,11 @@ public sealed partial class MainWindow
                 }
 
                 if (!ViewModel.AutoRefreshEnabled &&
-                    WebViewRecreationService.IsNavigationTimeoutRecoveryReason(begin.Reason))
+                    WebViewRecreationService.IsAutomaticRecoveryReason(_webViewRecreationService.LastReason))
                 {
                     RecordInstrumentationEvent("webview.recreation.suppressed_auto_refresh_disabled", new
                     {
-                        reason = begin.Reason
+                        reason = _webViewRecreationService.LastReason
                     });
                     break;
                 }
@@ -399,7 +399,7 @@ public sealed partial class MainWindow
     private void ScheduleDeferredWebViewRecreationRetry(string reason)
     {
         if (!ViewModel.AutoRefreshEnabled &&
-            WebViewRecreationService.IsNavigationTimeoutRecoveryReason(reason))
+            WebViewRecreationService.IsAutomaticRecoveryReason(reason))
         {
             RecordInstrumentationEvent("webview.recreation.retry_suppressed_auto_refresh_disabled", new { reason });
             return;

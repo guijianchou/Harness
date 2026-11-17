@@ -1,5 +1,6 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
+using System.Diagnostics;
 using Harness.Models;
 using Harness.Services;
 using Harness.Views;
@@ -22,30 +23,35 @@ public sealed partial class MainWindow
 
     private void OnOpenSettingsRequested()
     {
-        ShowSettingsWindow();
+        ShowSettingsWindow(showEnvironment: true);
     }
 
-    private void ShowSettingsWindow()
+    private void OnConfigureGatewayClick(object sender, RoutedEventArgs e)
     {
+        ShowSettingsWindow(showEnvironment: true);
+    }
+
+    private void ShowSettingsWindow(bool showEnvironment = false)
+    {
+        var startedAt = Stopwatch.GetTimestamp();
         if (_settingsWindow != null)
         {
-            ActivateSettingsWindow();
+            ActivateSettingsWindow(startedAt, showEnvironment);
             return;
         }
 
         _settingsWindow = CreateSettingsWindow();
-        ActivateSettingsWindow();
+        ActivateSettingsWindow(startedAt, showEnvironment);
     }
 
     private void PrewarmSettingsWindow()
     {
-        if (_settingsWindow is not null)
+        if (_isClosing || _settingsWindow is not null)
         {
             return;
         }
 
         _settingsWindow = CreateSettingsWindow();
-        _settingsWindow.SyncWithCurrentSettings();
     }
 
     private void QueueSettingsWindowPrewarm()
@@ -55,7 +61,54 @@ public sealed partial class MainWindow
 
     private void OnSettingsSaved(SettingsSaveResult saveResult)
     {
-        HandleSettingsSaved(saveResult);
+        ApplyCommittedSettings();
+    }
+
+    private void InitializeSettingsSynchronization()
+    {
+        _appliedSettings = App.Configuration.CreateSnapshot();
+        App.Configuration.SettingsCommitted += OnSettingsCommitted;
+    }
+
+    private void OnSettingsCommitted()
+    {
+        if (_isClosing || Interlocked.Exchange(ref _settingsApplyQueued, 1) != 0)
+        {
+            return;
+        }
+        if (!DispatcherQueue.TryEnqueue(() =>
+        {
+            Interlocked.Exchange(ref _settingsApplyQueued, 0);
+            if (_isClosing)
+            {
+                return;
+            }
+            try
+            {
+                ApplyCommittedSettings();
+            }
+            catch (Exception ex)
+            {
+                App.Logger.Error($"Failed to apply committed settings: {ex.Message}");
+            }
+        }))
+        {
+            Interlocked.Exchange(ref _settingsApplyQueued, 0);
+            App.Logger.Warning("Could not enqueue committed settings for the main window.");
+        }
+    }
+
+    private void ApplyCommittedSettings()
+    {
+        if (_isClosing || _appliedSettings is null)
+        {
+            return;
+        }
+        // Read the latest state on the UI thread; queued older saves cannot undo a newer edit.
+        var current = App.Configuration.CreateSnapshot();
+        var change = SettingsSaveResult.Between(_appliedSettings, current);
+        HandleSettingsSaved(change);
+        _appliedSettings = current;
     }
 
     private void ApplyAutoRefresh(bool enabled)
@@ -70,7 +123,7 @@ public sealed partial class MainWindow
 
     private void CancelAutomaticWebViewRecovery()
     {
-        if (!_webViewRecreationService.TryCancelNavigationTimeoutRecovery(out var cancelled))
+        if (!_webViewRecreationService.TryCancelAutomaticRecovery(out var cancelled))
         {
             return;
         }
@@ -90,6 +143,7 @@ public sealed partial class MainWindow
 
     private SettingsDialog CreateSettingsWindow()
     {
+        var startedAt = Stopwatch.GetTimestamp();
         var settingsWindow = new SettingsDialog(new SettingsPersistenceAdapter(App.Configuration, App.Logger))
         {
             MainViewModel = this.ViewModel,
@@ -97,24 +151,46 @@ public sealed partial class MainWindow
 
         settingsWindow.SettingsSaved += OnSettingsSaved;
         settingsWindow.Closed += OnSettingsWindowClosed;
+        App.Logger.Info("settings.window.created", new
+        {
+            elapsedMs = Math.Round(Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds, 2),
+        });
         return settingsWindow;
     }
 
-    private void ActivateSettingsWindow()
+    private void ActivateSettingsWindow(long startedAt, bool showEnvironment)
     {
         if (_settingsWindow is null)
         {
             return;
         }
 
-        if (!_isSettingsWindowVisible)
+        var preparationStartedAt = Stopwatch.GetTimestamp();
+        var reloadDraft = !_isSettingsWindowVisible;
+        if (reloadDraft)
         {
+            _settingsWindow.BeginOpenDiagnostics(startedAt);
             _settingsWindow.ReloadFromCurrentSettings();
         }
 
+        if (showEnvironment)
+        {
+            _settingsWindow.ShowEnvironmentSettings(reloadDraft ? ViewModel.SelectedEnvironment?.Id : null);
+        }
+
         _settingsWindow.SyncWithCurrentSettings();
+        var preparationMs = Stopwatch.GetElapsedTime(preparationStartedAt).TotalMilliseconds;
+        var activationStartedAt = Stopwatch.GetTimestamp();
         _settingsWindow.Activate();
+        var activateCallMs = Stopwatch.GetElapsedTime(activationStartedAt).TotalMilliseconds;
         _isSettingsWindowVisible = true;
+        App.Logger.Info("settings.window.open", new
+        {
+            reloadDraft,
+            preparationMs = Math.Round(preparationMs, 2),
+            activateCallMs = Math.Round(activateCallMs, 2),
+            requestToActivateReturnMs = Math.Round(Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds, 2),
+        });
     }
 
     private void OnSettingsWindowClosed(object sender, WindowEventArgs args)
@@ -156,6 +232,16 @@ public sealed partial class MainWindow
         if (saveResult.DidChangeLiveShellOptions)
         {
             _liveShellSettingsApplier.Apply(saveResult.LiveShellSettingsChange);
+            if (saveResult.LiveShellSettingsChange.DidChangeAppTheme)
+            {
+                var theme = App.Configuration.Settings.AppTheme;
+                ApplyTheme(theme);
+                UpdateThemeSelector(theme);
+            }
+            if (saveResult.LiveShellSettingsChange.DidChangeZoomFactor)
+            {
+                ViewModel.SetContentZoom(App.Configuration.Settings.ZoomFactor);
+            }
         }
     }
 
@@ -244,7 +330,7 @@ public sealed partial class MainWindow
 
     private async Task ShowLogViewerAsync()
     {
-        if (_isClosing || _isLogViewerOpen || _isAboutDialogOpen)
+        if (_isClosing || _isLogViewerOpen)
         {
             return;
         }
@@ -261,43 +347,6 @@ public sealed partial class MainWindow
         finally
         {
             _isLogViewerOpen = false;
-        }
-    }
-
-    private async void OnAboutClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            await ShowAboutDialogAsync();
-        }
-        catch (Exception ex)
-        {
-            if (!_isClosing)
-            {
-                App.Logger.Warning($"About dialog failed: {ex.Message}");
-            }
-        }
-    }
-
-    private async Task ShowAboutDialogAsync()
-    {
-        if (_isClosing || _isAboutDialogOpen || _isLogViewerOpen)
-        {
-            return;
-        }
-
-        _isAboutDialogOpen = true;
-        try
-        {
-            var dialog = new AboutDialog
-            {
-                XamlRoot = this.Content.XamlRoot,
-            };
-            await dialog.ShowAsync();
-        }
-        finally
-        {
-            _isAboutDialogOpen = false;
         }
     }
 }

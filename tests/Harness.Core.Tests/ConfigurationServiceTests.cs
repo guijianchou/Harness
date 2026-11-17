@@ -37,6 +37,63 @@ public sealed class ConfigurationServiceTests
     private string SettingsPath => Path.Combine(_tempFolder, "settings.json");
 
     [TestMethod]
+    public void LegacyCompactModeReturnsToNormalWindowAndCannotBeReintroducedBySave()
+    {
+        File.WriteAllText(SettingsPath, """{"compactMode":true,"windowWidth":1440,"windowHeight":900,"appTheme":"Dark"}""");
+        var service = CreateService();
+        service.Load();
+        Assert.IsFalse(service.Settings.CompactMode);
+        Assert.AreEqual(1440d, service.Settings.WindowWidth);
+        Assert.AreEqual(900d, service.Settings.WindowHeight);
+        Assert.AreEqual("Dark", service.Settings.AppTheme);
+
+        var oldDraft = service.CreateSnapshot();
+        oldDraft.CompactMode = true;
+        Assert.IsTrue(service.Save(oldDraft).Succeeded);
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.IsFalse(reloaded.Settings.CompactMode);
+        Assert.AreEqual(1440d, reloaded.Settings.WindowWidth);
+    }
+
+    [TestMethod]
+    public void CommittedNotificationRunsOutsideLocksAndSubscriberFailureDoesNotUndoSave()
+    {
+        var service = CreateService();
+        var calls = 0;
+        service.SettingsCommitted += () => throw new InvalidOperationException("Injected subscriber failure");
+        service.SettingsCommitted += () =>
+        {
+            using var fileLock = File.Open($"{SettingsPath}.lock", FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            var snapshot = Task.Run(service.CreateSnapshot).WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
+            Assert.IsNotNull(snapshot);
+            calls++;
+        };
+        service.Load();
+        Assert.AreEqual(1, calls, "Default initialization must also publish outside the settings lock.");
+        service.Settings.AutoRefresh = false;
+        Assert.IsTrue(service.Save().Succeeded);
+        Assert.AreEqual(2, calls);
+        var other = CreateService();
+        other.Load();
+        Assert.IsFalse(other.Settings.AutoRefresh);
+    }
+
+    [TestMethod]
+    public void FailedSaveDoesNotPublishCommittedNotification()
+    {
+        var service = CreateService();
+        service.Load();
+        var calls = 0;
+        service.SettingsCommitted += () => calls++;
+        using (File.Open($"{SettingsPath}.lock", FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            Assert.IsFalse(service.Save().Succeeded);
+        }
+        Assert.AreEqual(0, calls);
+    }
+
+    [TestMethod]
     public void GatewayEndpointCanonicalizationMatchesWebSocketOriginAndPath()
     {
         Assert.AreEqual("wss://gateway.test/control", OpenClawEndpoint.Resolve("https://GATEWAY.test:443/control?session=old#token", null).AbsoluteUri);
@@ -111,6 +168,10 @@ public sealed class ConfigurationServiceTests
         var secondDraft = second.CreateSnapshot();
         secondDraft.WindowWidth = 1400;
         Assert.IsTrue(second.Save(secondDraft).Succeeded);
+        Assert.AreEqual("wss://gateway.test", second.Settings.Environments[0].OpenClawConnection!.WebSocketUrl);
+        firstDraft = first.CreateSnapshot();
+        firstDraft.Environments[0].OpenClawConnection!.CredentialReference = "new-reference";
+        Assert.IsTrue(first.Save(firstDraft).Succeeded);
         secondDraft.Environments[0].OpenClawConnection = new OpenClawConnectionOptions { WebSocketUrl = "wss://different.test" };
         Assert.IsFalse(second.Save(secondDraft).Succeeded);
         var reloaded = CreateService();
@@ -275,6 +336,128 @@ public sealed class ConfigurationServiceTests
         Assert.AreEqual(1440, reloaded.Settings.WindowWidth);
         Assert.AreEqual(900, reloaded.Settings.WindowHeight);
         Assert.IsTrue(reloaded.Settings.AlwaysOnTop);
+    }
+
+    [TestMethod]
+    public void DraftSaveCommitsMergedAppearanceToCurrentAndAdvancesBaseline()
+    {
+        var first = CreateService();
+        first.Load();
+        var current = first.Settings;
+        var environments = current.Environments;
+        var environment = environments[0];
+        var heartbeat = current.Heartbeat;
+        var draft = first.CreateSnapshot();
+        draft.NotifyOnlyWhenUnfocused = false;
+
+        var second = CreateService();
+        second.Load();
+        second.Settings.AppTheme = "Dark";
+        second.Settings.ZoomFactor = 1.4;
+        Assert.IsTrue(second.Save().Succeeded);
+        Assert.IsTrue(first.Save(draft).Succeeded);
+
+        Assert.AreSame(current, first.Settings);
+        Assert.AreSame(environments, current.Environments);
+        Assert.AreSame(environment, current.Environments[0]);
+        Assert.AreSame(heartbeat, current.Heartbeat);
+        Assert.AreEqual("Dark", current.AppTheme);
+        Assert.AreEqual(1.4, current.ZoomFactor);
+        Assert.IsFalse(current.NotifyOnlyWhenUnfocused);
+        Assert.AreEqual("System", draft.AppTheme, "Saving must not replace the caller's draft with the merged state.");
+        Assert.AreEqual("Dark", first.CreateSnapshot().AppTheme);
+
+        second.Settings.AppTheme = "Light";
+        Assert.IsTrue(second.Save().Succeeded);
+        current.ZoomFactor = 1.6;
+        Assert.IsTrue(first.Save().Succeeded, "Imported appearance values must become the baseline, not a pending local edit.");
+        Assert.AreEqual("Light", current.AppTheme);
+        Assert.AreEqual(1.6, current.ZoomFactor);
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.AreEqual("Light", reloaded.Settings.AppTheme);
+        Assert.AreEqual(1.6, reloaded.Settings.ZoomFactor);
+        Assert.IsFalse(reloaded.Settings.NotifyOnlyWhenUnfocused);
+    }
+
+    [TestMethod]
+    public void CurrentSaveKeepsEditsMadeDuringWriteForNextSave()
+    {
+        Action? duringWrite = null;
+        var service = new ConfigurationService(_tempFolder, writeAllText: (path, text) =>
+        {
+            AtomicFileWriter.WriteAllText(path, text);
+            var action = duringWrite;
+            duringWrite = null;
+            action?.Invoke();
+        });
+        service.Load();
+        var current = service.Settings;
+        var heartbeat = current.Heartbeat;
+        var environments = current.Environments;
+        var other = CreateService();
+        other.Load();
+        other.Settings.AppTheme = "Dark";
+        Assert.IsTrue(other.Save().Succeeded);
+
+        current.WindowWidth = 1440;
+        duringWrite = () =>
+        {
+            current.WindowHeight = 920;
+            heartbeat.IntervalSeconds = 75;
+        };
+        Assert.IsTrue(service.Save().Succeeded);
+        Assert.AreSame(current, service.Settings);
+        Assert.AreSame(heartbeat, current.Heartbeat);
+        Assert.AreSame(environments, current.Environments);
+        Assert.AreEqual("Dark", current.AppTheme);
+        Assert.AreEqual(920d, current.WindowHeight);
+        Assert.AreEqual(75, current.HeartbeatIntervalSeconds, "The legacy interval must track the newer live heartbeat edit.");
+        using (var disk = JsonDocument.Parse(File.ReadAllText(SettingsPath)))
+        {
+            Assert.AreEqual(800d, disk.RootElement.GetProperty("windowHeight").GetDouble());
+            Assert.AreEqual(45, disk.RootElement.GetProperty("heartbeat").GetProperty("intervalSeconds").GetInt32());
+        }
+
+        Assert.IsTrue(service.Save().Succeeded);
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.AreEqual(1440d, reloaded.Settings.WindowWidth);
+        Assert.AreEqual(920d, reloaded.Settings.WindowHeight);
+        Assert.AreEqual(75, reloaded.Settings.Heartbeat.IntervalSeconds);
+    }
+
+    [TestMethod]
+    public void FailedMergedSaveLeavesCurrentUnchangedAndRetriesAgainstOriginalBaseline()
+    {
+        var rejectWrite = false;
+        var first = new ConfigurationService(_tempFolder, writeAllText: (path, text) =>
+        {
+            if (rejectWrite) { throw new IOException("Injected merged-save failure"); }
+            AtomicFileWriter.WriteAllText(path, text);
+        });
+        first.Load();
+        var current = first.Settings;
+        var draft = first.CreateSnapshot();
+        draft.NotifyOnlyWhenUnfocused = false;
+        var second = CreateService();
+        second.Load();
+        second.Settings.AppTheme = "Dark";
+        Assert.IsTrue(second.Save().Succeeded);
+        var diskBefore = File.ReadAllText(SettingsPath);
+
+        rejectWrite = true;
+        Assert.IsFalse(first.Save(draft).Succeeded);
+        Assert.AreSame(current, first.Settings);
+        Assert.AreEqual("System", current.AppTheme);
+        Assert.IsTrue(current.NotifyOnlyWhenUnfocused);
+        Assert.AreEqual(diskBefore, File.ReadAllText(SettingsPath));
+
+        rejectWrite = false;
+        Assert.IsTrue(first.Save(draft).Succeeded);
+        Assert.AreSame(current, first.Settings);
+        Assert.AreEqual("Dark", current.AppTheme);
+        Assert.IsFalse(current.NotifyOnlyWhenUnfocused);
     }
 
     [TestMethod]

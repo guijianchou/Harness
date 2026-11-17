@@ -44,7 +44,7 @@ public partial class SettingsViewModel
         set { _editGatewaySecret = value; OnPropertyChanged(); }
     }
 
-    public IReadOnlyList<string> GatewayAuthOptions { get; } =
+    public IReadOnlyList<string> GatewayAuthOptions { get; } = (string[])
     [StringResources.SettingsGatewayAuthToken, StringResources.SettingsGatewayAuthPassword, StringResources.SettingsGatewayAuthProxy];
 
     public string EditGatewayAccessToken
@@ -130,9 +130,17 @@ public partial class SettingsViewModel
         }
     }
 
-    internal async Task<SettingsSaveResult?> SaveAllAsync(OpenClawCredentialStore credentialStore)
+    internal async Task<SettingsSaveResult?> SaveAllAsync(
+        OpenClawCredentialStore credentialStore,
+        StartupRegistrationService? startupRegistration = null)
     {
+        if (!TryValidateAppearanceSettings())
+        {
+            return null;
+        }
+
         var staged = new List<(EnvironmentConfig Environment, string? PreviousReference, string Reference)>();
+        StartupRegistrationChange? startupChange = null;
         try
         {
             foreach (var environment in Environments)
@@ -154,7 +162,27 @@ public partial class SettingsViewModel
                 environment.OpenClawConnection = options with { CredentialReference = reference };
             }
 
+            if (_didEditLaunchAtStartup)
+            {
+                try
+                {
+                    startupChange = await (startupRegistration ?? new StartupRegistrationService()).ApplyAsync(LaunchAtStartup);
+                }
+                catch (AggregateException)
+                {
+                    ValidationMessage = StringResources.SettingsStartupRollbackFailed;
+                    return null;
+                }
+                catch (Exception)
+                {
+                    ValidationMessage = StringResources.SettingsStartupSaveFailed;
+                    return null;
+                }
+            }
+
             if (!SaveAll(out var result)) { return null; }
+            startupChange = null;
+            _didEditLaunchAtStartup = false;
             _pendingCredentials.Clear();
             // Old references may still be used by another live instance; never delete them before its configuration reload.
             staged.Clear();
@@ -171,6 +199,21 @@ public partial class SettingsViewModel
             {
                 entry.Environment.OpenClawConnection = entry.Environment.OpenClawConnection! with { CredentialReference = entry.PreviousReference };
                 try { await credentialStore.DeleteAsync(entry.Reference); } catch { }
+            }
+
+            if (startupChange is not null)
+            {
+                try
+                {
+                    if (!await startupChange.RollbackAsync())
+                    {
+                        ValidationMessage = StringResources.SettingsStartupRollbackFailed;
+                    }
+                }
+                catch (Exception)
+                {
+                    ValidationMessage = StringResources.SettingsStartupRollbackFailed;
+                }
             }
         }
     }

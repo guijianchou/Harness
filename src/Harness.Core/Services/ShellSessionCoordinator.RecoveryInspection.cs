@@ -48,6 +48,7 @@ public sealed partial class ShellSessionCoordinator
         try
         {
             var snapshot = await webViewService.InspectControlUiStateAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (snapshot.Phase == ControlUiPhase.Unavailable)
             {
                 return true;

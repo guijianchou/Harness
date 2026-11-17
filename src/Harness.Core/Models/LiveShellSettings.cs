@@ -9,6 +9,10 @@ public sealed record LiveShellSettings(
     bool AllowMultipleInstances,
     bool AutoRefresh)
 {
+    public string AppTheme { get; init; } = "System";
+
+    public double ZoomFactor { get; init; } = 1.0;
+
     public static LiveShellSettings From(AppSettings settings)
     {
         return new LiveShellSettings(
@@ -16,6 +20,10 @@ public sealed record LiveShellSettings(
             settings.EnableGlobalHotkey,
             settings.GlobalHotkey.Trim(),
             settings.AllowMultipleInstances,
-            settings.AutoRefresh);
+            settings.AutoRefresh)
+        {
+            AppTheme = settings.AppTheme,
+            ZoomFactor = settings.ZoomFactor,
+        };
     }
 }

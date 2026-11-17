@@ -75,11 +75,32 @@ public partial class WebViewService
             return;
         }
 
+        var kind = args.ProcessFailedKind;
+        if (kind is not (CoreWebView2ProcessFailedKind.BrowserProcessExited or CoreWebView2ProcessFailedKind.RenderProcessExited))
+        {
+            // Auxiliary processes recover independently. An unresponsive renderer may
+            // resume; keep its page ownership so a slow script cannot force a reload.
+            _logger.Warning("webview.process.failure_observed", new { kind, args.Reason });
+            return;
+        }
+
+        var requiresRecreation = kind == CoreWebView2ProcessFailedKind.BrowserProcessExited;
+        if (requiresRecreation)
+        {
+            _requiresHostRecreation = true;
+            _isInitialized = false;
+            StopHeartbeat();
+        }
+
         CancelActiveNavigation();
         _statusInspector.SetUnavailableSnapshot("Browser process failed.");
         _logger.Error($"WebView2 process failed: {args.Reason} ({args.ProcessFailedKind})");
         SetState(ConnectionState.Error);
         NavigationErrorOccurred?.Invoke($"Browser process failed: {args.Reason}");
+        if (requiresRecreation)
+        {
+            HostRecreationRequired?.Invoke();
+        }
     }
 
     private enum AutoRetryOutcome

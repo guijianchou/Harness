@@ -14,14 +14,12 @@ public sealed partial class MainWindow
             OpenLabel: StringResources.TrayMenuOpen,
             ReloadLabel: StringResources.Reload,
             ViewLogsLabel: StringResources.SettingsViewLogs,
-            CompactModeLabel: StringResources.TrayMenuCompactMode,
             SettingsLabel: StringResources.Settings,
             ExitLabel: StringResources.TrayMenuExit);
         _trayIconService = new TrayIconService(iconPath, App.Logger, menuStrings);
         if (!_trayIconService.IsAvailable)
         {
             App.Logger.Warning("Tray icon service is unavailable.");
-            return;
         }
 
         _trayIconService.ToggleVisibilityRequested += OnTrayToggleVisibilityRequested;
@@ -29,8 +27,8 @@ public sealed partial class MainWindow
         _trayIconService.OpenSettingsRequested += OnTrayOpenSettingsRequested;
         _trayIconService.ReloadRequested += OnTrayReloadRequested;
         _trayIconService.ViewLogsRequested += OnTrayViewLogsRequested;
-        _trayIconService.CompactModeRequested += OnTrayCompactModeRequested;
         _trayIconService.ExitRequested += OnTrayExitRequested;
+        _trayIconService.AvailabilityLost += OnTrayAvailabilityLost;
         _trayIconService.UpdateStatus(ViewModel.WorkStatusText);
     }
 
@@ -46,14 +44,19 @@ public sealed partial class MainWindow
         _trayIconService.OpenSettingsRequested -= OnTrayOpenSettingsRequested;
         _trayIconService.ReloadRequested -= OnTrayReloadRequested;
         _trayIconService.ViewLogsRequested -= OnTrayViewLogsRequested;
-        _trayIconService.CompactModeRequested -= OnTrayCompactModeRequested;
         _trayIconService.ExitRequested -= OnTrayExitRequested;
+        _trayIconService.AvailabilityLost -= OnTrayAvailabilityLost;
         _trayIconService.Dispose();
         _trayIconService = null;
     }
 
     private void HideMainWindowToTray()
     {
+        if (_isClosing || _trayIconService?.IsAvailable != true)
+        {
+            return;
+        }
+
         var isMinimized = WindowFrameHelper.IsWindowMinimized(this);
         if (_isWindowHidden && !isMinimized)
         {
@@ -86,8 +89,16 @@ public sealed partial class MainWindow
 
     private void RequestApplicationExit()
     {
+        if (_isClosing)
+        {
+            return;
+        }
+
         _trayClosePolicy.RequestExit();
-        Close();
+        if (!DeferExitUntilSettingsSaved())
+        {
+            Close();
+        }
     }
 
     private void UpdateTrayStatus()
@@ -120,6 +131,20 @@ public sealed partial class MainWindow
         DispatcherQueue.TryEnqueue(ShowMainWindowFromTray);
     }
 
+    private void OnTrayAvailabilityLost()
+    {
+        if (!DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_isClosing && _isWindowHidden && _trayIconService?.IsAvailable != true)
+            {
+                ShowMainWindowFromTray();
+            }
+        }))
+        {
+            App.Logger.Warning("Unable to dispatch tray recovery to the main window.");
+        }
+    }
+
     private void OnTrayOpenSettingsRequested()
     {
         DispatcherQueue.TryEnqueue(() =>
@@ -145,11 +170,6 @@ public sealed partial class MainWindow
             ShowMainWindowFromTray();
             ViewModel.ViewLogsCommand?.Execute(null);
         });
-    }
-
-    private void OnTrayCompactModeRequested()
-    {
-        DispatcherQueue.TryEnqueue(ToggleCompactMode);
     }
 
     private void OnTrayExitRequested()

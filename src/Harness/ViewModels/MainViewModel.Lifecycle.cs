@@ -8,6 +8,8 @@ namespace Harness.ViewModels;
 
 public partial class MainViewModel
 {
+    public void SetContentZoom(double factor) => _webViewService.SetContentZoom(factor);
+
     private void SubscribeToServiceEvents()
     {
         _webViewService.ConnectionStateChanged += OnConnectionStateChanged;
@@ -16,6 +18,7 @@ public partial class MainViewModel
         _webViewService.NavigationCompletionTimedOut += OnNavigationCompletionTimedOut;
         _webViewService.NavigationTimeoutRecovered += OnNavigationTimeoutRecovered;
         _webViewService.ErrorPageSettingsRequested += OnErrorPageSettingsRequested;
+        _webViewService.HostRecreationRequired += OnHostRecreationRequired;
         _webViewService.ControlUiSnapshotUpdated += OnControlUiSnapshotUpdated;
         _webViewService.HeartbeatObserved += OnHeartbeatObserved;
         _latencyService.LatencyUpdated += OnLatencyUpdated;
@@ -29,6 +32,7 @@ public partial class MainViewModel
         _webViewService.NavigationCompletionTimedOut -= OnNavigationCompletionTimedOut;
         _webViewService.NavigationTimeoutRecovered -= OnNavigationTimeoutRecovered;
         _webViewService.ErrorPageSettingsRequested -= OnErrorPageSettingsRequested;
+        _webViewService.HostRecreationRequired -= OnHostRecreationRequired;
         _webViewService.ControlUiSnapshotUpdated -= OnControlUiSnapshotUpdated;
         _webViewService.HeartbeatObserved -= OnHeartbeatObserved;
         _latencyService.LatencyUpdated -= OnLatencyUpdated;
@@ -37,6 +41,25 @@ public partial class MainViewModel
     private void OnErrorPageSettingsRequested()
     {
         DispatchUiUpdate(() => OpenSettingsRequested?.Invoke());
+    }
+
+    private void OnHostRecreationRequired()
+    {
+        var environment = _selectedEnvironment;
+        DispatchUiUpdate(() =>
+        {
+            if (_isDisposed || !ReferenceEquals(environment, _selectedEnvironment) ||
+                environment is null || environment.IsPlaceholder || !_webViewService.RequiresHostRecreation)
+            {
+                return;
+            }
+
+            RefreshResourceScheduling();
+            if (_autoRefresh)
+            {
+                WebViewRecreationRequested?.Invoke("browser_process_exited");
+            }
+        });
     }
 
     private void InitializeCoordinator()
@@ -132,7 +155,7 @@ public partial class MainViewModel
         _coordinator?.DetachServices();
         _hostedUiBridge.DetachCurrentWebView();
         _webViewService.DetachCurrentWebViewHost();
-        if (_selectedEnvironment?.IsPlaceholder == true)
+        if (IsPlaceholderEnvironment)
         {
             ApplyPlaceholderEnvironmentState();
         }
@@ -190,6 +213,10 @@ public partial class MainViewModel
         if (enabled && IsOpenClawAvailable && _gatewayRuntime?.Client?.IsConnected != true)
         {
             SynchronizeGatewayEnvironment(force: true);
+        }
+        if (enabled && _webViewService.RequiresHostRecreation && _selectedEnvironment is { IsPlaceholder: false })
+        {
+            WebViewRecreationRequested?.Invoke("browser_process_exited");
         }
     }
 

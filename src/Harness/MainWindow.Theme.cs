@@ -3,6 +3,7 @@
 using Harness.Helpers;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
@@ -10,44 +11,36 @@ namespace Harness;
 
 public sealed partial class MainWindow
 {
-    private void OnThemeSelectionClick(object sender, RoutedEventArgs e)
+    private void OnThemeClick(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button button || button.Tag is not string selectedTheme)
+        var selectedTheme = App.Configuration.Settings.AppTheme switch
         {
-            return;
-        }
+            ThemeModeHelper.Light => ThemeModeHelper.Dark,
+            ThemeModeHelper.Dark => ThemeModeHelper.System,
+            _ => ThemeModeHelper.Light,
+        };
 
         App.Configuration.Settings.AppTheme = selectedTheme;
         App.Configuration.SaveDeferred();
         ApplyTheme(selectedTheme);
         UpdateThemeSelector(selectedTheme);
+        _settingsWindow?.SyncWithCurrentSettings();
     }
 
     private void UpdateThemeSelector(string themeMode)
     {
-        foreach (var button in EnumerateThemeButtons())
+        var (currentLabel, nextLabel) = themeMode switch
         {
-            UpdateThemeButtonState(button, themeMode);
-        }
-    }
-
-    private IEnumerable<Button> EnumerateThemeButtons()
-    {
-        yield return SystemThemeButton;
-        yield return LightThemeButton;
-        yield return DarkThemeButton;
-    }
-
-    private static void UpdateThemeButtonState(Button button, string selectedThemeMode)
-    {
-        var isSelected = string.Equals(button.Tag as string, selectedThemeMode, StringComparison.Ordinal);
-        button.Background = isSelected
-            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 230, 240, 255))
-            : new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
-
-        button.Foreground = isSelected
-            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235))
-            : (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+            ThemeModeHelper.Light => (StringResources.ThemeLight, StringResources.ThemeDark),
+            ThemeModeHelper.Dark => (StringResources.ThemeDark, StringResources.ThemeSystem),
+            _ => (StringResources.ThemeSystem, StringResources.ThemeLight),
+        };
+        var description = string.Format(StringResources.ThemeCycleTooltipFormat, currentLabel, nextLabel);
+        SystemThemeIcon.Visibility = themeMode is not (ThemeModeHelper.Light or ThemeModeHelper.Dark) ? Visibility.Visible : Visibility.Collapsed;
+        LightThemeIcon.Visibility = themeMode == ThemeModeHelper.Light ? Visibility.Visible : Visibility.Collapsed;
+        DarkThemeIcon.Visibility = themeMode == ThemeModeHelper.Dark ? Visibility.Visible : Visibility.Collapsed;
+        AutomationProperties.SetName(ThemeButton, description);
+        ToolTipService.SetToolTip(ThemeButton, description);
     }
 
     private void ApplyTheme(string themeMode)

@@ -47,6 +47,9 @@ public partial class MainViewModel
 
         var client = runtime.Client;
         var pageKey = _gatewayPage?.SessionKey;
+        var targetVersion = _gatewayTargetVersion;
+        var searchVersion = _gatewaySearchVersion;
+        var search = GatewaySearchText.Trim();
         var historyConfirmed = false;
         try
         {
@@ -56,17 +59,18 @@ public partial class MainViewModel
             }
 
             bool Current() => IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) &&
-                client.IsConnected && pageKey == _gatewayPage?.SessionKey && !cancellationToken.IsCancellationRequested;
+                client.IsConnected && pageKey == _gatewayPage?.SessionKey && targetVersion == _gatewayTargetVersion &&
+                searchVersion == _gatewaySearchVersion && !cancellationToken.IsCancellationRequested;
 
             if (refreshRoster)
             {
-                var expectedCount = Math.Clamp(_gatewayRoster.Count, 60, 600);
-                var roster = await client.ListSessionsAsync(cancellationToken: cancellationToken);
+                var expectedCount = searchVersion == _gatewayRosterSearchVersion ? Math.Clamp(_gatewayRoster.Count, 60, 600) : 60;
+                var roster = await client.ListSessionsAsync(cancellationToken: cancellationToken, search: search.Length == 0 ? null : search);
                 var rows = roster.Sessions.ToList();
                 var offsets = new HashSet<int>();
                 while (rows.Count < expectedCount && roster.HasMore == true && roster.NextOffset is { } offset && offsets.Add(offset))
                 {
-                    roster = await client.ListSessionsAsync(offset: offset, cancellationToken: cancellationToken);
+                    roster = await client.ListSessionsAsync(offset: offset, cancellationToken: cancellationToken, search: search.Length == 0 ? null : search);
                     rows.AddRange(roster.Sessions);
                 }
                 if (!Current())
@@ -75,6 +79,7 @@ public partial class MainViewModel
                 }
                 _gatewayRoster.Clear();
                 _gatewayRoster.AddRange(rows.DistinctBy(row => (row.AgentId, row.Key)));
+                _gatewayRosterSearchVersion = searchVersion;
                 _gatewayNextOffset = roster.NextOffset;
                 GatewayHasMore = roster.HasMore == true && roster.NextOffset.HasValue;
                 ProjectGatewayRoster();
@@ -89,9 +94,10 @@ public partial class MainViewModel
             }
 
             var selected = _gatewayRoster.FirstOrDefault(session => session.Key == pageKey);
+            var agentId = TryGetGatewayAgentId(pageKey, out var canonicalAgentId) ? canonicalAgentId : selected?.AgentId;
             if (_gatewaySubscribedKey != pageKey)
             {
-                await SubscribeGatewaySessionAsync(client, pageKey, selected?.AgentId, cancellationToken);
+                await SubscribeGatewaySessionAsync(client, pageKey, agentId, cancellationToken);
                 if (!Current())
                 {
                     return;
@@ -99,9 +105,15 @@ public partial class MainViewModel
                 _gatewaySubscribedKey = pageKey;
             }
 
-            var history = await client.GetChatHistoryAsync(pageKey, selected?.AgentId, limit: 1, cancellationToken: cancellationToken);
+            var eventVersion = _gatewayEventVersion;
+            var history = await client.GetChatHistoryAsync(pageKey, agentId, limit: 1, cancellationToken: cancellationToken);
             if (!Current())
             {
+                return;
+            }
+            if (eventVersion != _gatewayEventVersion || !OpenClawSessionSnapshot.CanReplace(_gatewayHistory, history))
+            {
+                Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
                 return;
             }
             if (!OpenClawSessionIdentity.Matches(pageKey, history))
@@ -116,11 +128,15 @@ public partial class MainViewModel
             }
             if (_gatewayHistory?.SessionId is { } oldSessionId && oldSessionId != history.SessionId)
             {
+                targetVersion = ++_gatewayTargetVersion;
                 _gatewayEventRunId = null;
+                _selectedGatewayModel = null;
+                ResetGatewaySessionDetails();
                 _gatewayObservedRuns.RemoveWhere(id => id.StartsWith(pageKey + "|", StringComparison.Ordinal));
                 _gatewayNotifiedRuns.RemoveWhere(id => id.StartsWith(pageKey + "|", StringComparison.Ordinal));
             }
             _gatewayHistory = history;
+            SynchronizeGatewaySessionDetails();
             historyConfirmed = true;
             if (history.SessionInfo?.HasActiveRun == false || history.SessionInfo?.ActiveRunIds is { Length: 0 })
             {
@@ -143,25 +159,46 @@ public partial class MainViewModel
             var effective = ModelIdentifier(row?.Model, row?.ModelProvider);
             ModelSummaryText = ModelIdentifier(row?.ActiveModel, row?.ActiveModelProvider) is { Length: > 0 } active ? active :
                 effective.Length > 0 ? effective : DefaultModelSummary;
-            var models = await client.ListModelsAsync(selected?.AgentId, pageKey, cancellationToken);
+            var models = await client.ListModelsAsync(agentId, pageKey, cancellationToken);
             if (!Current())
             {
                 return;
             }
-            var priorSelection = _selectedGatewayModel?.Id;
-            GatewayModels.Clear();
-            GatewayModels.Add(new OpenClawModelItem("", GatewayStrings.Text("DefaultModel")));
-            foreach (var model in models.Models.Where(model => model.ManualSelectionAllowed != false && model.Available != false))
+            var priorSelection = _gatewayModelEdited ? _selectedGatewayModel?.Id : null;
+            var priorThinking = _gatewayThinkingEdited ? _selectedGatewayThinkingLevel?.Id : null;
+            _gatewayProjectingModel = true;
+            try
             {
-                var id = ModelIdentifier(model.Id, model.Provider);
-                if (!string.IsNullOrEmpty(id) && !GatewayModels.Any(item => item.Id == id))
+                GatewayModels.Clear();
+                GatewayModels.Add(new OpenClawModelItem("", GatewayStrings.Text("DefaultModel")));
+                foreach (var model in models.Models.Where(model => model.ManualSelectionAllowed == true && model.Available != false))
                 {
-                    GatewayModels.Add(new OpenClawModelItem(id, string.IsNullOrWhiteSpace(model.Name) ? id : $"{model.Name} · {model.Provider}"));
+                    var id = ModelIdentifier(model.Id, model.Provider);
+                    if (!string.IsNullOrEmpty(id) && !GatewayModels.Any(item => item.Id == id))
+                    {
+                        GatewayModels.Add(new OpenClawModelItem(id, string.IsNullOrWhiteSpace(model.Name) ? id : $"{model.Name} · {model.Provider}", model));
+                    }
                 }
-            }
 
-            SelectedGatewayModel = GatewayModels.FirstOrDefault(model => model.Id == priorSelection) ??
-                GatewayModels.FirstOrDefault(model => model.Id == effective) ?? GatewayModels.FirstOrDefault();
+                SelectedGatewayModel = GatewayModels.FirstOrDefault(model => model.Id == priorSelection) ??
+                    GatewayModels.FirstOrDefault(model => model.Id == effective) ?? GatewayModels.FirstOrDefault();
+                var retainsModelDraft = priorSelection is not null && priorSelection == SelectedGatewayModel?.Id;
+                _gatewayModelEdited = retainsModelDraft;
+                var thinking = priorThinking ?? (retainsModelDraft && priorSelection != effective ? "" : row?.ThinkingLevel ?? "");
+                ProjectGatewayThinkingOptions(thinking);
+                _gatewayThinkingEdited = priorThinking is not null && priorThinking == SelectedGatewayThinkingLevel?.Id;
+            }
+            finally
+            {
+                _gatewayProjectingModel = false;
+            }
+            ResetGatewayRefreshRetry();
+            _gatewayDataStale = false;
+            if (GatewayErrorText == _gatewayRefreshErrorText)
+            {
+                GatewayErrorText = "";
+            }
+            _gatewayRefreshErrorText = null;
             NotifyGatewayCapabilities();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -169,23 +206,77 @@ public partial class MainViewModel
         }
         catch (Exception ex)
         {
-            if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && pageKey == _gatewayPage?.SessionKey)
+            if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && client?.IsConnected == true &&
+                pageKey == _gatewayPage?.SessionKey && targetVersion == _gatewayTargetVersion && searchVersion == _gatewaySearchVersion)
             {
+                _gatewayDataStale = true;
                 if (!historyConfirmed)
                 {
-                    _gatewayHistory = null;
                     SetGatewayRunPresentation(GatewayStrings.Text("UnknownRun"), false);
                 }
-                GatewayModels.Clear();
-                SelectedGatewayModel = null;
+                ScheduleGatewayRefreshRetry(ex);
                 NotifyGatewayCapabilities();
                 ShowGatewayError(ex);
+                _gatewayRefreshErrorText = GatewayErrorText;
             }
         }
         finally
         {
             _gatewayDataGate.Release();
         }
+    }
+
+    private void ResetGatewayRefreshRetry()
+    {
+        _gatewayRefreshFailures = 0;
+        _gatewayRefreshNotBefore = default;
+        _gatewayRefreshRetryable = false;
+        _gatewayEventRecoveryRequested = false;
+    }
+
+    private void ScheduleGatewayRefreshRetry(Exception error)
+    {
+        var retryable = error is OpenClawGatewayException gateway &&
+            (gateway.Retryable || gateway.Code == "UNAVAILABLE" ||
+             gateway.Kind is OpenClawFailureKind.Timeout or OpenClawFailureKind.Transport or OpenClawFailureKind.Disconnected);
+        _gatewayRefreshRetryable = retryable;
+        _gatewayEventRecoveryNotBefore = DateTimeOffset.UtcNow.AddSeconds(8);
+        if (retryable && ++_gatewayRefreshFailures <= 3)
+        {
+            _gatewayRefreshNotBefore = DateTimeOffset.UtcNow.AddSeconds(1 << _gatewayRefreshFailures);
+            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+        }
+        else
+        {
+            // Recovery waits for a new target, connection, manual refresh, or server change.
+            _gatewayRefreshNotBefore = DateTimeOffset.MaxValue;
+            Interlocked.Exchange(ref _gatewayRefreshRequested, 0);
+        }
+    }
+
+    private void RequestGatewayEventRefresh()
+    {
+        if (_gatewayRefreshRetryable && _gatewayRefreshFailures > 3)
+        {
+            _gatewayEventRecoveryRequested = true;
+        }
+        Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+    }
+
+    private bool TakeGatewayRefreshRequest(bool pageChanged, DateTimeOffset now)
+    {
+        if (pageChanged)
+        {
+            ResetGatewayRefreshRetry();
+            Interlocked.Exchange(ref _gatewayRefreshRequested, 0);
+            return true;
+        }
+        if (AutoRefreshEnabled && _gatewayEventRecoveryRequested && now >= _gatewayEventRecoveryNotBefore)
+        {
+            ResetGatewayRefreshRetry();
+        }
+        return (_gatewayRefreshFailures == 0 || AutoRefreshEnabled) && now >= _gatewayRefreshNotBefore && now >= _gatewaySearchNotBefore &&
+            Interlocked.Exchange(ref _gatewayRefreshRequested, 0) != 0;
     }
 
     private async Task SubscribeGatewaySessionAsync(OpenClawGatewayClient client, string key, string? agentId, CancellationToken cancellationToken)
@@ -211,11 +302,8 @@ public partial class MainViewModel
 
     private void ProjectGatewayRoster()
     {
-        var search = GatewaySearchText.Trim();
         GatewaySessions.Clear();
-        foreach (var row in _gatewayRoster.Where(row => search.Length == 0 ||
-                     SessionTitle(row).Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                     row.Key.Contains(search, StringComparison.OrdinalIgnoreCase)))
+        foreach (var row in _gatewayRoster)
         {
             GatewaySessions.Add(new OpenClawSessionItem(row.Key, SessionTitle(row), row.LastMessagePreview ?? row.Key, row));
         }
@@ -240,12 +328,43 @@ public partial class MainViewModel
         _selectedGatewaySession = value;
         OnPropertyChanged(nameof(SelectedGatewaySession));
         OnPropertyChanged(nameof(GatewaySessionTitle));
+        SynchronizeGatewaySessionDetails();
+    }
+
+    private void SetGatewayPageSelection(OpenClawPageSelection? page)
+    {
+        if (page?.SessionKey != _gatewayPage?.SessionKey)
+        {
+            _gatewayTargetVersion++;
+            ResetGatewayRefreshRetry();
+            _gatewayDataStale = false;
+            _gatewayHistory = null;
+            _gatewayEventRunId = null;
+            _selectedGatewayModel = null;
+            _selectedGatewaySession = null;
+            GatewayModels.Clear();
+            ResetGatewaySessionDetails();
+            ModelSummaryText = DefaultModelSummary;
+            SetGatewayRunPresentation(GatewayStrings.Text("WaitingForPage"), false);
+            OnPropertyChanged(nameof(SelectedGatewaySession));
+            OnPropertyChanged(nameof(SelectedGatewayModel));
+            OnPropertyChanged(nameof(GatewaySessionTitle));
+        }
+        _gatewayPage = page;
+        NotifyGatewayCapabilities();
     }
 
     private void ApplyGatewayRunProjection()
     {
         var busy = _gatewayHistory?.SessionInfo?.HasActiveRun;
         var exact = GetExactGatewayRunId();
+        if (busy == true && _gatewayHistory?.SessionInfo?.ActiveRunIds is { Length: > 0 } active &&
+            active.All(run => _gatewayNotifiedRuns.Contains(_gatewayPage?.SessionKey + "|" + run)))
+        {
+            // A cached active set cannot undo terminal events already delivered on this connection.
+            NotifyGatewayCapabilities();
+            return;
+        }
         SetGatewayRunPresentation(GatewayStrings.Text(exact is not null || busy == true ? "Running" : busy == false ? "Idle" : "UnknownRun"), exact is not null || busy == true);
         NotifyGatewayCapabilities();
     }
@@ -261,7 +380,7 @@ public partial class MainViewModel
     private string? GetExactGatewayRunId()
     {
         var key = _gatewayPage?.SessionKey;
-        if (string.IsNullOrEmpty(key) || _gatewayHistory is null)
+        if (string.IsNullOrEmpty(key) || _gatewayHistory is null || _gatewayDataStale)
         {
             return null;
         }
@@ -271,14 +390,23 @@ public partial class MainViewModel
 
     private void HandleGatewayEvent(OpenClawSessionRuntime runtime, OpenClawGatewayEvent value)
     {
-        if (!IsCurrentGateway(runtime) || value.Generation != runtime.ConnectionGeneration || _gatewaySelectionChanging)
+        if (!IsCurrentGateway(runtime) || value.Generation != runtime.ConnectionGeneration)
         {
             return;
         }
 
+        if (_gatewaySelectionChanging && value.Name is "sessions.changed" or "chat" or "agent")
+        {
+            _gatewayEventDuringSelection = true;
+            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+        }
+
         if (value.Name == "sessions.changed")
         {
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            if (value.Payload.ValueKind == JsonValueKind.Object)
+            {
+                RequestGatewayEventRefresh();
+            }
             return;
         }
         if (value.Name is not ("chat" or "agent") || value.Payload.ValueKind != JsonValueKind.Object)
@@ -298,7 +426,6 @@ public partial class MainViewModel
             Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
             return;
         }
-
         var identity = key + "|" + run;
         var state = ReadGatewayText(value.Payload, "state");
         if (value.Name == "agent" && ReadGatewayText(value.Payload, "stream") == "lifecycle" &&
@@ -306,7 +433,8 @@ public partial class MainViewModel
             ReadGatewayText(lifecycle, "phase") is "end" or "error")
         {
             // Agent lifecycle settlement is not a chat success receipt.
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            _gatewayEventVersion++;
+            RequestGatewayEventRefresh();
             return;
         }
         if (_gatewayNotifiedRuns.Contains(identity))
@@ -315,6 +443,7 @@ public partial class MainViewModel
         }
         if (state is "final" or "error" or "aborted")
         {
+            _gatewayEventVersion++;
             var observed = _gatewayObservedRuns.Contains(identity);
             _gatewayObservedRuns.Remove(identity);
             if (_gatewayNotifiedRuns.Add(identity) && observed && state == "final")
@@ -333,13 +462,14 @@ public partial class MainViewModel
             }
             _gatewayEventRunId = null;
             SetGatewayRunPresentation(GatewayStrings.Text(state == "final" ? "Completed" : state == "aborted" ? "Stopped" : "Failed"), false);
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            RequestGatewayEventRefresh();
         }
         else
         {
             if (_gatewayObservedRuns.Add(identity))
             {
-                Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+                _gatewayEventVersion++;
+                RequestGatewayEventRefresh();
             }
             _gatewayEventRunId = run;
             SetGatewayRunPresentation(GatewayStrings.Text(ReadGatewayText(value.Payload, "stream") == "tool" ? "ToolRunning" : "Running"), true);
@@ -349,7 +479,8 @@ public partial class MainViewModel
 
     private static string? ReadGatewayText(JsonElement value, string property) => value.ValueKind == JsonValueKind.Object &&
         value.TryGetProperty(property, out var field) && field.ValueKind == JsonValueKind.String ? field.GetString() : null;
-    private static string SessionTitle(OpenClawSession row) => row.DisplayName ?? row.DerivedTitle ?? row.Label ?? row.Key;
+    private static string SessionTitle(OpenClawSession row) =>
+        new[] { row.Label, row.DisplayName, row.DerivedTitle, row.Key }.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? row.Key;
     private static string ModelIdentifier(string? model, string? provider) => string.IsNullOrWhiteSpace(model) ? "" :
         model.Contains('/') || string.IsNullOrWhiteSpace(provider) ? model : provider + "/" + model;
 }

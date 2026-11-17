@@ -60,26 +60,19 @@ public partial class WebViewService
         if (IsSameOriginAsCurrentSession(targetUri))
         {
             _logger.Info("webview.new_window.same_origin_inline", new { uri = targetUri });
-            NavigateCurrentWebView(targetUri);
+            try
+            {
+                Navigate(targetUri);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Same-origin popup navigation failed, opening externally instead: {ex.Message}");
+                OpenInSystemBrowser(targetUri);
+            }
             return;
         }
 
         OpenInSystemBrowser(targetUri);
-    }
-
-    // NewWindowRequested is raised on the UI thread, so this navigates inline:
-    // dispatching would let the handler return before Handled took effect.
-    private void NavigateCurrentWebView(string targetUri)
-    {
-        try
-        {
-            _coreWebView?.Navigate(targetUri);
-        }
-        catch (Exception ex)
-        {
-            _logger.Warning($"Same-origin popup navigation failed, opening externally instead: {ex.Message}");
-            OpenInSystemBrowser(targetUri);
-        }
     }
 
     private void OpenInSystemBrowser(string targetUri)

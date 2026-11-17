@@ -26,8 +26,7 @@ internal sealed class WebViewRecreationService
     {
         var normalizedReason = string.IsNullOrWhiteSpace(reason) ? "unspecified" : reason;
 
-        if (normalizedReason.Contains("settings", StringComparison.OrdinalIgnoreCase) ||
-            normalizedReason.Contains("initial", StringComparison.OrdinalIgnoreCase))
+        if (normalizedReason is "manual_retry" or "manual_reload")
         {
             _circuitBreaker.Reset();
         }
@@ -76,6 +75,7 @@ internal sealed class WebViewRecreationService
         }
 
         IsRecreating = true;
+        _activeReasonCancelled = false;
         LastReason = pendingReason;
         return WebViewRecreationBeginResult.Begin(pendingReason, previousReason);
     }
@@ -109,22 +109,32 @@ internal sealed class WebViewRecreationService
 
     public bool TryCancelNavigationTimeoutRecovery(out WebViewRecreationCancelledRecoveryResult result)
     {
+        return TryCancelRecovery(IsNavigationTimeoutRecoveryReason, out result);
+    }
+
+    public bool TryCancelAutomaticRecovery(out WebViewRecreationCancelledRecoveryResult result)
+    {
+        return TryCancelRecovery(IsAutomaticRecoveryReason, out result);
+    }
+
+    private bool TryCancelRecovery(Func<string?, bool> matchesReason, out WebViewRecreationCancelledRecoveryResult result)
+    {
         string? pendingReason = null;
-        if (IsNavigationTimeoutRecoveryReason(_pendingReason))
+        if (matchesReason(_pendingReason))
         {
             pendingReason = _pendingReason;
             _pendingReason = null;
         }
 
         string? deferredReason = null;
-        if (IsNavigationTimeoutRecoveryReason(_deferredReason))
+        if (matchesReason(_deferredReason))
         {
             deferredReason = _deferredReason;
             _deferredReason = null;
         }
 
         string? activeReason = null;
-        if (IsRecreating && IsNavigationTimeoutRecoveryReason(LastReason))
+        if (IsRecreating && matchesReason(LastReason))
         {
             activeReason = LastReason;
             _activeReasonCancelled = true;
@@ -137,6 +147,11 @@ internal sealed class WebViewRecreationService
     public static bool IsNavigationTimeoutRecoveryReason(string? reason)
     {
         return reason is "navigation_start_timeout" or "navigation_completion_timeout";
+    }
+
+    public static bool IsAutomaticRecoveryReason(string? reason)
+    {
+        return IsNavigationTimeoutRecoveryReason(reason) || reason == "browser_process_exited";
     }
 
     public static string ChooseHigherPriorityReason(string? currentReason, string newReason)
@@ -202,6 +217,7 @@ internal sealed class WebViewRecreationService
 
         LastReason = reason;
         _pendingReason = null;
+        _activeReasonCancelled = false;
         return true;
     }
 

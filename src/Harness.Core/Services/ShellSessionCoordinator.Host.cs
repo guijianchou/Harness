@@ -6,6 +6,8 @@ namespace Harness.Services;
 
 public sealed partial class ShellSessionCoordinator
 {
+    private CancellationTokenSource? _foregroundResumeCancellation;
+
     /// <summary>
     /// Called when the host window goes to background.
     /// </summary>
@@ -13,6 +15,7 @@ public sealed partial class ShellSessionCoordinator
     {
         _isInBackground = true;
         _hiddenAt = DateTimeOffset.Now;
+        CancelForegroundResume();
         _logger.Info("host.hidden", new { environment = _currentEnvironmentName, at = _hiddenAt });
         PublishTelemetry();
     }
@@ -22,10 +25,20 @@ public sealed partial class ShellSessionCoordinator
     /// </summary>
     public async Task OnHostVisibleAsync(CancellationToken cancellationToken = default)
     {
+        if (!_isInBackground)
+        {
+            return;
+        }
+
         var operationCancellation = CreateObservedOperationCancellation();
         if (operationCancellation is null)
         {
             return;
+        }
+
+        lock (_observedOperationGate)
+        {
+            _foregroundResumeCancellation = operationCancellation;
         }
 
         try
@@ -36,9 +49,40 @@ public sealed partial class ShellSessionCoordinator
 
             await OnHostVisibleCoreAsync(linkedCancellation.Token);
         }
+        catch (OperationCanceledException) when (operationCancellation.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            _logger.Info("recovery.background_resume.cancelled");
+        }
         finally
         {
+            lock (_observedOperationGate)
+            {
+                if (ReferenceEquals(_foregroundResumeCancellation, operationCancellation))
+                {
+                    _foregroundResumeCancellation = null;
+                }
+            }
+
             ReleaseObservedOperationCancellation(operationCancellation);
+        }
+    }
+
+    private void CancelForegroundResume()
+    {
+        CancellationTokenSource? cancellation;
+        lock (_observedOperationGate)
+        {
+            cancellation = _foregroundResumeCancellation;
+            _foregroundResumeCancellation = null;
+        }
+
+        try
+        {
+            cancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The foreground operation owns disposal and may already have completed.
         }
     }
 
@@ -67,11 +111,12 @@ public sealed partial class ShellSessionCoordinator
 
         _hiddenAt = null;
 
-        if (_recoveryOptions.EnableBackgroundResume &&
+        if (AutoRefreshEnabled && _recoveryOptions.EnableBackgroundResume &&
             _backgroundDuration.HasValue &&
             _backgroundDuration.Value.TotalSeconds >= _recoveryOptions.BackgroundResumeThresholdSeconds)
         {
             var requiresReconnect = await RequiresBackgroundReconnectAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.Info("recovery.start", new
             {
                 reason = "background_resume",
@@ -90,6 +135,7 @@ public sealed partial class ShellSessionCoordinator
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         _backgroundDuration = null;
         PublishTelemetry();
     }

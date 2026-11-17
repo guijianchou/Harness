@@ -16,7 +16,7 @@ public sealed partial class MainWindow
         UpdateTitleBarInsets();
 
         Title = "Harness";
-        AppWindow.SetIcon("Assets\\WindowIcon.ico");
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WindowIcon.ico"));
         SystemBackdrop = new MicaBackdrop
         {
             Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt,
@@ -25,6 +25,7 @@ public sealed partial class MainWindow
 
     private void SubscribeToViewModelEvents()
     {
+        InitializeSettingsSynchronization();
         ViewModel.OpenSettingsRequested += OnOpenSettingsRequested;
         ViewModel.WebViewRecreationRequested += OnWebViewRecreationRequested;
         ViewModel.NavigationTimeoutRecoveryNoLongerNeeded += OnNavigationTimeoutRecoveryNoLongerNeeded;

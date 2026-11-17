@@ -83,6 +83,12 @@ public partial class App : Application
         MainWindow = _mainWindow;
         _mainWindow.Activate();
 
+        if (Configuration.Settings.StartMinimized &&
+            _mainWindow.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+        {
+            presenter.Minimize();
+        }
+
         Logger.Info("Main window activated.");
     }
 

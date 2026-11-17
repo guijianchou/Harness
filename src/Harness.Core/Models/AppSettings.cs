@@ -149,6 +149,11 @@ public class AppSettings
     public bool LaunchAtStartup { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets whether the main window starts minimized, independently of close-to-tray behavior.
+    /// </summary>
+    public bool StartMinimized { get; set; } = false;
+
+    /// <summary>
     /// Gets or sets the heartbeat probe interval in seconds. 0 = disabled.
     /// Default is 30s, which works well with Cloudflare Tunnel / reverse proxy idle timeouts (60-100s).
     /// </summary>

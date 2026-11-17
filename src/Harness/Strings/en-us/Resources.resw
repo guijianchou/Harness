@@ -65,6 +65,9 @@
   <data name="WebViewRecreationFailedFormat" xml:space="preserve">
     <value>WebView recovery failed while recreating the browser host: {0}</value>
   </data>
+  <data name="WebViewInitializationTimedOut" xml:space="preserve">
+    <value>WebView2 initialization timed out. Select Retry to recreate the browser.</value>
+  </data>
   <data name="DevTools" xml:space="preserve">
     <value>Developer Tools</value>
   </data>
@@ -81,7 +84,13 @@
     <value>Status :</value>
   </data>
   <data name="ThemeSystem" xml:space="preserve">
-    <value>System theme</value>
+    <value>Follow system</value>
+  </data>
+  <data name="ThemeCycleTooltipFormat" xml:space="preserve">
+    <value>Theme: {0}. Click to switch to {1}.</value>
+  </data>
+  <data name="AboutVersionFormat" xml:space="preserve">
+    <value>Version {0}</value>
   </data>
   <data name="ThemeLight" xml:space="preserve">
     <value>Light theme</value>
@@ -300,13 +309,13 @@
     <value>Environment Sessions</value>
   </data>
   <data name="SettingsSessionsDescription" xml:space="preserve">
-    <value>Each environment uses its own WebView2Data profile. Clear only the environment you want to reset.</value>
+    <value>Clear cookies and local website data for a saved environment. You may need to sign in again. This does not delete OpenClaw conversations or native Gateway credentials. Save environment changes before clearing browser data.</value>
   </data>
   <data name="SettingsSessionReset" xml:space="preserve">
-    <value>Session Reset</value>
+    <value>Browser session</value>
   </data>
   <data name="SettingsClearSessionAction" xml:space="preserve">
-    <value>Clear Session</value>
+    <value>Clear browser data</value>
   </data>
   <data name="SettingsDevToolsTitle" xml:space="preserve">
     <value>Developer Tools</value>
@@ -336,7 +345,7 @@
     <value>Select an environment to clear its session.</value>
   </data>
   <data name="SettingsSessionResetCompleted" xml:space="preserve">
-    <value>Cleared the saved session for '{0}'.</value>
+    <value>Cleared browser data for '{0}'. Sign in again if needed.</value>
   </data>
   <data name="SettingsSessionResetFailedFormat" xml:space="preserve">
     <value>Failed to clear the saved session for '{0}': {1}</value>
@@ -393,7 +402,7 @@
     <value>A native Windows shell for hosted agent Control UIs, including OpenClaw Gateway and DeepSeek Harness. Built with WinUI 3 and WebView2.</value>
   </data>
   <data name="AboutGitHubProfile" xml:space="preserve">
-    <value>GitHub Profile</value>
+    <value>Project on GitHub</value>
   </data>
   <data name="AboutDevelopedBy" xml:space="preserve">
     <value>Developed by </value>
@@ -822,7 +831,7 @@
     <value>New session</value>
   </data>
   <data name="ShellGatewaySearchSessions" xml:space="preserve">
-    <value>Search loaded sessions</value>
+    <value>Search sessions on Gateway</value>
   </data>
   <data name="ShellGatewaySessions" xml:space="preserve">
     <value>Sessions</value>
@@ -843,7 +852,7 @@
     <value>Choose a model</value>
   </data>
   <data name="ShellGatewayApplyModel" xml:space="preserve">
-    <value>Apply model</value>
+    <value>Apply model options</value>
   </data>
   <data name="ShellGatewayStopRun" xml:space="preserve">
     <value>Stop current run</value>
@@ -976,5 +985,107 @@
   </data>
   <data name="GatewayClientCredentialEndpointChanged" xml:space="preserve">
     <value>This saved credential belongs to a different address. Enter the Gateway credential again in Settings.</value>
+  </data>
+  <data name="SettingsAppearanceTitle" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="SettingsAppearanceDescription" xml:space="preserve">
+    <value>Personalize the app and the hosted workspace.</value>
+  </data>
+  <data name="SettingsThemeTitle" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="SettingsThemeDescription" xml:space="preserve">
+    <value>Follow Windows, or choose a light or dark appearance.</value>
+  </data>
+  <data name="SettingsZoomTitle" xml:space="preserve">
+    <value>Web content size (%)</value>
+  </data>
+  <data name="SettingsZoomDescription" xml:space="preserve">
+    <value>Scale hosted page content from 50% to 200%. The app toolbar keeps its size.</value>
+  </data>
+  <data name="SettingsApplyHint" xml:space="preserve">
+    <value>Appearance changes take effect after saving. The toolbar theme button also switches themes directly.</value>
+  </data>
+  <data name="SettingsWindowStartupTitle" xml:space="preserve">
+    <value>Window &amp; startup</value>
+  </data>
+  <data name="SettingsStartupHeader" xml:space="preserve">
+    <value>Startup</value>
+  </data>
+  <data name="SettingsWindowHeader" xml:space="preserve">
+    <value>Window behavior</value>
+  </data>
+  <data name="SettingsLaunchAtStartup" xml:space="preserve">
+    <value>Launch when I sign in</value>
+  </data>
+  <data name="SettingsLaunchAtStartupDescription" xml:space="preserve">
+    <value>Start this copy of Harness when you sign in to Windows. Update this setting if you move the app folder.</value>
+  </data>
+  <data name="SettingsStartMinimized" xml:space="preserve">
+    <value>Start minimized</value>
+  </data>
+  <data name="SettingsStartMinimizedDescription" xml:space="preserve">
+    <value>Open on the taskbar without bringing the window to the foreground.</value>
+  </data>
+  <data name="SettingsNotificationsHint" xml:space="preserve">
+    <value>Windows notifications require System tray to be enabled under Window &amp; startup.</value>
+  </data>
+  <data name="SettingsZoomInvalid" xml:space="preserve">
+    <value>Enter a web content size between 50 and 200 percent.</value>
+  </data>
+  <data name="SettingsStartupSaveFailed" xml:space="preserve">
+    <value>The startup registration could not be updated. Check Windows startup permissions and try again.</value>
+  </data>
+  <data name="SettingsStartupRollbackFailed" xml:space="preserve">
+    <value>The startup setting could not be restored. Check Windows startup apps before retrying.</value>
+  </data>
+  <data name="SettingsStartupRegistered" xml:space="preserve">
+    <value>Windows startup: enabled for this copy of Harness.</value>
+  </data>
+  <data name="SettingsStartupNotRegistered" xml:space="preserve">
+    <value>Windows startup: not registered.</value>
+  </data>
+  <data name="SettingsStartupDisabledByWindows" xml:space="preserve">
+    <value>Windows startup: disabled in Windows Settings.</value>
+  </data>
+  <data name="SettingsStartupDifferentLocation" xml:space="preserve">
+    <value>Windows startup: points to another copy. Turn this option off and on, then save to use this copy.</value>
+  </data>
+  <data name="SettingsStartupStatusUnavailable" xml:space="preserve">
+    <value>Windows startup status could not be read.</value>
+  </data>
+  <data name="SettingsApplyFailed" xml:space="preserve">
+    <value>Settings were saved, but some changes could not be applied. Restart Harness to apply them.</value>
+  </data>
+  <data name="GatewayClientThinkingDefault" xml:space="preserve">
+    <value>Use default reasoning level</value>
+  </data>
+  <data name="GatewayClientSessionLabelTooLong" xml:space="preserve">
+    <value>Session labels can contain up to 512 characters.</value>
+  </data>
+  <data name="GatewayClientSessionUpdated" xml:space="preserve">
+    <value>Updated {0}</value>
+  </data>
+  <data name="GatewayClientSessionTokens" xml:space="preserve">
+    <value>Tokens: {0}</value>
+  </data>
+  <data name="ShellGatewaySessionLabel" xml:space="preserve">
+    <value>Session label</value>
+  </data>
+  <data name="ShellGatewaySessionLabelHint" xml:space="preserve">
+    <value>Leave blank to clear the label</value>
+  </data>
+  <data name="ShellGatewaySaveLabel" xml:space="preserve">
+    <value>Save label</value>
+  </data>
+  <data name="ShellGatewayThinkingLevel" xml:space="preserve">
+    <value>Reasoning level</value>
+  </data>
+  <data name="ShellGatewayRunIdentifier" xml:space="preserve">
+    <value>Current run ID</value>
+  </data>
+  <data name="ShellGatewaySessionProperties" xml:space="preserve">
+    <value>Session details</value>
   </data>
 </root>

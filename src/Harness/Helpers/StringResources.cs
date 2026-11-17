@@ -10,6 +10,32 @@ namespace Harness.Helpers;
 /// </summary>
 public static class StringResources
 {
+    public static string SettingsAppearanceTitle => Get("SettingsAppearanceTitle");
+    public static string SettingsAppearanceDescription => Get("SettingsAppearanceDescription");
+    public static string SettingsThemeTitle => Get("SettingsThemeTitle");
+    public static string SettingsThemeDescription => Get("SettingsThemeDescription");
+    public static string SettingsZoomTitle => Get("SettingsZoomTitle");
+    public static string SettingsZoomDescription => Get("SettingsZoomDescription");
+    public static string SettingsApplyHint => Get("SettingsApplyHint");
+    public static string SettingsWindowStartupTitle => Get("SettingsWindowStartupTitle");
+    public static string SettingsStartupHeader => Get("SettingsStartupHeader");
+    public static string SettingsWindowHeader => Get("SettingsWindowHeader");
+    public static string SettingsLaunchAtStartup => Get("SettingsLaunchAtStartup");
+    public static string SettingsLaunchAtStartupDescription => Get("SettingsLaunchAtStartupDescription");
+    public static string SettingsStartMinimized => Get("SettingsStartMinimized");
+    public static string SettingsStartMinimizedDescription => Get("SettingsStartMinimizedDescription");
+    public static string SettingsNotificationsHint => Get("SettingsNotificationsHint");
+    public static string SettingsZoomInvalid => Get("SettingsZoomInvalid");
+    public static string SettingsStartupSaveFailed => Get("SettingsStartupSaveFailed");
+    public static string SettingsStartupRollbackFailed => Get("SettingsStartupRollbackFailed");
+    public static string SettingsStartupRegistered => Get("SettingsStartupRegistered");
+    public static string SettingsStartupNotRegistered => Get("SettingsStartupNotRegistered");
+    public static string SettingsStartupDisabledByWindows => Get("SettingsStartupDisabledByWindows");
+    public static string SettingsStartupDifferentLocation => Get("SettingsStartupDifferentLocation");
+    public static string SettingsStartupStatusUnavailable => Get("SettingsStartupStatusUnavailable");
+    public static string SettingsApplyFailed => Get("SettingsApplyFailed");
+    public static string ThemeCycleTooltipFormat => Get("ThemeCycleTooltipFormat");
+    public static string AboutVersionFormat => Get("AboutVersionFormat");
     public static string SettingsGatewayAccessTitle => Get("SettingsGatewayAccessTitle");
     public static string SettingsGatewayAccessHint => Get("SettingsGatewayAccessHint");
     public static string SettingsGatewayAccessToken => Get("SettingsGatewayAccessToken");
@@ -79,6 +105,7 @@ public static class StringResources
     public static string Retry => Get("Retry");
     public static string RetryUnavailable => Get("RetryUnavailable");
     public static string WebViewRecreationFailedFormat => Get("WebViewRecreationFailedFormat");
+    public static string WebViewInitializationTimedOut => Get("WebViewInitializationTimedOut");
     public static string DevTools => Get("DevTools");
     public static string ConnectionIssue => Get("ConnectionIssue");
     public static string DiagnosticsTitle => Get("DiagnosticsTitle");

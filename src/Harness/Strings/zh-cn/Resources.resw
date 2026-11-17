@@ -65,6 +65,9 @@
   <data name="WebViewRecreationFailedFormat" xml:space="preserve">
     <value>重建浏览器宿主时 WebView 恢复失败：{0}</value>
   </data>
+  <data name="WebViewInitializationTimedOut" xml:space="preserve">
+    <value>WebView2 初始化超时。点击重试以重新创建浏览器。</value>
+  </data>
   <data name="DevTools" xml:space="preserve">
     <value>开发者工具</value>
   </data>
@@ -81,7 +84,13 @@
     <value>状态：</value>
   </data>
   <data name="ThemeSystem" xml:space="preserve">
-    <value>系统主题</value>
+    <value>跟随系统</value>
+  </data>
+  <data name="ThemeCycleTooltipFormat" xml:space="preserve">
+    <value>当前主题：{0}。点击切换为{1}。</value>
+  </data>
+  <data name="AboutVersionFormat" xml:space="preserve">
+    <value>版本 {0}</value>
   </data>
   <data name="ThemeLight" xml:space="preserve">
     <value>浅色主题</value>
@@ -300,13 +309,13 @@
     <value>环境会话</value>
   </data>
   <data name="SettingsSessionsDescription" xml:space="preserve">
-    <value>每个环境都会使用独立的 WebView2Data 配置文件。请只清除你想重置的那个环境。</value>
+    <value>清除已保存环境的 Cookie 和本地网站数据，之后可能需要重新登录。此操作不会删除 OpenClaw 对话或原生 Gateway 凭据。修改环境后，请先保存再清理浏览器数据。</value>
   </data>
   <data name="SettingsSessionReset" xml:space="preserve">
-    <value>会话重置</value>
+    <value>浏览器会话</value>
   </data>
   <data name="SettingsClearSessionAction" xml:space="preserve">
-    <value>清除会话</value>
+    <value>清除浏览器数据</value>
   </data>
   <data name="SettingsDevToolsTitle" xml:space="preserve">
     <value>开发工具</value>
@@ -336,7 +345,7 @@
     <value>请选择要清除会话的环境。</value>
   </data>
   <data name="SettingsSessionResetCompleted" xml:space="preserve">
-    <value>已清除“{0}”的保存会话。</value>
+    <value>已清除“{0}”的浏览器数据，如有需要请重新登录。</value>
   </data>
   <data name="SettingsSessionResetFailedFormat" xml:space="preserve">
     <value>清除“{0}”的保存会话失败：{1}</value>
@@ -393,7 +402,7 @@
     <value>基于 WinUI 3 与 WebView2 的原生 Windows 客户端，用于接入 OpenClaw Gateway、DeepSeek Harness 等托管 Control UI。</value>
   </data>
   <data name="AboutGitHubProfile" xml:space="preserve">
-    <value>GitHub 主页</value>
+    <value>GitHub 项目主页</value>
   </data>
   <data name="AboutDevelopedBy" xml:space="preserve">
     <value>开发者：</value>
@@ -822,7 +831,7 @@
     <value>新建会话</value>
   </data>
   <data name="ShellGatewaySearchSessions" xml:space="preserve">
-    <value>搜索已加载的会话</value>
+    <value>搜索 Gateway 会话</value>
   </data>
   <data name="ShellGatewaySessions" xml:space="preserve">
     <value>会话</value>
@@ -843,7 +852,7 @@
     <value>选择模型</value>
   </data>
   <data name="ShellGatewayApplyModel" xml:space="preserve">
-    <value>应用模型</value>
+    <value>应用模型设置</value>
   </data>
   <data name="ShellGatewayStopRun" xml:space="preserve">
     <value>停止当前运行</value>
@@ -976,5 +985,107 @@
   </data>
   <data name="GatewayClientCredentialEndpointChanged" xml:space="preserve">
     <value>此凭据属于其他地址，请在设置中重新输入 Gateway 凭据。</value>
+  </data>
+  <data name="SettingsAppearanceTitle" xml:space="preserve">
+    <value>外观</value>
+  </data>
+  <data name="SettingsAppearanceDescription" xml:space="preserve">
+    <value>调整程序外观和网页工作空间的显示。</value>
+  </data>
+  <data name="SettingsThemeTitle" xml:space="preserve">
+    <value>主题</value>
+  </data>
+  <data name="SettingsThemeDescription" xml:space="preserve">
+    <value>跟随 Windows，或使用固定的浅色、深色主题。</value>
+  </data>
+  <data name="SettingsZoomTitle" xml:space="preserve">
+    <value>网页内容缩放（%）</value>
+  </data>
+  <data name="SettingsZoomDescription" xml:space="preserve">
+    <value>将网页内容缩放至 50%–200%，程序工具栏大小不变。</value>
+  </data>
+  <data name="SettingsApplyHint" xml:space="preserve">
+    <value>保存后应用外观设置；也可以点击顶栏主题图标直接切换。</value>
+  </data>
+  <data name="SettingsWindowStartupTitle" xml:space="preserve">
+    <value>窗口与启动</value>
+  </data>
+  <data name="SettingsStartupHeader" xml:space="preserve">
+    <value>启动</value>
+  </data>
+  <data name="SettingsWindowHeader" xml:space="preserve">
+    <value>窗口行为</value>
+  </data>
+  <data name="SettingsLaunchAtStartup" xml:space="preserve">
+    <value>登录 Windows 后启动</value>
+  </data>
+  <data name="SettingsLaunchAtStartupDescription" xml:space="preserve">
+    <value>登录 Windows 后启动当前目录中的 Harness。移动程序目录后需重新设置。</value>
+  </data>
+  <data name="SettingsStartMinimized" xml:space="preserve">
+    <value>启动时最小化</value>
+  </data>
+  <data name="SettingsStartMinimizedDescription" xml:space="preserve">
+    <value>启动时最小化到任务栏。</value>
+  </data>
+  <data name="SettingsNotificationsHint" xml:space="preserve">
+    <value>Windows 通知需要在“窗口与启动”中启用系统托盘。</value>
+  </data>
+  <data name="SettingsZoomInvalid" xml:space="preserve">
+    <value>请输入 50 到 200 之间的网页缩放百分比。</value>
+  </data>
+  <data name="SettingsStartupSaveFailed" xml:space="preserve">
+    <value>无法更新开机启动项，请检查 Windows 启动权限后重试。</value>
+  </data>
+  <data name="SettingsStartupRollbackFailed" xml:space="preserve">
+    <value>无法恢复启动项，请检查 Windows 启动应用设置后重试。</value>
+  </data>
+  <data name="SettingsStartupRegistered" xml:space="preserve">
+    <value>Windows 启动状态：已启用当前程序。</value>
+  </data>
+  <data name="SettingsStartupNotRegistered" xml:space="preserve">
+    <value>Windows 启动状态：尚未注册。</value>
+  </data>
+  <data name="SettingsStartupDisabledByWindows" xml:space="preserve">
+    <value>Windows 启动状态：已被 Windows 禁用，请在系统设置中启用。</value>
+  </data>
+  <data name="SettingsStartupDifferentLocation" xml:space="preserve">
+    <value>Windows 启动状态：指向其他目录。关闭再打开此选项并保存，可改为当前程序。</value>
+  </data>
+  <data name="SettingsStartupStatusUnavailable" xml:space="preserve">
+    <value>暂时无法读取 Windows 启动状态。</value>
+  </data>
+  <data name="SettingsApplyFailed" xml:space="preserve">
+    <value>设置已保存，但部分更改未能立即生效。请重启 Harness。</value>
+  </data>
+  <data name="GatewayClientThinkingDefault" xml:space="preserve">
+    <value>使用默认推理强度</value>
+  </data>
+  <data name="GatewayClientSessionLabelTooLong" xml:space="preserve">
+    <value>会话标签最多 512 个字符。</value>
+  </data>
+  <data name="GatewayClientSessionUpdated" xml:space="preserve">
+    <value>更新于 {0}</value>
+  </data>
+  <data name="GatewayClientSessionTokens" xml:space="preserve">
+    <value>Token：{0}</value>
+  </data>
+  <data name="ShellGatewaySessionLabel" xml:space="preserve">
+    <value>会话标签</value>
+  </data>
+  <data name="ShellGatewaySessionLabelHint" xml:space="preserve">
+    <value>留空可清除标签</value>
+  </data>
+  <data name="ShellGatewaySaveLabel" xml:space="preserve">
+    <value>保存标签</value>
+  </data>
+  <data name="ShellGatewayThinkingLevel" xml:space="preserve">
+    <value>推理强度</value>
+  </data>
+  <data name="ShellGatewayRunIdentifier" xml:space="preserve">
+    <value>当前运行 ID</value>
+  </data>
+  <data name="ShellGatewaySessionProperties" xml:space="preserve">
+    <value>会话详情</value>
   </data>
 </root>

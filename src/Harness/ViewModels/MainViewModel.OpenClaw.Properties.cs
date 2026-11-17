@@ -10,7 +10,8 @@ using Microsoft.UI.Xaml;
 namespace Harness.ViewModels;
 
 public sealed record OpenClawSessionItem(string Key, string Title, string Subtitle, OpenClawSession Session);
-public sealed record OpenClawModelItem(string Id, string DisplayName);
+public sealed record OpenClawModelItem(string Id, string DisplayName, OpenClawModel? Model = null);
+public sealed record OpenClawThinkingItem(string Id, string DisplayName);
 
 public partial class MainViewModel
 {
@@ -35,10 +36,23 @@ public partial class MainViewModel
     private bool _isOpenClawPanelOpen;
     private bool _gatewayBusy;
     private bool _gatewaySelectionChanging;
+    private bool _gatewayEventDuringSelection;
+    private bool _gatewayDataStale;
+    private int _gatewayRefreshFailures;
+    private DateTimeOffset _gatewayRefreshNotBefore;
+    private string? _gatewayRefreshErrorText;
+    private bool _gatewayRefreshRetryable;
+    private bool _gatewayEventRecoveryRequested;
+    private DateTimeOffset _gatewayEventRecoveryNotBefore;
     private bool _gatewayCanWrite;
     private int _gatewayRefreshRequested;
     private int? _gatewayNextOffset;
     private bool _gatewayHasMore;
+    private long _gatewayTargetVersion;
+    private long _gatewayEventVersion;
+    private long _gatewaySearchVersion;
+    private long _gatewayRosterSearchVersion;
+    private DateTimeOffset _gatewaySearchNotBefore;
 
     public ObservableCollection<OpenClawSessionItem> GatewaySessions { get; } = [];
     public ObservableCollection<OpenClawModelItem> GatewayModels { get; } = [];
@@ -92,18 +106,28 @@ public partial class MainViewModel
     public bool GatewayHasMore { get => _gatewayHasMore; private set => SetProperty(ref _gatewayHasMore, value); }
     public bool CanCreateGatewaySession => !GatewayBusy && !_gatewaySelectionChanging && _gatewayCanWrite &&
         _gatewayRuntime?.Client?.IsConnected == true && TryGetGatewayAgentId(_gatewayPage?.SessionKey, out _);
-    public bool CanModifyGatewaySession => !GatewayBusy && !_gatewaySelectionChanging && _gatewayCanWrite &&
+    public bool CanModifyGatewaySession => !GatewayBusy && !_gatewaySelectionChanging && !_gatewayDataStale && _gatewayCanWrite &&
         _gatewayRuntime?.Client?.IsConnected == true && _gatewayPage?.SessionKey == SelectedGatewaySession?.Key &&
-        TryGetGatewayAgentId(SelectedGatewaySession?.Key, out _) && !string.IsNullOrEmpty(_gatewayHistory?.SessionId);
+        TryGetGatewayAgentId(SelectedGatewaySession?.Key, out _) && !string.IsNullOrEmpty(_gatewayHistory?.SessionId) &&
+        OpenClawSessionIdentity.Matches(_gatewayPage?.SessionKey ?? "", _gatewayHistory);
     public bool CanStopGatewayRun => CanModifyGatewaySession && GetExactGatewayRunId() is not null;
     public string GatewaySearchText
     {
         get => _gatewaySearchText;
         set
         {
+            var priorQuery = _gatewaySearchText.Trim();
             if (SetProperty(ref _gatewaySearchText, value))
             {
-                ProjectGatewayRoster();
+                if (priorQuery != value.Trim())
+                {
+                    _gatewaySearchVersion++;
+                    _gatewaySearchNotBefore = DateTimeOffset.UtcNow.AddMilliseconds(300);
+                    _gatewayNextOffset = null;
+                    GatewayHasMore = false;
+                    ResetGatewayRefreshRetry();
+                    Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+                }
             }
         }
     }
@@ -123,7 +147,23 @@ public partial class MainViewModel
     public OpenClawModelItem? SelectedGatewayModel
     {
         get => _selectedGatewayModel;
-        set => SetProperty(ref _selectedGatewayModel, value);
+        set
+        {
+            var changedId = value?.Id != _selectedGatewayModel?.Id;
+            if (SetProperty(ref _selectedGatewayModel, value))
+            {
+                if (changedId && !_gatewayProjectingModel)
+                {
+                    _gatewayModelEdited = true;
+                }
+                var priorThinking = _selectedGatewayThinkingLevel?.Id;
+                ProjectGatewayThinkingOptions();
+                if (!_gatewayProjectingModel && priorThinking != _selectedGatewayThinkingLevel?.Id)
+                {
+                    _gatewayThinkingEdited = true;
+                }
+            }
+        }
     }
 
     private static bool TryGetGatewayAgentId(string? key, out string agentId) =>
@@ -135,6 +175,7 @@ public partial class MainViewModel
         RefreshGatewayCommand = new AsyncCommand(() => ExecuteGatewayCommandAsync(RefreshGatewayManuallyAsync));
         NewGatewaySessionCommand = new AsyncCommand(() => ExecuteGatewayCommandAsync(CreateGatewaySessionAsync));
         ApplyGatewayModelCommand = new AsyncCommand(() => ExecuteGatewayCommandAsync(ApplyGatewayModelAsync));
+        ApplyGatewayLabelCommand = new AsyncCommand(() => ExecuteGatewayCommandAsync(ApplyGatewayLabelAsync));
         StopGatewayRunCommand = new AsyncCommand(() => ExecuteGatewayCommandAsync(StopGatewayRunAsync));
         LoadMoreGatewaySessionsCommand = new AsyncCommand(() => ExecuteGatewayCommandAsync(LoadMoreGatewaySessionsAsync));
     }
@@ -163,6 +204,10 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanCreateGatewaySession));
         OnPropertyChanged(nameof(CanModifyGatewaySession));
         OnPropertyChanged(nameof(CanStopGatewayRun));
+        OnPropertyChanged(nameof(CanStop));
+        OnPropertyChanged(nameof(CanApplyGatewayLabel));
+        OnPropertyChanged(nameof(CanSelectGatewayThinkingLevel));
+        OnPropertyChanged(nameof(GatewayRunIdText));
     }
 
     private async void ObserveGatewayUiTask(Task task)

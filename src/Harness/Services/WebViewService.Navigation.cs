@@ -53,6 +53,7 @@ public partial class WebViewService
         CoreWebView2NavigationCompletedEventArgs args,
         int hostGeneration)
     {
+        var completionGeneration = _generations.Current;
         try
         {
             await HandleNavigationCompletedAsync(sender, args, hostGeneration);
@@ -65,7 +66,7 @@ public partial class WebViewService
         }
         catch (Exception ex)
         {
-            if (!_isDisposed)
+            if (IsCurrentNavigation(args.NavigationId, completionGeneration, hostGeneration))
             {
                 var message = $"Navigation completion handling failed: {ex.Message}";
                 _logger.Warning(message);

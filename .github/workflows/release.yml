@@ -50,6 +50,10 @@ jobs:
         with:
           node-version: 24.x
 
+      - name: Setup regression PowerShell
+        shell: pwsh
+        run: dotnet tool install PowerShell --version 7.6.9 --tool-path "${{ runner.temp }}/harness-pwsh"
+
       - name: Restore locked packages
         shell: pwsh
         run: dotnet restore Harness.sln --locked-mode
@@ -79,6 +83,22 @@ jobs:
       - name: Verify OpenClaw page selection
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-openclaw-selection.ps1
+
+      - name: Verify OpenClaw workspace behavior
+        shell: pwsh
+        run: '& "${{ runner.temp }}/harness-pwsh/pwsh.exe" -NoProfile -File tools/verify-openclaw-workspace.ps1'
+
+      - name: Verify settings reliability
+        shell: pwsh
+        run: '& "${{ runner.temp }}/harness-pwsh/pwsh.exe" -NoProfile -File tools/verify-settings-reliability.ps1'
+
+      - name: Verify WebView lifecycle
+        shell: pwsh
+        run: '& "${{ runner.temp }}/harness-pwsh/pwsh.exe" -NoProfile -File tools/verify-webview-lifecycle.ps1'
+
+      - name: Verify tray recovery
+        shell: pwsh
+        run: '& "${{ runner.temp }}/harness-pwsh/pwsh.exe" -NoProfile -File tools/verify-tray-recovery.ps1'
 
       - name: Verify whitespace
         shell: pwsh

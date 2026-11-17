@@ -29,6 +29,7 @@ public partial class MainViewModel
 
         _gatewayEnvironmentFingerprint = fingerprint;
         StopGatewayRuntime();
+        _gatewayTargetVersion++;
         IsOpenClawPanelOpen = false;
         _gatewayRoster.Clear();
         GatewaySessions.Clear();
@@ -37,10 +38,14 @@ public partial class MainViewModel
         _selectedGatewayModel = null;
         _gatewayPage = null;
         _gatewayHistory = null;
+        ResetGatewaySessionDetails();
         _gatewaySubscribedKey = null;
         _gatewayEventRunId = null;
         _gatewayCanWrite = false;
         _gatewaySelectionChanging = false;
+        _gatewayEventDuringSelection = false;
+        _gatewayDataStale = false;
+        ResetGatewayRefreshRetry();
         _gatewayObservedRuns.Clear();
         _gatewayNotifiedRuns.Clear();
         GatewayBusy = false;
@@ -103,7 +108,7 @@ public partial class MainViewModel
                 Origin = new Uri(environment.GatewayUrl).GetLeftPart(UriPartial.Authority),
                 ClientVersion = AppMetadata.GetDisplayVersion(),
                 Scopes = scopes,
-                Capabilities = ["tool-events"],
+                Capabilities = new string[] { "tool-events", "model-selection-policy" },
                 CloudflareAccess = string.IsNullOrEmpty(stored?.AccessToken) ? null : new OpenClawAccessCredentials
                 {
                     Origin = new UriBuilder(endpoint) { Scheme = "https", Path = "", Query = "", Fragment = "" }.Uri,
@@ -129,7 +134,11 @@ public partial class MainViewModel
             GatewayVersionText = $"OpenClaw {hello.Server.Version} · v{hello.Protocol}";
             GatewayErrorText = "";
             _gatewayCanWrite = hello.Auth.Scopes.Contains("operator.write", StringComparer.Ordinal) || hello.Auth.Scopes.Contains("operator.admin", StringComparer.Ordinal);
+            _gatewayTargetVersion++;
             _gatewayHistory = null;
+            _gatewayDataStale = false;
+            ResetGatewayRefreshRetry();
+            ResetGatewaySessionDetails();
             _gatewayPage = null;
             _gatewaySubscribedKey = null;
             _gatewayEventRunId = null;
@@ -145,7 +154,9 @@ public partial class MainViewModel
             }
 
             _gatewayCanWrite = false;
+            _gatewayTargetVersion++;
             _gatewayHistory = null;
+            ResetGatewaySessionDetails();
             GatewayStatusText = GatewayStrings.Text(retrying ? "Reconnecting" : "Disconnected");
             SetGatewayRunPresentation(GatewayStrings.Text("UnknownRun"), false);
             if (error is not null)
@@ -225,30 +236,17 @@ public partial class MainViewModel
                             return;
                         }
 
+                        var version = _gatewayTargetVersion;
                         var page = await _webViewService.ReadOpenClawSelectionAsync(new Uri(CurrentUrl), cancellationToken, client.Hello);
-                        if (!IsCurrentGateway(runtime) || !ReferenceEquals(client, runtime.Client) || !client.IsConnected || _gatewaySelectionChanging)
+                        if (!IsCurrentGateway(runtime) || !ReferenceEquals(client, runtime.Client) || !client.IsConnected || _gatewaySelectionChanging || version != _gatewayTargetVersion)
                         {
                             return;
                         }
 
                         var sessionChanged = page?.SessionKey != _gatewayPage?.SessionKey;
                         var changed = sessionChanged || page?.RunId != _gatewayPage?.RunId;
-                        if (sessionChanged)
-                        {
-                            _gatewayHistory = null;
-                            _gatewayEventRunId = null;
-                            _selectedGatewayModel = null;
-                            _selectedGatewaySession = null;
-                            GatewayModels.Clear();
-                            ModelSummaryText = DefaultModelSummary;
-                            SetGatewayRunPresentation(GatewayStrings.Text("WaitingForPage"), false);
-                            OnPropertyChanged(nameof(SelectedGatewaySession));
-                            OnPropertyChanged(nameof(SelectedGatewayModel));
-                            OnPropertyChanged(nameof(GatewaySessionTitle));
-                        }
-                        _gatewayPage = page;
-                        NotifyGatewayCapabilities();
-                        if (changed || Interlocked.Exchange(ref _gatewayRefreshRequested, 0) != 0)
+                        SetGatewayPageSelection(page);
+                        if (TakeGatewayRefreshRequest(changed, DateTimeOffset.UtcNow))
                         {
                             await RefreshGatewayDataAsync(runtime, refreshRoster: true, cancellationToken);
                         }
@@ -264,8 +262,7 @@ public partial class MainViewModel
                     {
                         if (IsCurrentGateway(runtime))
                         {
-                            _gatewayPage = null;
-                            _gatewayHistory = null;
+                            SetGatewayPageSelection(null);
                             ShowGatewayError(ex);
                             NotifyGatewayCapabilities();
                         }

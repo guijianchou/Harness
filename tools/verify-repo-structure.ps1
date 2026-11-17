@@ -715,7 +715,8 @@ if ($webViewServiceMain -notmatch 'event Action\? NavigationTimeoutRecovered' -o
     $webViewRecreationService -notmatch 'navigation_start_timeout' -or
     $webViewRecreationService -notmatch 'navigation_completion_timeout' -or
     $webViewRecreationService -notmatch 'CancelledActive' -or
-    $webViewRecreationService -notmatch 'IsRecreating && IsNavigationTimeoutRecoveryReason\(LastReason\)' -or
+    $webViewRecreationService -notmatch 'TryCancelNavigationTimeoutRecovery\(out WebViewRecreationCancelledRecoveryResult result\)[\s\S]*TryCancelRecovery\(IsNavigationTimeoutRecoveryReason, out result\)' -or
+    $webViewRecreationService -notmatch 'IsRecreating && matchesReason\(LastReason\)' -or
     $webViewRecreationService -notmatch 'ShouldSkipCurrentRecreation\(\)' -or
     $mainWindowWebView -notmatch 'ShouldSkipCurrentRecreation\(\)[\s\S]*webview\.recreation\.skipped_after_navigation_recovered' -or
     $mainWindowCommands -notmatch 'activeReason = cancelled\.ActiveReason') {
@@ -929,8 +930,9 @@ $mainViewModelEnvironment = Get-Content -LiteralPath (Join-Path $repoRoot 'src/H
 $mainViewModelConstructor = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/ViewModels/MainViewModel.cs') -Raw
 if ($mainViewModelLifecycle -notmatch 'if \(_selectedEnvironment\.IsPlaceholder\)[\s\S]*ApplyPlaceholderEnvironmentState\(\)[\s\S]*return;' -or
     $mainViewModelLifecycle -match 'IsPlaceholder[\s\S]{0,900}Navigate\(' -or
-    $mainViewModelLifecycle -notmatch '_selectedEnvironment\?\.IsPlaceholder == true[\s\S]*ApplyPlaceholderEnvironmentState\(\)' -or
-    $mainViewModelEnvironment -notmatch 'environment\.IsPlaceholder[\s\S]*var shouldClearWebViewHost = _webViewService\.IsInitialized[\s\S]*ApplyPlaceholderEnvironmentState\(\)' -or
+    $mainViewModelLifecycle -notmatch 'if \(IsPlaceholderEnvironment\)[\s\S]*ApplyPlaceholderEnvironmentState\(\)' -or
+    $mainViewModelEnvironment -notmatch 'if \(environment is null\)[\s\S]*ApplyPlaceholderEnvironmentState\(\)[\s\S]*WebViewRecreationRequested\?\.Invoke\("environment_placeholder_selected"\)' -or
+    $mainViewModelEnvironment -notmatch 'if \(environment\.IsPlaceholder\)[\s\S]*ApplyPlaceholderEnvironmentState\(\)[\s\S]*WebViewRecreationRequested\?\.Invoke\("environment_placeholder_selected"\)' -or
     $mainViewModelEnvironment -notmatch 'WebViewRecreationRequested\?\.Invoke\("environment_placeholder_selected"\)' -or
     $mainViewModelEnvironment -notmatch 'private void ApplyPlaceholderEnvironmentState\(\)' -or
     $mainViewModelEnvironment -notmatch 'ApplyConnectionState\((?:Harness\.Services\.)?ConnectionState\.Offline\)' -or
@@ -967,24 +969,23 @@ if ($mainWindowShared -notmatch '_isLogViewerOpen' -or
     throw 'Log viewer async dialog entry must guard reentry and log failures.'
 }
 
-if ($mainWindowShared -notmatch '_isAboutDialogOpen' -or
-    $mainWindowCommands -notmatch 'private async void OnAboutClick[\s\S]*try[\s\S]*await ShowAboutDialogAsync\(\)[\s\S]*catch \(Exception ex\)' -or
-    $mainWindowCommands -notmatch '_isAboutDialogOpen[\s\S]*ShowAsync') {
-    throw 'About dialog async entry must guard reentry and log failures.'
+if ($mainWindowCommands -match 'ShowAboutDialogAsync|new AboutDialog' -or
+    $mainWindowShared -match '_isAboutDialogOpen') {
+    throw 'About content belongs in Settings, without a separate main-window dialog.'
 }
 
 $settingsDialogActions = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/Views/SettingsDialog.Actions.cs') -Raw
 $viewLogsHandler = [regex]::Match(
     $settingsDialogActions,
     'private void OnViewLogsClick[\s\S]*?\n    \}').Value
-if ($viewLogsHandler -notmatch 'var mainViewModel = MainViewModel;[\s\S]*this\.Close\(\);[\s\S]*mainViewModel\?\.ViewLogsCommand\.Execute\(null\)' -or
-    $viewLogsHandler -match 'ViewLogsCommand\.Execute\(null\)[\s\S]*this\.Close\(\)') {
-    throw 'Settings View Logs action must close Settings before showing the main-window log dialog.'
+if ($viewLogsHandler -notmatch 'ExecuteDeveloperCommand\(MainViewModel\?\.ViewLogsCommand\)' -or
+    $viewLogsHandler -match 'this\.Close\(\)') {
+    throw 'Settings View Logs action must preserve the open Settings draft.'
 }
 
 if ($settingsDialogActions -notmatch 'private async void OnClearEnvironmentSessionClick[\s\S]*try[\s\S]*await ClearEnvironmentSessionAsync' -or
     $settingsDialogActions -notmatch 'private async Task ClearEnvironmentSessionAsync' -or
-    $settingsDialogActions -notmatch 'button\.IsEnabled = false[\s\S]*finally[\s\S]*button\.IsEnabled = true' -or
+    $settingsDialogActions -notmatch '_isClearingSession = true[\s\S]*SettingsInteractionRoot\.IsEnabled = false[\s\S]*finally[\s\S]*_isClearingSession = false[\s\S]*if \(!_isClosed\)[\s\S]*SettingsInteractionRoot\.IsEnabled = true' -or
     $settingsDialogActions -notmatch 'SettingsSessionResetFailedFormat') {
     throw 'Settings session clear async handler must guard reentry, catch failures, and report localized errors.'
 }
@@ -1244,7 +1245,7 @@ if ($mainWindowXaml -match 'ToolTipService\.ToolTip="Always on Top"' -or
     throw 'Pin button tooltip must use localized StringResources text.'
 }
 
-if ($mainWindowXaml -notmatch '<VisualState x:Name="CompactMode"[\s\S]*EnvironmentSummaryGroup\.Visibility[\s\S]*LatencyBadge\.Visibility[\s\S]*HeartbeatSummarySegment\.Visibility[\s\S]*HeartbeatIndicatorSegment\.Visibility[\s\S]*AccessStatusSegment\.Visibility[\s\S]*RunIndicatorSegment\.Visibility[\s\S]*ThemeSwitcherContainer\.Visibility[\s\S]*AboutButton\.Visibility' -or
+if ($mainWindowXaml -notmatch '<VisualState x:Name="CompactMode"[\s\S]*EnvironmentSummaryGroup\.Visibility[\s\S]*LatencyBadge\.Visibility[\s\S]*HeartbeatSummarySegment\.Visibility[\s\S]*HeartbeatIndicatorSegment\.Visibility[\s\S]*AccessStatusSegment\.Visibility[\s\S]*RunIndicatorSegment\.Visibility[\s\S]*GatewayPanelButton\.Visibility' -or
     $mainWindowXaml -notmatch 'x:Name="TopStatusContent"' -or
     $mainWindowXaml -notmatch 'x:Name="HeartbeatSummarySegment"' -or
     $mainWindowXaml -notmatch 'x:Name="HeartbeatIndicatorSegment"' -or
@@ -1591,6 +1592,29 @@ foreach ($resourceFile in @(
 }
 
 $mainWindowTray = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/MainWindow.Tray.cs') -Raw
+$trayService = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/Services/TrayIconService.cs') -Raw
+if ($trayService -match 'MenuCompactMode|CompactModeRequested' -or $mainWindowTray -match 'CompactModeRequested') {
+    throw 'The removed Compact mode entry must not remain in the tray menu.'
+}
+if ($mainWindowXaml -notmatch 'x:Name="StopButton"[^>]*IsEnabled="\{x:Bind ViewModel.CanStop, Mode=OneWay\}"' -or
+    $mainWindowXaml -notmatch 'Content="\{x:Bind helpers:ShellGatewayLocalization.Configure\}"\s+Click="OnConfigureGatewayClick"') {
+    throw 'Shell controls must reflect Stop availability and route Gateway configuration to Environments.'
+}
+[xml]$settingsLayout = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/Views/SettingsDialog.xaml') -Raw
+$settingsNamespaces = [Xml.XmlNamespaceManager]::new($settingsLayout.NameTable)
+$settingsNamespaces.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+foreach ($editor in @(@('ThemeComboBox', 'SettingsChoiceStyle'), @('LanguageComboBox', 'SettingsChoiceStyle'), @('ZoomNumberBox', 'SettingsNumberStyle'))) {
+    $element = $settingsLayout.SelectSingleNode("//*[@x:Name='$($editor[0])']", $settingsNamespaces)
+    if ($null -eq $element -or $element.Style -ne "{StaticResource $($editor[1])}" -or $element.HasAttribute('Width') -or $element.HasAttribute('MinWidth')) {
+        throw "Settings editor $($editor[0]) must use its shared width style."
+    }
+}
+foreach ($styleName in @('SettingsChoiceStyle', 'SettingsNumberStyle')) {
+    $widthSetter = $settingsLayout.SelectSingleNode("//*[@x:Key='$styleName']/*[@Property='Width']", $settingsNamespaces)
+    if ($null -eq $widthSetter -or $widthSetter.Value -ne '{StaticResource SettingsEditorWidth}') {
+        throw 'Settings editors must share a single width resource so both edges align.'
+    }
+}
 if ($mainWindowTray -match 'StringResources\.Get\("TrayMenu(Open|CompactMode|Exit)"\)' -or
     $mainWindowTray -match '"Open Harness"|"Compact Mode"|"Exit"') {
     throw 'Tray menu labels must use typed StringResources properties instead of raw resource lookup or fallback literals.'

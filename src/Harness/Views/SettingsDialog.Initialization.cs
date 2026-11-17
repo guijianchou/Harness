@@ -11,10 +11,11 @@ public sealed partial class SettingsDialog
     private void ConfigureWindowChrome()
     {
         Title = Helpers.StringResources.SettingsTitle;
-        AppWindow.SetIcon("Assets\\WindowIcon.ico");
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WindowIcon.ico"));
         RestoreSettingsWindowBounds();
         this.Closed += OnSettingsDialogClosed;
         this.Activated += OnWindowActivated;
+        AppWindow.Closing += OnSettingsAppWindowClosing;
     }
 
     private void AttachRootEventHandlers()
@@ -39,8 +40,9 @@ public sealed partial class SettingsDialog
 
     private void InitializeNavigationState()
     {
+        InitializeAboutPage();
         PopulateLanguageOptions();
-        NavList.SelectedIndex = 2;
+        NavList.SelectedIndex = 0;
     }
 
     private void RestoreSettingsWindowBounds()
@@ -77,7 +79,7 @@ public sealed partial class SettingsDialog
 
         if (!WindowBoundsUtilities.HasSavedPosition(settings.SettingsWindowLeft, settings.SettingsWindowTop))
         {
-            AppWindow.Resize(new SizeInt32(width, height));
+            ResizeSettingsWindowIfNeeded(width, height);
             return false;
         }
 
@@ -85,11 +87,7 @@ public sealed partial class SettingsDialog
         var top = (int)settings.SettingsWindowTop;
         if (WindowFrameHelper.IsNativeWindowRectVisibleWithinAnyMonitor(left, top, width, height))
         {
-            if (!WindowFrameHelper.TrySetWindowRect(this, left, top, width, height))
-            {
-                AppWindow.Resize(new SizeInt32(width, height));
-                AppWindow.Move(new PointInt32(left, top));
-            }
+            SetSettingsWindowBoundsIfChanged(left, top, width, height);
 
             return true;
         }
@@ -102,13 +100,9 @@ public sealed partial class SettingsDialog
                 out var centeredLeft,
                 out var centeredTop))
         {
-            if (!WindowFrameHelper.TrySetWindowRect(this, centeredLeft, centeredTop, width, height))
-            {
-                AppWindow.Resize(new SizeInt32(width, height));
-                AppWindow.Move(new PointInt32(centeredLeft, centeredTop));
-            }
+            var moved = SetSettingsWindowBoundsIfChanged(centeredLeft, centeredTop, width, height);
 
-            if (logOffscreenRecovery)
+            if (logOffscreenRecovery && moved)
             {
                 App.Logger.Info("Saved Settings window bounds were outside current displays; moved window to the current display.");
             }
@@ -116,15 +110,63 @@ public sealed partial class SettingsDialog
             return true;
         }
 
-        AppWindow.Resize(new SizeInt32(width, height));
+        ResizeSettingsWindowIfNeeded(width, height);
         return false;
+    }
+
+    private bool SetSettingsWindowBoundsIfChanged(int left, int top, int width, int height)
+    {
+        if (WindowFrameHelper.TryGetWindowRect(this, out var currentLeft, out var currentTop, out var currentWidth, out var currentHeight) &&
+            currentLeft == left && currentTop == top && currentWidth == width && currentHeight == height)
+        {
+            return false;
+        }
+
+        if (!WindowFrameHelper.TrySetWindowRect(this, left, top, width, height))
+        {
+            ResizeSettingsWindowIfNeeded(width, height);
+            var currentPosition = AppWindow.Position;
+            if (currentPosition.X != left || currentPosition.Y != top)
+            {
+                AppWindow.Move(new PointInt32(left, top));
+            }
+        }
+
+        return true;
+    }
+
+    private void ResizeSettingsWindowIfNeeded(int width, int height)
+    {
+        var currentSize = AppWindow.Size;
+        if (currentSize.Width != width || currentSize.Height != height)
+        {
+            AppWindow.Resize(new SizeInt32(width, height));
+        }
     }
 
     private void OnSettingsDialogClosed(object sender, WindowEventArgs args)
     {
+        _isClosed = true;
+        ViewModel.RetireStartupStatusRequests();
+        StopOpenDiagnostics();
+        if (this.Content is FrameworkElement rootElement)
+        {
+            rootElement.Loaded -= OnRootLoaded;
+            rootElement.ActualThemeChanged -= OnRootActualThemeChanged;
+        }
+
         SaveSettingsWindowBounds();
         this.Closed -= OnSettingsDialogClosed;
         this.Activated -= OnWindowActivated;
+        AppWindow.Closing -= OnSettingsAppWindowClosing;
+    }
+
+    private void OnSettingsAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+    {
+        if (_isSaving)
+        {
+            args.Cancel = true;
+        }
     }
 
     private void SaveSettingsWindowBounds()

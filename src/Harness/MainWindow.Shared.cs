@@ -1,5 +1,6 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
+using Harness.Models;
 using Harness.Services;
 using Harness.ViewModels;
 using Harness.Views;
@@ -19,7 +20,6 @@ public sealed partial class MainWindow
     private SettingsDialog? _settingsWindow;
     private bool _isSettingsWindowVisible;
     private bool _isLogViewerOpen;
-    private bool _isAboutDialogOpen;
     private TrayIconService? _trayIconService;
     private GlobalHotkeyService? _globalHotkeyService;
     private readonly TrayClosePolicy _trayClosePolicy = new();
@@ -29,6 +29,8 @@ public sealed partial class MainWindow
     private Task? _webViewRecreationTask;
     private string _lastInstrumentationEvent = string.Empty;
     private bool _isClosing;
+    private AppSettings? _appliedSettings;
+    private int _settingsApplyQueued;
 
     public MainViewModel ViewModel { get; }
 }

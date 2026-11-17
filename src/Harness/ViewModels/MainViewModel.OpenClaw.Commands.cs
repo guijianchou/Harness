@@ -10,6 +10,10 @@ public partial class MainViewModel
 {
     private async Task RefreshGatewayManuallyAsync()
     {
+        if (GatewayBusy || _gatewaySelectionChanging)
+        {
+            return;
+        }
         if (_gatewayRuntime?.Client?.IsConnected != true)
         {
             SynchronizeGatewayEnvironment(force: true);
@@ -17,13 +21,15 @@ public partial class MainViewModel
         }
 
         GatewayErrorText = "";
+        ResetGatewayRefreshRetry();
         var runtime = _gatewayRuntime;
         var client = runtime.Client;
+        var version = _gatewayTargetVersion;
         var token = _gatewayCancellation?.Token ?? _lifetimeCts.Token;
         var page = await _webViewService.ReadOpenClawSelectionAsync(new Uri(CurrentUrl), token, client?.Hello);
-        if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && client?.IsConnected == true)
+        if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && client?.IsConnected == true && version == _gatewayTargetVersion)
         {
-            _gatewayPage = page;
+            SetGatewayPageSelection(page);
             await RefreshGatewayDataAsync(runtime, true, token);
         }
     }
@@ -38,7 +44,10 @@ public partial class MainViewModel
             return;
         }
         var token = _gatewayCancellation?.Token ?? _lifetimeCts.Token;
+        _gatewayTargetVersion++;
         _gatewaySelectionChanging = true;
+        _gatewayEventDuringSelection = false;
+        ResetGatewayRefreshRetry();
         GatewayBusy = true;
         GatewayErrorText = "";
         try
@@ -80,20 +89,20 @@ public partial class MainViewModel
                 }
                 if (confirmed?.SessionKey != item.Key)
                 {
-                    _gatewayPage = null;
-                    _gatewayHistory = null;
+                    SetGatewayPageSelection(null);
                     GatewayErrorText = GatewayStrings.Text("SelectionNotConfirmed");
                     return;
                 }
-                _gatewayPage = confirmed;
+                SetGatewayPageSelection(confirmed);
             }
             else
             {
-                _gatewayPage = before;
+                SetGatewayPageSelection(before);
             }
             _gatewayHistory = null;
             _gatewayEventRunId = null;
             _selectedGatewayModel = null;
+            ResetGatewaySessionDetails();
             SetGatewaySelection(item);
             await RefreshGatewayDataAsync(runtime, false, token);
         }
@@ -102,6 +111,11 @@ public partial class MainViewModel
             if (IsCurrentGateway(runtime))
             {
                 _gatewaySelectionChanging = false;
+                if (_gatewayEventDuringSelection)
+                {
+                    Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+                    _gatewayEventDuringSelection = false;
+                }
                 GatewayBusy = false;
                 OnPropertyChanged(nameof(SelectedGatewaySession));
                 OnPropertyChanged(nameof(GatewaySessionTitle));
@@ -171,13 +185,13 @@ public partial class MainViewModel
         {
             if (IsCurrentGateway(runtime))
             {
-                _gatewayPage = page;
+                SetGatewayPageSelection(page);
                 GatewayErrorText = GatewayStrings.Text("SelectionNotConfirmed");
                 NotifyGatewayCapabilities();
             }
             return false;
         }
-        _gatewayPage = page;
+        SetGatewayPageSelection(page);
         return true;
     }
 
@@ -187,6 +201,7 @@ public partial class MainViewModel
         var client = runtime?.Client;
         var selection = SelectedGatewaySession;
         var model = SelectedGatewayModel;
+        var thinking = SelectedGatewayThinkingLevel;
         var sessionId = _gatewayHistory?.SessionId;
         if (runtime is null || client is null || selection is null || model is null || !CanModifyGatewaySession ||
             !TryGetGatewayAgentId(selection.Key, out var agentId))
@@ -194,20 +209,23 @@ public partial class MainViewModel
             return;
         }
         var token = _gatewayCancellation?.Token ?? _lifetimeCts.Token;
+        var version = ++_gatewayTargetVersion;
         GatewayBusy = true;
         GatewayErrorText = "";
         try
         {
             if (!await ConfirmGatewayTargetAsync(runtime, client, selection.Key, sessionId, token) ||
-                !ReferenceEquals(client, runtime.Client) || !client.IsConnected)
+                !ReferenceEquals(client, runtime.Client) || !client.IsConnected || version != _gatewayTargetVersion)
             {
                 return;
             }
             await client.PatchSessionAsync(selection.Key, agentId, sessionId,
-                new Dictionary<string, object?> { ["model"] = model.Id.Length == 0 ? null : model.Id }, token);
-            if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client))
+                OpenClawModelSelection.BuildPatch(model.Id, model.Model, thinking?.Id), token);
+            if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && version == _gatewayTargetVersion &&
+                _gatewayPage?.SessionKey == selection.Key && _gatewayHistory?.SessionId == sessionId)
             {
-                _selectedGatewayModel = null;
+                _gatewayTargetVersion++;
+                ResetGatewayModelDraft();
                 await RefreshGatewayDataAsync(runtime, true, token);
             }
         }
@@ -234,19 +252,24 @@ public partial class MainViewModel
             return;
         }
         var token = _gatewayCancellation?.Token ?? _lifetimeCts.Token;
+        var version = _gatewayTargetVersion;
         GatewayBusy = true;
         GatewayErrorText = "";
         try
         {
             if (!await ConfirmGatewayTargetAsync(runtime, client, selection.Key, sessionId, token) ||
-                !ReferenceEquals(client, runtime.Client) || !client.IsConnected || GetExactGatewayRunId() != runId)
+                !ReferenceEquals(client, runtime.Client) || !client.IsConnected || version != _gatewayTargetVersion || GetExactGatewayRunId() != runId)
             {
                 return;
             }
             var result = await client.AbortChatAsync(selection.Key, runId, sessionId, agentId, token);
-            if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client))
+            if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && version == _gatewayTargetVersion)
             {
-                SetGatewayRunPresentation(GatewayStrings.Text(result.Aborted == true || result.RunIds?.Contains(runId, StringComparer.Ordinal) == true ? "Stopping" : "Reconciling"), true);
+                if (OpenClawSessionSnapshot.CanAcknowledgeStop(_gatewayHistory, _gatewayPage?.SessionKey,
+                    selection.Key, sessionId, runId, GetExactGatewayRunId(), _gatewayNotifiedRuns.Contains(selection.Key + "|" + runId)))
+                {
+                    SetGatewayRunPresentation(GatewayStrings.Text(result.Aborted == true || result.RunIds?.Contains(runId, StringComparer.Ordinal) == true ? "Stopping" : "Reconciling"), true);
+                }
                 Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
             }
         }
@@ -263,7 +286,8 @@ public partial class MainViewModel
     {
         var runtime = _gatewayRuntime;
         var client = runtime?.Client;
-        if (runtime is null || client?.IsConnected != true || !GatewayHasMore || !_gatewayNextOffset.HasValue || GatewayBusy)
+        if (runtime is null || client?.IsConnected != true || !GatewayHasMore || !_gatewayNextOffset.HasValue || GatewayBusy ||
+            _gatewayRosterSearchVersion != _gatewaySearchVersion)
         {
             return;
         }
@@ -273,10 +297,12 @@ public partial class MainViewModel
             return;
         }
         GatewayBusy = true;
+        var searchVersion = _gatewaySearchVersion;
+        var search = GatewaySearchText.Trim();
         try
         {
-            var roster = await client.ListSessionsAsync(offset: _gatewayNextOffset.Value, cancellationToken: token);
-            if (!IsCurrentGateway(runtime) || !ReferenceEquals(client, runtime.Client) || !client.IsConnected)
+            var roster = await client.ListSessionsAsync(offset: _gatewayNextOffset.Value, cancellationToken: token, search: search.Length == 0 ? null : search);
+            if (!IsCurrentGateway(runtime) || !ReferenceEquals(client, runtime.Client) || !client.IsConnected || searchVersion != _gatewaySearchVersion)
             {
                 return;
             }
@@ -290,6 +316,10 @@ public partial class MainViewModel
             _gatewayNextOffset = roster.NextOffset;
             GatewayHasMore = roster.HasMore == true && roster.NextOffset.HasValue;
             ProjectGatewayRoster();
+        }
+        catch (Exception) when (!IsCurrentGateway(runtime) || !ReferenceEquals(client, runtime.Client) || searchVersion != _gatewaySearchVersion)
+        {
+            // A retired search cannot publish an error into its replacement.
         }
         finally
         {

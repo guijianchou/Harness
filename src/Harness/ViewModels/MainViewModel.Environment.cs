@@ -49,14 +49,18 @@ public partial class MainViewModel
 
         if (environment is null)
         {
-            RefreshResourceScheduling();
-            ResetTelemetry();
+            ApplyPlaceholderEnvironmentState();
+            if (persistSelection)
+            {
+                _runtime.Configuration.Settings.SelectedEnvironmentName = null;
+                _runtime.Configuration.SaveDeferred();
+            }
+            WebViewRecreationRequested?.Invoke("environment_placeholder_selected");
             return;
         }
 
         if (environment.IsPlaceholder)
         {
-            var shouldClearWebViewHost = _webViewService.IsInitialized;
             ApplyPlaceholderEnvironmentState();
             if (persistSelection)
             {
@@ -64,10 +68,7 @@ public partial class MainViewModel
                 _runtime.Configuration.SaveDeferred();
             }
 
-            if (shouldClearWebViewHost)
-            {
-                WebViewRecreationRequested?.Invoke("environment_placeholder_selected");
-            }
+            WebViewRecreationRequested?.Invoke("environment_placeholder_selected");
 
             return;
         }

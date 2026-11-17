@@ -1,6 +1,7 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
 using System.Runtime.InteropServices;
+using Harness.Helpers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 
@@ -8,12 +9,15 @@ namespace Harness.Services;
 
 public partial class WebViewService
 {
+    private static readonly TimeSpan InitializationTimeout = TimeSpan.FromSeconds(30);
+    private CancellationTokenSource? _initializationCancellation;
+
     /// <summary>
     /// Initializes the WebView2 control with a custom user data folder.
     /// </summary>
     public async Task InitializeAsync(WebView2 webView, string environmentName, CancellationToken cancellationToken = default)
     {
-        if (_isDisposed)
+        if (_isDisposed || cancellationToken.IsCancellationRequested)
         {
             return;
         }
@@ -25,6 +29,10 @@ public partial class WebViewService
         _messageOwnership.ResetForNewWebView();
         CurrentEnvironmentName = environmentName;
         _isInitialized = false;
+        var initializationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _initializationCancellation = initializationCancellation;
+        initializationCancellation.CancelAfter(InitializationTimeout);
+        var initializationToken = initializationCancellation.Token;
 
         try
         {
@@ -35,14 +43,21 @@ public partial class WebViewService
             // WEBVIEW2_USER_DATA_FOLDER variable only influences the process-wide
             // default environment, which is created once and cached, so it cannot
             // switch profiles when the user changes environments at runtime.
-            var webView2Environment = await CoreWebView2Environment.CreateWithOptionsAsync(
+            var environmentOperation = CoreWebView2Environment.CreateWithOptionsAsync(
                 browserExecutableFolder: null,
                 userDataFolder: userDataFolder,
-                options: null);
-            cancellationToken.ThrowIfCancellationRequested();
+                options: null).AsTask();
+            await WaitForInitializationOperationAsync(environmentOperation, initializationToken);
+            var webView2Environment = await environmentOperation;
+            initializationToken.ThrowIfCancellationRequested();
 
-            await webView.EnsureCoreWebView2Async(webView2Environment);
-            cancellationToken.ThrowIfCancellationRequested();
+            if (!IsCurrentInitialization(webView, initializationGeneration))
+            {
+                return;
+            }
+
+            await WaitForInitializationOperationAsync(webView.EnsureCoreWebView2Async(webView2Environment).AsTask(), initializationToken);
+            initializationToken.ThrowIfCancellationRequested();
 
             if (!IsCurrentInitialization(webView, initializationGeneration))
             {
@@ -69,6 +84,7 @@ public partial class WebViewService
             webView.DefaultBackgroundColor = Microsoft.UI.Colors.Transparent;
 
             var hostGeneration = _hostGeneration;
+            AttachContentZoom(coreWebView, hostGeneration);
             _navigationStartingHandler = CreateNavigationStartingHandler(hostGeneration);
             _navigationCompletedHandler = CreateNavigationCompletedHandler(hostGeneration);
             _processFailedHandler = CreateProcessFailedHandler(hostGeneration);
@@ -94,15 +110,64 @@ public partial class WebViewService
             _isInitialized = true;
             _logger.Info("WebView2 initialized successfully.");
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (initializationToken.IsCancellationRequested)
         {
-            _logger.Info("WebView2 initialization cancelled.");
+            if (!IsCurrentInitialization(webView, initializationGeneration))
+            {
+                return;
+            }
+
+            DetachCurrentWebView();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.Info("WebView2 initialization cancelled.");
+                return;
+            }
+
+            _requiresHostRecreation = true;
+            _logger.Warning("webview.initialization.timed_out");
+            _statusInspector.SetUnavailableSnapshot("WebView2 initialization timed out.");
+            SetState(ConnectionState.Error);
+            NavigationErrorOccurred?.Invoke(StringResources.WebViewInitializationTimedOut);
         }
         catch (Exception ex)
         {
+            if (!IsCurrentInitialization(webView, initializationGeneration))
+            {
+                _logger.Info("webview.initialization.stale_failure", new { ex.Message });
+                return;
+            }
+
             _logger.Error($"WebView2 initialization failed: {ex}");
+            DetachCurrentWebView();
+            _requiresHostRecreation = true;
             SetState(ConnectionState.Error);
             NavigationErrorOccurred?.Invoke($"WebView2 initialization failed: {ex.Message}");
+        }
+        finally
+        {
+            if (ReferenceEquals(_initializationCancellation, initializationCancellation))
+            {
+                _initializationCancellation = null;
+            }
+            initializationCancellation.Dispose();
+        }
+    }
+
+    private static async Task WaitForInitializationOperationAsync(Task operation, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await operation.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // WinRT initialization may ignore cancellation. Observe a late failure
+            // without retaining or accessing the retired control, service, or logger.
+            _ = operation.ContinueWith(static completed => { _ = completed.Exception; },
+                CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            throw;
         }
     }
 
@@ -118,6 +183,8 @@ public partial class WebViewService
 
     private void DetachCurrentWebView()
     {
+        var initializationCancellation = _initializationCancellation;
+        _initializationCancellation = null;
         ClearErrorPageOwnership();
         if (_webView is not null)
         {
@@ -130,44 +197,57 @@ public partial class WebViewService
         CancelNavigationCompletionWatchdog();
         _hostGeneration++;
         _generations.Next();
+        initializationCancellation?.Cancel();
         _messageOwnership.BeginNavigation();
         InvalidateControlUiInspectionCache();
         CancelNavigationCancellation();
 
-        var coreWebView = GetCoreWebView();
-        if (coreWebView is not null)
+        var coreWebView = _coreWebView ?? TryGetCoreWebView2(_webView);
+        try
         {
-            if (_navigationStartingHandler is not null)
+            if (coreWebView is not null)
             {
-                coreWebView.NavigationStarting -= _navigationStartingHandler;
-            }
+                if (_zoomDocumentLoadedHandler is not null)
+                {
+                    coreWebView.DOMContentLoaded -= _zoomDocumentLoadedHandler;
+                }
+                if (_navigationStartingHandler is not null)
+                {
+                    coreWebView.NavigationStarting -= _navigationStartingHandler;
+                }
 
-            if (_navigationCompletedHandler is not null)
-            {
-                coreWebView.NavigationCompleted -= _navigationCompletedHandler;
-            }
+                if (_navigationCompletedHandler is not null)
+                {
+                    coreWebView.NavigationCompleted -= _navigationCompletedHandler;
+                }
 
-            if (_processFailedHandler is not null)
-            {
-                coreWebView.ProcessFailed -= _processFailedHandler;
-            }
+                if (_processFailedHandler is not null)
+                {
+                    coreWebView.ProcessFailed -= _processFailedHandler;
+                }
 
-            if (_webMessageReceivedHandler is not null)
-            {
-                coreWebView.WebMessageReceived -= _webMessageReceivedHandler;
-            }
+                if (_webMessageReceivedHandler is not null)
+                {
+                    coreWebView.WebMessageReceived -= _webMessageReceivedHandler;
+                }
 
-            if (_newWindowRequestedHandler is not null)
-            {
-                coreWebView.NewWindowRequested -= _newWindowRequestedHandler;
-            }
+                if (_newWindowRequestedHandler is not null)
+                {
+                    coreWebView.NewWindowRequested -= _newWindowRequestedHandler;
+                }
 
-            if (_downloadStartingHandler is not null)
-            {
-                coreWebView.DownloadStarting -= _downloadStartingHandler;
+                if (_downloadStartingHandler is not null)
+                {
+                    coreWebView.DownloadStarting -= _downloadStartingHandler;
+                }
             }
         }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException)
+        {
+            _logger.Info("webview.detach.closed_core", new { ex.Message });
+        }
 
+        _zoomDocumentLoadedHandler = null;
         _navigationStartingHandler = null;
         _navigationCompletedHandler = null;
         _processFailedHandler = null;
@@ -177,6 +257,7 @@ public partial class WebViewService
         _webView = null;
         _coreWebView = null;
         _isInitialized = false;
+        _requiresHostRecreation = false;
         _statusInspector.SetUnknownSnapshot();
         _lastPublishedControlUiSnapshot = ControlUiProbeSnapshot.Unknown;
         _lastLifecycleLogKey = null;
@@ -212,6 +293,11 @@ public partial class WebViewService
 
     private CoreWebView2? GetCoreWebView()
     {
+        if (_requiresHostRecreation)
+        {
+            return null;
+        }
+
         if (_coreWebView is not null)
         {
             return _coreWebView;
@@ -231,6 +317,7 @@ public partial class WebViewService
     private bool IsCurrentHost(int hostGeneration)
     {
         return !_isDisposed &&
+            !_requiresHostRecreation &&
             _coreWebView is not null &&
             _hostGeneration == hostGeneration;
     }

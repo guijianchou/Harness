@@ -11,7 +11,7 @@ public sealed partial class SettingsDialog
 {
     private void OnNavSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (NavList.SelectedItem is ListViewItem item && item.Tag is string tag)
+        if (sender is ListView navigation && navigation.SelectedItem is ListViewItem item && item.Tag is string tag)
         {
             ShowPanel(tag);
         }
@@ -24,6 +24,9 @@ public sealed partial class SettingsDialog
         PanelEnvironments.Visibility = ToPanelVisibility(tag == EnvironmentsPanelTag);
         PanelSessions.Visibility = ToPanelVisibility(tag == SessionsPanelTag);
         PanelDevTools.Visibility = ToPanelVisibility(tag == DevToolsPanelTag);
+        PanelAbout.Visibility = ToPanelVisibility(tag == AboutPanelTag);
+        PanelNotifications.Visibility = ToPanelVisibility(tag == "Notifications");
+        SettingsContentScroll.ChangeView(null, 0, null, disableAnimation: true);
     }
 
     private void SetLanguageSelection(string language)
@@ -40,12 +43,19 @@ public sealed partial class SettingsDialog
             {
                 if (LanguageComboBox.Items[i] is ComboBoxItem item && item.Tag is string tag && tag == language)
                 {
-                    LanguageComboBox.SelectedIndex = i;
+                    if (LanguageComboBox.SelectedIndex != i)
+                    {
+                        LanguageComboBox.SelectedIndex = i;
+                    }
+
                     return;
                 }
             }
 
-            LanguageComboBox.SelectedIndex = 0;
+            if (LanguageComboBox.SelectedIndex != 0)
+            {
+                LanguageComboBox.SelectedIndex = 0;
+            }
         }
         finally
         {
@@ -55,10 +65,14 @@ public sealed partial class SettingsDialog
 
     private void PopulateLanguageOptions()
     {
+        if (LanguageComboBox.Items.Count != 0)
+        {
+            return;
+        }
+
         _isSyncingLanguageSelection = true;
         try
         {
-            LanguageComboBox.Items.Clear();
             AddLanguageOption(StringResources.SettingsLanguageSystem, "System");
             AddLanguageOption(StringResources.SettingsLanguageEnglish, "en-US");
             AddLanguageOption(StringResources.SettingsLanguageChineseSimplified, "zh-CN");

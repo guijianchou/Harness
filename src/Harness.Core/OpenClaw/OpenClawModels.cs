@@ -84,6 +84,9 @@ public sealed class OpenClawSession
     public string[]? ActiveRunIds { get; init; }
     public long? UpdatedAt { get; init; }
     public long? SnapshotAt { get; init; }
+    public double? TotalTokens { get; init; }
+    public bool? TotalTokensFresh { get; init; }
+    public double? ContextTokens { get; init; }
     [JsonExtensionData] public Dictionary<string, JsonElement>? Additional { get; init; }
 }
 

@@ -11,6 +11,8 @@ namespace Harness;
 
 public sealed partial class MainWindow
 {
+    private Task? _settingsExitTask;
+
     private void RestoreWindowBounds()
     {
         var settings = App.Configuration.Settings;
@@ -135,6 +137,7 @@ public sealed partial class MainWindow
     private void OnWindowClosed(object sender, WindowEventArgs args)
     {
         _isClosing = true;
+        App.Configuration.SettingsCommitted -= OnSettingsCommitted;
         _windowLifetimeCts.Cancel();
         AppWindow.Closing -= OnAppWindowClosing;
         WebViewHost.SizeChanged -= OnWebViewHostSizeChanged;
@@ -165,11 +168,53 @@ public sealed partial class MainWindow
         if (_trayClosePolicy.GetCloseDisposition(App.Configuration.Settings.SystemTray) != TrayCloseDisposition.HideToTray ||
             _trayIconService?.IsAvailable != true)
         {
+            args.Cancel = DeferExitUntilSettingsSaved();
             return;
         }
 
         args.Cancel = true;
         HideMainWindowToTray();
+    }
+
+    private bool DeferExitUntilSettingsSaved()
+    {
+        if (_settingsWindow?.IsSavingSettings != true)
+        {
+            return false;
+        }
+
+        if (_settingsExitTask is null || _settingsExitTask.IsCompleted)
+        {
+            _settingsExitTask = ExitAfterSettingsSaveAsync();
+        }
+
+        return true;
+    }
+
+    private async Task ExitAfterSettingsSaveAsync()
+    {
+        // Let the system close event be cancelled before a completed save can resume exit.
+        await Task.Yield();
+        try
+        {
+            while (!_isClosing && _settingsWindow is { IsSavingSettings: true } settings)
+            {
+                await settings.WaitForPendingSaveAsync();
+            }
+
+            if (!_isClosing)
+            {
+                _trayClosePolicy.RequestExit();
+                Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!_isClosing)
+            {
+                App.Logger.Warning($"Application exit after settings save failed: {ex.GetType().Name}");
+            }
+        }
     }
 
     private void OnWindowActivated(object sender, WindowActivatedEventArgs args)

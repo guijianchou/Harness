@@ -31,6 +31,8 @@ public static class HarnessNativeRegression
             {
                 watchdog.Start();
                 await VerifyProtectedGatewaySettingsAsync(Path.Combine(profile.FullName, "gateway-settings-regression"));
+                await VerifyAppearanceAndStartupSettingsAsync(Path.Combine(profile.FullName, "appearance-settings-regression"));
+                await VerifyMergedEnvironmentSettingsAsync(Path.Combine(profile.FullName, "merged-environment-settings-regression"));
                 var environment = await CoreWebView2Environment.CreateAsync(null, profile.FullName);
                 environment.BrowserProcessExited += (_, _) => browserExited.TrySetResult(true);
                 controller = await environment.CreateCoreWebView2ControllerAsync(form.Handle);
@@ -144,30 +146,219 @@ public static class HarnessNativeRegression
         Check(config.Save().Succeeded, "seed protected Gateway settings");
         var model = new Harness.ViewModels.SettingsViewModel(new SettingsPersistenceAdapter(config, new WebViewService.TestLogger()));
         model.SelectedEnvironment = model.Environments[0];
+        model.LaunchAtStartup = true;
+        var startupRegistered = false;
+        var startup = new StartupRegistrationService((enabled, _) =>
+        {
+            var previous = startupRegistered;
+            startupRegistered = enabled;
+            return Task.FromResult(new StartupRegistrationChange(_ =>
+            {
+                startupRegistered = previous;
+                return Task.FromResult(true);
+            }));
+        });
         model.EditGatewaySecret = "replacement-secret";
         Check(model.TryApplyEdit(), "stage replacement credential");
         failWrites = true;
-        Check(await model.SaveAllAsync(store) is null, "failed settings write rejects credential replacement");
+        Check(await model.SaveAllAsync(store, startup) is null, "failed settings write rejects credential replacement");
         Check(config.Settings.Environments[0].OpenClawConnection!.CredentialReference == "original" && (await store.ReadAsync("original"))?.Token == syntheticSecret, "failed save preserves original credential and reference");
+        Check(!startupRegistered && !config.Settings.LaunchAtStartup && model.LaunchAtStartup,
+            "failed combined credential and startup save rolls back registration and retains the startup draft");
         failWrites = false;
-        Check(await model.SaveAllAsync(store) is not null, "credential save can be retried");
+        Check(await model.SaveAllAsync(store, startup) is not null && startupRegistered && config.Settings.LaunchAtStartup,
+            "combined credential and startup save can be retried");
         var savedReference = config.Settings.Environments[0].OpenClawConnection!.CredentialReference!;
         Check((await store.ReadAsync(savedReference))?.Token == "replacement-secret", "successful retry stores replacement credential");
         Check((await store.ReadAsync(savedReference))?.Endpoint == "wss://gateway-settings.test/", "protected credential is bound to the canonical endpoint");
         model.EditGatewayAccessToken = "synthetic-access-token";
-        Check(model.TryApplyEdit() && await model.SaveAllAsync(store) is not null, "optional Access token can be saved independently");
+        Check(model.TryApplyEdit() && await model.SaveAllAsync(store, startup) is not null, "optional Access token can be saved independently");
         savedReference = config.Settings.Environments[0].OpenClawConnection!.CredentialReference!;
         var accessCredential = await store.ReadAsync(savedReference);
         Check(accessCredential?.Token == "replacement-secret" && accessCredential.AccessToken == "synthetic-access-token", "Access credential edit preserves Gateway authorization");
         var settingsJson = File.ReadAllText(config.SettingsFilePath);
         Check(!settingsJson.Contains("replacement-secret", StringComparison.Ordinal) && !settingsJson.Contains("synthetic-access-token", StringComparison.Ordinal), "settings JSON contains credential references only");
         model.EditGatewayClearAccessToken = true;
-        Check(model.TryApplyEdit() && await model.SaveAllAsync(store) is not null, "Access token can be removed");
+        Check(model.TryApplyEdit() && await model.SaveAllAsync(store, startup) is not null, "Access token can be removed");
         savedReference = config.Settings.Environments[0].OpenClawConnection!.CredentialReference!;
         accessCredential = await store.ReadAsync(savedReference);
         Check(accessCredential?.Token == "replacement-secret" && string.IsNullOrEmpty(accessCredential.AccessToken), "Access token removal preserves Gateway authorization");
         model.EditUrl = "https://another-gateway.test";
         Check(model.TryApplyEdit() && model.Environments[0].OpenClawConnection!.CredentialReference is null, "changing the endpoint retires the saved credential");
+    }
+
+    private static async Task VerifyAppearanceAndStartupSettingsAsync(string folder)
+    {
+        var failWrites = false;
+        var config = new ConfigurationService(folder, writeAllText: (path, text) =>
+        {
+            if (failWrites) { throw new IOException("Synthetic appearance write failure"); }
+            Harness.Helpers.AtomicFileWriter.WriteAllText(path, text);
+        });
+        config.Load();
+        config.Settings.Environments[0].GatewayUrl = "https://appearance-settings.test/control";
+        Check(config.Save().Succeeded, "seed appearance settings");
+        var logger = new WebViewService.TestLogger();
+        var adapter = new SettingsPersistenceAdapter(config, logger);
+        var store = new OpenClawCredentialStore(Path.Combine(folder, "secrets"));
+        var settingsBeforeDraft = File.ReadAllText(config.SettingsFilePath);
+        var cancelled = new Harness.ViewModels.SettingsViewModel(adapter)
+        {
+            ThemeIndex = 2,
+            ZoomPercent = 150,
+            LaunchAtStartup = true,
+            StartMinimized = true,
+            NotifyOnRunCompleted = false,
+            NotifyOnlyWhenUnfocused = false,
+            ForwardPageNotifications = false,
+        };
+        Check(config.Settings.AppTheme == "System" && config.Settings.ZoomFactor == 1.0 &&
+            !config.Settings.LaunchAtStartup && !config.Settings.StartMinimized && config.Settings.NotifyOnRunCompleted &&
+            config.Settings.NotifyOnlyWhenUnfocused && config.Settings.ForwardPageNotifications,
+            "discarded appearance and startup draft leaves runtime settings unchanged");
+        Check(File.ReadAllText(config.SettingsFilePath) == settingsBeforeDraft,
+            "discarded appearance draft does not write settings");
+
+        var applyCount = 0;
+        var rollbackCount = 0;
+        var registered = false;
+        var startup = new StartupRegistrationService((enabled, _) =>
+        {
+            applyCount++;
+            var previous = registered;
+            registered = enabled;
+            return Task.FromResult(new StartupRegistrationChange(_ =>
+            {
+                rollbackCount++;
+                registered = previous;
+                return Task.FromResult(true);
+            }));
+        });
+
+        cancelled.ZoomPercent = double.NaN;
+        Check(await cancelled.SaveAllAsync(store, startup) is null && applyCount == 0,
+            "invalid zoom is rejected before startup registration");
+        cancelled.ZoomPercent = 150;
+        failWrites = true;
+        Check(await cancelled.SaveAllAsync(store, startup) is null && applyCount == 1 && rollbackCount == 1 && !registered,
+            "failed configuration save restores prior startup registration");
+        Check(config.Settings.AppTheme == "System" && config.Settings.ZoomFactor == 1.0 && !config.Settings.LaunchAtStartup &&
+            !config.Settings.StartMinimized && config.Settings.NotifyOnRunCompleted,
+            "failed appearance save preserves committed configuration");
+        Check(cancelled.ThemeIndex == 2 && cancelled.ZoomPercent == 150 && cancelled.LaunchAtStartup && cancelled.StartMinimized &&
+            !cancelled.NotifyOnRunCompleted && !cancelled.NotifyOnlyWhenUnfocused && !cancelled.ForwardPageNotifications,
+            "failed appearance save retains every edited draft for retry");
+
+        failWrites = false;
+        var saved = await cancelled.SaveAllAsync(store, startup);
+        Check(saved is { } appearanceResult && appearanceResult.LiveShellSettingsChange.DidChangeAppTheme &&
+            appearanceResult.LiveShellSettingsChange.DidChangeZoomFactor && appearanceResult.DidChangeLiveShellOptions &&
+            appearanceResult.LiveShellSettingsChange.After.AppTheme == config.Settings.AppTheme &&
+            appearanceResult.LiveShellSettingsChange.After.ZoomFactor == config.Settings.ZoomFactor,
+            "successful appearance save returns committed theme and zoom for immediate application");
+        Check(registered && applyCount == 2 && rollbackCount == 1 && config.Settings.LaunchAtStartup &&
+            config.Settings.StartMinimized && !config.Settings.NotifyOnRunCompleted &&
+            !config.Settings.NotifyOnlyWhenUnfocused && !config.Settings.ForwardPageNotifications,
+            "successful retry commits startup and notification settings without rollback");
+
+        var uneditedTheme = new Harness.ViewModels.SettingsViewModel(adapter);
+        uneditedTheme.ThemeIndex = uneditedTheme.ThemeIndex;
+        uneditedTheme.ZoomPercent = uneditedTheme.ZoomPercent;
+        uneditedTheme.LaunchAtStartup = uneditedTheme.LaunchAtStartup;
+        config.Settings.AppTheme = "Light";
+        config.Settings.ZoomFactor = 1.2;
+        Check(config.Save().Succeeded, "simulate main-window theme change while Settings is open");
+        uneditedTheme.NotifyOnRunCompleted = true;
+        Check(await uneditedTheme.SaveAllAsync(store, startup) is not null && config.Settings.AppTheme == "Light" &&
+            config.Settings.ZoomFactor == 1.2 && applyCount == 2,
+            "unedited theme and zoom preserve live main-window changes and do not reapply startup registration");
+
+        var anotherInstance = new ConfigurationService(folder);
+        anotherInstance.Load();
+        var mergingDraft = new Harness.ViewModels.SettingsViewModel(adapter) { NotifyOnlyWhenUnfocused = true };
+        anotherInstance.Settings.AppTheme = "Dark";
+        anotherInstance.Settings.ZoomFactor = 1.4;
+        Check(anotherInstance.Save().Succeeded, "simulate another instance changing appearance");
+        var mergedResult = await mergingDraft.SaveAllAsync(store, startup);
+        Check(mergedResult is { } merged && config.Settings.AppTheme == "Dark" && config.Settings.ZoomFactor == 1.4 &&
+            config.Settings.NotifyOnlyWhenUnfocused && merged.LiveShellSettingsChange.After.AppTheme == "Dark" &&
+            merged.LiveShellSettingsChange.After.ZoomFactor == 1.4,
+            "unrelated instance changes are merged and reported from committed configuration");
+
+        var deniedStartup = new Harness.ViewModels.SettingsViewModel(adapter) { LaunchAtStartup = false };
+        var failingStartup = new StartupRegistrationService((_, _) =>
+            Task.FromException<StartupRegistrationChange>(new IOException("Synthetic startup denial")));
+        Check(await deniedStartup.SaveAllAsync(store, failingStartup) is null && config.Settings.LaunchAtStartup &&
+            !deniedStartup.LaunchAtStartup && deniedStartup.ValidationMessage == Harness.Helpers.StringResources.SettingsStartupSaveFailed,
+            "startup registration failure keeps configuration and edited draft intact");
+
+        var lostRollback = new StartupRegistrationService((_, _) => Task.FromResult(
+            new StartupRegistrationChange(_ => Task.FromResult(false))));
+        failWrites = true;
+        Check(await deniedStartup.SaveAllAsync(store, lostRollback) is null &&
+            deniedStartup.ValidationMessage == Harness.Helpers.StringResources.SettingsStartupRollbackFailed,
+            "startup rollback conflict reports that the external state could not be restored");
+        failWrites = false;
+    }
+
+    private static async Task VerifyMergedEnvironmentSettingsAsync(string folder)
+    {
+        var config = new ConfigurationService(folder);
+        config.Load();
+        config.Settings.Environments[0].GatewayUrl = "https://merged-settings.test/original";
+        config.Settings.Environments.Add(new Harness.Models.EnvironmentConfig
+        {
+            Name = "Secondary",
+            GatewayUrl = "https://merged-settings.test/secondary",
+        });
+        Check(config.Save().Succeeded, "seed two-instance environment settings");
+        var adapter = new SettingsPersistenceAdapter(config, new WebViewService.TestLogger());
+        var store = new OpenClawCredentialStore(Path.Combine(folder, "secrets"));
+        var main = new Harness.ViewModels.MainViewModel(config);
+        var draft = new Harness.ViewModels.SettingsViewModel(adapter) { NotifyOnRunCompleted = false };
+        var anotherInstance = new ConfigurationService(folder);
+        anotherInstance.Load();
+        anotherInstance.Settings.Environments[0].Name = "Renamed remotely";
+        anotherInstance.Settings.Environments[0].GatewayUrl = "https://merged-settings.test/changed";
+        anotherInstance.Settings.Environments[0].OpenClawConnection = new Harness.Models.OpenClawConnectionOptions
+        {
+            CredentialReference = "other-instance-reference",
+        };
+        anotherInstance.Settings.SelectedEnvironmentName = "Renamed remotely";
+        anotherInstance.Settings.AppLanguage = "zh-CN";
+        Check(anotherInstance.Save().Succeeded, "another instance changes active environment and language");
+        var profileMoves = WebViewService.ProfileMoves;
+        var saved = await draft.SaveAllAsync(store);
+        Check(saved is { DidChangeEnvironmentState: true, DidChangeSessionTopology: true, DidChangeLanguage: true },
+            "merged environment changes are reported even when this draft only changes notifications");
+        Check(config.Settings.AppLanguage == "zh-CN" && draft.SelectedLanguage != "zh-CN" &&
+            WebViewService.ProfileMoves == profileMoves,
+            "committed language can differ from the draft and imported renames do not move browser profiles");
+        if (saved!.Value.DidChangeEnvironmentState) { main.Reload(); }
+        Check(main.SelectedEnvironmentName == "Renamed remotely" && main.CurrentUrl == "https://merged-settings.test/changed" &&
+            main.SelectedEnvironment?.OpenClawConnection?.CredentialReference == "other-instance-reference" && main.NavigationCount == 1,
+            "save-result refresh applies the merged active environment to the main view model");
+
+        var metadataDraft = new Harness.ViewModels.SettingsViewModel(adapter);
+        anotherInstance.Settings.Environments[0].IsDefault = false;
+        anotherInstance.Settings.Environments[1].IsDefault = true;
+        Check(anotherInstance.Save().Succeeded, "another instance changes default metadata only");
+        var metadataResult = await metadataDraft.SaveAllAsync(store);
+        Check(metadataResult is { DidChangeEnvironmentState: true, DidChangeSessionTopology: false },
+            "merged default-only changes refresh metadata without declaring a session change");
+        main.Reload();
+        Check(main.NavigationCount == 1 && main.RecreationCount == 0,
+            "merged default metadata keeps the current session");
+
+        var selectionDraft = new Harness.ViewModels.SettingsViewModel(adapter);
+        anotherInstance.Settings.SelectedEnvironmentName = "Secondary";
+        Check(anotherInstance.Save().Succeeded, "another instance changes only selected environment");
+        var selectionResult = await selectionDraft.SaveAllAsync(store);
+        Check(selectionResult is { DidChangeEnvironmentState: true, DidChangeSessionTopology: true },
+            "merged selection-only changes request the environment refresh");
+        main.Reload();
+        Check(main.SelectedEnvironmentName == "Secondary" && main.NavigationCount == 2,
+            "merged selected environment reaches the main view model");
     }
 
     private static void VerifySettingsAndEnvironment(string folder)

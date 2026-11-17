@@ -25,7 +25,7 @@ public partial class MainViewModel
 
     public string SelectedEnvironmentName => _selectedEnvironment?.Name ?? string.Empty;
 
-    public bool IsPlaceholderEnvironment => _selectedEnvironment?.IsPlaceholder == true;
+    public bool IsPlaceholderEnvironment => _selectedEnvironment is null || _selectedEnvironment.IsPlaceholder;
 
     public string StatusMessage
     {
@@ -53,10 +53,13 @@ public partial class MainViewModel
             _isLoading = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(LoadingVisibility));
+            OnPropertyChanged(nameof(CanStop));
         }
     }
 
     public Visibility LoadingVisibility => IsLoading ? Visibility.Visible : Visibility.Collapsed;
+
+    public bool CanStop => !IsPlaceholderEnvironment && (IsLoading || !IsOpenClawAvailable || CanStopGatewayRun);
 
     public string ErrorMessage
     {

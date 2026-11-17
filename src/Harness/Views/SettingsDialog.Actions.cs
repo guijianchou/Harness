@@ -9,62 +9,139 @@ namespace Harness.Views;
 
 public sealed partial class SettingsDialog
 {
-    private async void OnSaveClick(object sender, RoutedEventArgs e)
+    private void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        if (_isSaving || (ViewModel.IsEditing && !TryApplyEdit()))
+        if (_isClosed || _isSaving || _isClearingSession || (ViewModel.IsEditing && !TryApplyEdit()))
         {
             return;
         }
+
+        _settingsSaveTask = SaveSettingsAsync();
+    }
+
+    private async Task SaveSettingsAsync()
+    {
         _isSaving = true;
         SettingsInteractionRoot.IsEnabled = false;
+        var closeAfterSave = false;
         try
         {
-            var result = await ViewModel.SaveAllAsync(new Services.OpenClawCredentialStore());
+            var result = await ViewModel.SaveAllAsync(new Services.OpenClawCredentialStore(), _startupRegistration);
+            if (_isClosed)
+            {
+                return;
+            }
+
+            RefreshStartupRegistrationStatus();
             if (result is not { } saveResult)
             {
                 ShowEnvironmentMessage(ValidationErrorTitle, InfoBarSeverity.Error);
                 return;
             }
-            if (saveResult.DidChangeLanguage) { App.ApplyLanguage(ViewModel.SelectedLanguage); }
-            SettingsSaved?.Invoke(saveResult);
-            this.Close();
+            try
+            {
+                if (saveResult.DidChangeLanguage)
+                {
+                    App.ApplyLanguage(App.Configuration.Settings.AppLanguage);
+                }
+
+                SettingsSaved?.Invoke(saveResult);
+                closeAfterSave = true;
+            }
+            catch (Exception ex)
+            {
+                App.Logger.Warning($"Settings were saved but could not be applied: {ex.GetType().Name}");
+                ShowEnvironmentMessage(StringResources.SettingsTitle, InfoBarSeverity.Warning, StringResources.SettingsApplyFailed);
+            }
         }
         catch (Exception ex)
         {
             App.Logger.Warning($"Settings save failed: {ex.GetType().Name}");
-            ShowEnvironmentMessage(ValidationErrorTitle, InfoBarSeverity.Error, StringResources.SettingsGatewaySecureSaveFailed);
+            if (!_isClosed)
+            {
+                ShowEnvironmentMessage(ValidationErrorTitle, InfoBarSeverity.Error, StringResources.SettingsGatewaySecureSaveFailed);
+            }
         }
-        finally { _isSaving = false; SettingsInteractionRoot.IsEnabled = true; }
+        finally
+        {
+            _isSaving = false;
+            if (!_isClosed)
+            {
+                SettingsInteractionRoot.IsEnabled = true;
+            }
+        }
+
+        if (closeAfterSave && !_isClosed)
+        {
+            try
+            {
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                App.Logger.Warning($"Settings were saved but the window could not close: {ex.GetType().Name}");
+            }
+        }
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e)
     {
-        this.Close();
+        if (!_isSaving && !_isClosed)
+        {
+            this.Close();
+        }
+    }
+
+    private void RefreshStartupRegistrationStatus()
+    {
+        if (!_isClosed)
+        {
+            _startupStatusRefreshTask = ObserveStartupRegistrationStatusAsync();
+        }
+    }
+
+    private async Task ObserveStartupRegistrationStatusAsync()
+    {
+        try
+        {
+            await ViewModel.RefreshStartupRegistrationStatusAsync(_startupRegistration);
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Warning($"Startup status refresh failed: {ex.GetType().Name}");
+        }
     }
 
     private void OnRunDiagnosticsClick(object sender, RoutedEventArgs e)
     {
-        MainViewModel?.RunDiagnosticsCommand.Execute(null);
-        this.Close();
+        ExecuteDeveloperCommand(MainViewModel?.RunDiagnosticsCommand);
     }
 
     private void OnViewLogsClick(object sender, RoutedEventArgs e)
     {
-        var mainViewModel = MainViewModel;
-        this.Close();
-        mainViewModel?.ViewLogsCommand.Execute(null);
+        ExecuteDeveloperCommand(MainViewModel?.ViewLogsCommand);
     }
 
     private void OnDevToolsClick(object sender, RoutedEventArgs e)
     {
-        MainViewModel?.DevToolsCommand.Execute(null);
-        this.Close();
+        ExecuteDeveloperCommand(MainViewModel?.DevToolsCommand);
     }
 
     private void OnExportDiagnosticBundleClick(object sender, RoutedEventArgs e)
     {
-        MainViewModel?.ExportDiagnosticBundleCommand.Execute(null);
-        this.Close();
+        ExecuteDeveloperCommand(MainViewModel?.ExportDiagnosticBundleCommand);
+    }
+
+    private void ExecuteDeveloperCommand(System.Windows.Input.ICommand? command)
+    {
+        if (!_isClosed && !_isSaving && !_isClearingSession && command?.CanExecute(null) == true)
+        {
+            if (App.MainWindow is MainWindow mainWindow)
+            {
+                mainWindow.ActivateFromExternalLaunch();
+            }
+            command.Execute(null);
+        }
     }
 
     private void OnResetHotkeyClick(object sender, RoutedEventArgs e)
@@ -84,17 +161,24 @@ public sealed partial class SettingsDialog
 
     private async void OnClearEnvironmentSessionClick(object sender, RoutedEventArgs e)
     {
+        if (_isClosed)
+        {
+            return;
+        }
+        var environmentName = GetSessionButtonEnvironmentName(sender as Button);
         try
         {
             await ClearEnvironmentSessionAsync(sender as Button);
         }
         catch (Exception ex)
         {
-            var environmentName = GetSessionButtonEnvironmentName(sender as Button);
             App.Logger.Warning($"Failed to clear environment session: {ex.Message}");
-            ShowSessionMessage(
-                InfoBarSeverity.Error,
-                string.Format(StringResources.SettingsSessionResetFailedFormat, environmentName, ex.Message));
+            if (!_isClosed)
+            {
+                ShowSessionMessage(
+                    InfoBarSeverity.Error,
+                    string.Format(StringResources.SettingsSessionResetFailedFormat, environmentName, ex.Message));
+            }
         }
     }
 
@@ -116,33 +200,50 @@ public sealed partial class SettingsDialog
 
     private async Task ClearEnvironmentSessionAsync(Button? button)
     {
-        if (MainViewModel is null ||
-            button?.Tag is not string environmentName ||
-            string.IsNullOrWhiteSpace(environmentName))
+        if (_isClosed || _isSaving || _isClearingSession)
+        {
+            return;
+        }
+
+        var environment = GetSavedSessionEnvironment(button);
+        if (MainViewModel is null || environment is null)
         {
             ShowSessionMessage(InfoBarSeverity.Warning, StringResources.SettingsSessionResetSelectEnvironment);
             return;
         }
 
-        button.IsEnabled = false;
+        _isClearingSession = true;
+        SettingsInteractionRoot.IsEnabled = false;
         try
         {
-            await MainViewModel.ClearSessionForEnvironmentAsync(environmentName);
-            ShowSessionMessage(
-                InfoBarSeverity.Informational,
-                string.Format(StringResources.SettingsSessionResetCompleted, environmentName));
+            await MainViewModel.ClearSessionForEnvironmentAsync(environment.Name);
+            if (!_isClosed)
+            {
+                ShowSessionMessage(
+                    InfoBarSeverity.Informational,
+                    string.Format(StringResources.SettingsSessionResetCompleted, environment.Name));
+            }
         }
         finally
         {
-            button.IsEnabled = true;
+            _isClearingSession = false;
+            if (!_isClosed)
+            {
+                SettingsInteractionRoot.IsEnabled = true;
+            }
         }
     }
 
-    private static string GetSessionButtonEnvironmentName(Button? button)
+    private EnvironmentConfig? GetSavedSessionEnvironment(Button? button)
     {
-        return button?.Tag is string environmentName && !string.IsNullOrWhiteSpace(environmentName)
-            ? environmentName
-            : StringResources.SettingsSessionReset;
+        return button?.Tag is string environmentId
+            ? SavedSessionEnvironments.FirstOrDefault(environment => environment.Id == environmentId)
+            : null;
+    }
+
+    private string GetSessionButtonEnvironmentName(Button? button)
+    {
+        return GetSavedSessionEnvironment(button)?.Name ?? StringResources.SettingsSessionReset;
     }
 
     private bool TryApplyEdit()
@@ -153,6 +254,7 @@ public sealed partial class SettingsDialog
         }
 
         ShowEnvironmentMessage(ValidationErrorTitle, InfoBarSeverity.Error);
+        NavList.SelectedItem = NavEnvironments;
         return false;
     }
 

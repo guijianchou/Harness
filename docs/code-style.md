@@ -157,10 +157,10 @@ This guide is the project-specific layer on top of `.editorconfig`, `.gitattribu
 
 ## Tests
 
-- There is no active `.NET tests/` regression harness at this checkpoint; embedded bridge behavior is still covered by the script verifier below.
-- When tests are reintroduced, prefer behavior tests against Core services and fakes.
+- Run the active `tests/Harness.Core.Tests` project for Core behavior and regression coverage. Prefer behavior tests against services and controlled transports.
 - Use source-text assertions only for contracts a harness cannot execute, such as XAML resource usage, project metadata, and platform integration declarations.
-- `tools\verify-bridge-scripts.ps1` is the active behavior check for embedded JS assets. Future bridge, MODEL, mutation-filter, status-inspection, and command-dispatch changes must update that script rather than restoring `tests/`.
+- `tools\verify-bridge-scripts.ps1` covers embedded JS assets. Bridge, MODEL, mutation-filter, status-inspection, and command-dispatch changes must update this verifier when behavior changes.
+- Use `verify-native-webview.ps1` for actual WebView2 behavior, `verify-openclaw-workspace.ps1` for the ViewModel with a loopback Gateway, and the settings/lifecycle verifiers for deterministic asynchronous ordering. Platform substitutes do not prove actual WinUI rendering or real deployment behavior.
 - Every bug fix or behavior change should have a regression path documented in the PR, manual checklist, or future test harness.
 
 ## Version And Documentation

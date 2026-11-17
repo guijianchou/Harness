@@ -18,9 +18,16 @@ public sealed record LiveShellSettingsChange(
     public bool DidChangeAutoRefresh =>
         Before.AutoRefresh != After.AutoRefresh;
 
+    public bool DidChangeAppTheme =>
+        !string.Equals(Before.AppTheme, After.AppTheme, StringComparison.Ordinal);
+
+    public bool DidChangeZoomFactor => Before.ZoomFactor != After.ZoomFactor;
+
     public bool HasChanges =>
         DidChangeAlwaysOnTop ||
         DidChangeGlobalHotkey ||
         DidChangeAllowMultipleInstances ||
-        DidChangeAutoRefresh;
+        DidChangeAutoRefresh ||
+        DidChangeAppTheme ||
+        DidChangeZoomFactor;
 }
