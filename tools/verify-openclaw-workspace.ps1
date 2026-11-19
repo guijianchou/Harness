@@ -11,6 +11,7 @@ $sourceFiles += @(
     'src/Harness/ViewModels/MainViewModel.OpenClaw.Properties.cs',
     'src/Harness/ViewModels/MainViewModel.OpenClaw.Commands.cs',
     'src/Harness/ViewModels/MainViewModel.OpenClaw.Data.cs',
+    'src/Harness/ViewModels/MainViewModel.OpenClaw.Models.cs',
     'src/Harness/ViewModels/MainViewModel.OpenClaw.SessionDetails.cs',
     'src/Harness/ViewModels/RunIndicatorMode.cs',
     'src/Harness/Helpers/GatewayStrings.cs',

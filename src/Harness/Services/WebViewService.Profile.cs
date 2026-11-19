@@ -1,88 +1,42 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
-using System.Security.Cryptography;
-using System.Text;
+using Harness.Models;
 
 namespace Harness.Services;
 
 public partial class WebViewService
 {
-    public static string GetUserDataFolderForEnvironment(string environmentName)
-    {
-        var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Harness",
-            "WebView2Data");
+    private static readonly EnvironmentProfileStore ProfileStore = new(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Harness",
+        "WebView2Data"));
 
-        return Path.Combine(root, BuildEnvironmentFolderName(environmentName));
+    public static void RegisterEnvironmentProfiles(IEnumerable<EnvironmentConfig> savedEnvironments)
+    {
+        ProfileStore.RegisterEnvironments(savedEnvironments);
     }
 
-    public static void DeleteUserDataFolderForEnvironment(string environmentName, IAppLogger? logger = null)
+    public static string GetUserDataFolderForEnvironment(string environmentId)
+    {
+        return ProfileStore.GetUserDataFolder(environmentId);
+    }
+
+    private static string PrepareUserDataFolderForEnvironment(string environmentId)
+    {
+        return ProfileStore.PrepareUserDataFolder(environmentId);
+    }
+
+    public static void DeleteUserDataFolderForEnvironment(string environmentId, IAppLogger? logger = null)
     {
         try
         {
-            var folder = GetUserDataFolderForEnvironment(environmentName);
-            Directory.Delete(folder, recursive: true);
-            logger?.Info($"Deleted WebView2 profile folder for environment '{environmentName}'.");
-        }
-        catch (DirectoryNotFoundException)
-        {
-            // An absent profile already has no persisted session to clear.
+            ProfileStore.DeleteUserDataFolder(environmentId);
+            logger?.Info("webview.profile.deleted", new { environmentId });
         }
         catch (Exception ex)
         {
-            logger?.Warning($"Failed to delete WebView2 profile folder for environment '{environmentName}': {ex.Message}");
+            logger?.Warning("webview.profile.delete_failed", new { environmentId, ex.Message });
             throw;
         }
-    }
-
-    public static void TryMoveUserDataFolderToRenamedEnvironment(
-        string originalEnvironmentName,
-        string renamedEnvironmentName,
-        IAppLogger? logger = null)
-    {
-        if (string.IsNullOrWhiteSpace(originalEnvironmentName) ||
-            string.IsNullOrWhiteSpace(renamedEnvironmentName) ||
-            string.Equals(originalEnvironmentName, renamedEnvironmentName, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        var sourceFolder = GetUserDataFolderForEnvironment(originalEnvironmentName);
-        var targetFolder = GetUserDataFolderForEnvironment(renamedEnvironmentName);
-
-        try
-        {
-            if (!Directory.Exists(sourceFolder) || Directory.Exists(targetFolder))
-            {
-                return;
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(targetFolder)!);
-            Directory.Move(sourceFolder, targetFolder);
-            logger?.Info($"Moved WebView2 profile folder from '{originalEnvironmentName}' to '{renamedEnvironmentName}'.");
-        }
-        catch (Exception ex)
-        {
-            logger?.Warning($"Failed to move WebView2 profile folder from '{originalEnvironmentName}' to '{renamedEnvironmentName}': {ex.Message}");
-        }
-    }
-
-    private static string BuildEnvironmentFolderName(string environmentName)
-    {
-        var normalized = string.IsNullOrWhiteSpace(environmentName) ? "default" : environmentName.Trim();
-        var sanitized = new string(normalized
-            .Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch)
-            .ToArray())
-            .Trim();
-
-        if (string.IsNullOrWhiteSpace(sanitized))
-        {
-            sanitized = "default";
-        }
-
-        sanitized = sanitized.Length > 48 ? sanitized[..48] : sanitized;
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))[..8];
-        return $"{sanitized}_{hash}";
     }
 }

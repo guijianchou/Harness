@@ -53,24 +53,26 @@ public partial class WebViewService
     /// <summary>
     /// Clears the session for a specific environment profile.
     /// </summary>
-    public async Task ClearEnvironmentSessionAsync(string environmentName)
+    public async Task ClearEnvironmentSessionAsync(string environmentId)
     {
-        if (string.IsNullOrWhiteSpace(environmentName))
+        ArgumentException.ThrowIfNullOrWhiteSpace(environmentId);
+
+        if (!_isInitialized && string.Equals(CurrentEnvironmentId, environmentId, StringComparison.Ordinal))
         {
-            return;
+            throw new InvalidOperationException("The environment profile is still initializing. Try clearing the session after initialization completes.");
         }
 
         var coreWebView = GetCoreWebView();
         if (coreWebView is not null &&
             _isInitialized &&
-            string.Equals(CurrentEnvironmentName, environmentName, StringComparison.Ordinal))
+            string.Equals(CurrentEnvironmentId, environmentId, StringComparison.Ordinal))
         {
-            _logger.Info($"Clearing active browsing data for environment '{environmentName}'.");
+            _logger.Info("webview.profile.clearing_active_session", new { environmentId });
             await coreWebView.Profile.ClearBrowsingDataAsync();
             return;
         }
 
-        await Task.Run(() => DeleteUserDataFolderForEnvironment(environmentName, _logger));
+        await Task.Run(() => DeleteUserDataFolderForEnvironment(environmentId, _logger));
     }
 
     /// <summary>
@@ -84,10 +86,10 @@ public partial class WebViewService
     /// <summary>
     /// Gets whether the active WebView2 instance already uses the requested environment profile.
     /// </summary>
-    public bool IsUsingEnvironmentProfile(string? environmentName)
+    public bool IsUsingEnvironmentProfile(string? environmentId)
     {
         return _isInitialized &&
-            !string.IsNullOrWhiteSpace(environmentName) &&
-            string.Equals(CurrentEnvironmentName, environmentName, StringComparison.Ordinal);
+            !string.IsNullOrWhiteSpace(environmentId) &&
+            string.Equals(CurrentEnvironmentId, environmentId, StringComparison.Ordinal);
     }
 }

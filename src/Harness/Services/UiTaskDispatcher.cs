@@ -121,6 +121,31 @@ internal sealed class UiTaskDispatcher
         return completion.Task;
     }
 
+    public Task RunAsync(Func<Task> action, CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled(cancellationToken);
+        }
+
+        var completion = CreateCompletion();
+        var registration = cancellationToken.Register(
+            () => completion.TrySetCanceled(cancellationToken));
+
+        Dispatch(() =>
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                completion.TrySetCanceled(cancellationToken);
+                return;
+            }
+
+            _ = CompleteAsync(action, completion);
+        }, completion);
+
+        return DisposeCancellationRegistrationAsync(completion.Task, registration);
+    }
+
     public Task<T> RunAsync<T>(Func<Task<T>> action)
     {
         var completion = CreateCompletion<T>();

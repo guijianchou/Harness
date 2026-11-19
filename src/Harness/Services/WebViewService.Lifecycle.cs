@@ -15,7 +15,7 @@ public partial class WebViewService
     /// <summary>
     /// Initializes the WebView2 control with a custom user data folder.
     /// </summary>
-    public async Task InitializeAsync(WebView2 webView, string environmentName, CancellationToken cancellationToken = default)
+    public async Task InitializeAsync(WebView2 webView, string environmentId, string environmentName, CancellationToken cancellationToken = default)
     {
         if (_isDisposed || cancellationToken.IsCancellationRequested)
         {
@@ -28,6 +28,7 @@ public partial class WebViewService
         var initializationGeneration = _generations.Next();
         _messageOwnership.ResetForNewWebView();
         CurrentEnvironmentName = environmentName;
+        CurrentEnvironmentId = environmentId;
         _isInitialized = false;
         var initializationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _initializationCancellation = initializationCancellation;
@@ -36,8 +37,12 @@ public partial class WebViewService
 
         try
         {
-            var userDataFolder = GetUserDataFolderForEnvironment(environmentName);
-            Directory.CreateDirectory(userDataFolder);
+            var userDataFolder = await Task.Run(() => PrepareUserDataFolderForEnvironment(environmentId), initializationToken);
+            initializationToken.ThrowIfCancellationRequested();
+            if (!IsCurrentInitialization(webView, initializationGeneration))
+            {
+                return;
+            }
 
             // Create an explicit environment per user data folder. The
             // WEBVIEW2_USER_DATA_FOLDER variable only influences the process-wide
@@ -258,6 +263,8 @@ public partial class WebViewService
         _coreWebView = null;
         _isInitialized = false;
         _requiresHostRecreation = false;
+        CurrentEnvironmentId = null;
+        CurrentEnvironmentName = null;
         _statusInspector.SetUnknownSnapshot();
         _lastPublishedControlUiSnapshot = ControlUiProbeSnapshot.Unknown;
         _lastLifecycleLogKey = null;

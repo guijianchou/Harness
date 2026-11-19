@@ -216,7 +216,7 @@ public sealed partial class SettingsDialog
         SettingsInteractionRoot.IsEnabled = false;
         try
         {
-            await MainViewModel.ClearSessionForEnvironmentAsync(environment.Name);
+            await MainViewModel.ClearSessionForEnvironmentAsync(environment.Id);
             if (!_isClosed)
             {
                 ShowSessionMessage(

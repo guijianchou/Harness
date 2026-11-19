@@ -377,6 +377,9 @@
   <data name="SettingsValidationSaveFailedFormat" xml:space="preserve">
     <value>保存设置失败：{0}</value>
   </data>
+  <data name="SettingsValidationConflict" xml:space="preserve">
+    <value>设置已在其他窗口或实例中更改。请重启 Harness，重新打开设置并重新应用您的更改。</value>
+  </data>
   <data name="SettingsValidationSaveFailedUnknown" xml:space="preserve">
     <value>未知写入错误</value>
   </data>

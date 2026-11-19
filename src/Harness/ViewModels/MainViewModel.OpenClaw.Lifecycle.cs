@@ -46,6 +46,8 @@ public partial class MainViewModel
         _gatewayEventDuringSelection = false;
         _gatewayDataStale = false;
         ResetGatewayRefreshRetry();
+        InvalidateGatewayModels(clear: true);
+        Interlocked.Exchange(ref _gatewayRefreshRequested, 0);
         _gatewayObservedRuns.Clear();
         _gatewayNotifiedRuns.Clear();
         GatewayBusy = false;
@@ -138,11 +140,12 @@ public partial class MainViewModel
             _gatewayHistory = null;
             _gatewayDataStale = false;
             ResetGatewayRefreshRetry();
+            InvalidateGatewayModels(clear: true);
             ResetGatewaySessionDetails();
             _gatewayPage = null;
             _gatewaySubscribedKey = null;
             _gatewayEventRunId = null;
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            RequestGatewayRefresh(GatewayRefreshScope.All);
             NotifyGatewayCapabilities();
             ObserveGatewayUiTask(SubscribeGatewayRosterAsync(runtime, cancellation.Token));
         });
@@ -156,6 +159,7 @@ public partial class MainViewModel
             _gatewayCanWrite = false;
             _gatewayTargetVersion++;
             _gatewayHistory = null;
+            InvalidateGatewayModels(clear: true);
             ResetGatewaySessionDetails();
             GatewayStatusText = GatewayStrings.Text(retrying ? "Reconnecting" : "Disconnected");
             SetGatewayRunPresentation(GatewayStrings.Text("UnknownRun"), false);
@@ -246,9 +250,10 @@ public partial class MainViewModel
                         var sessionChanged = page?.SessionKey != _gatewayPage?.SessionKey;
                         var changed = sessionChanged || page?.RunId != _gatewayPage?.RunId;
                         SetGatewayPageSelection(page);
-                        if (TakeGatewayRefreshRequest(changed, DateTimeOffset.UtcNow))
+                        var scope = TakeGatewayRefreshRequest(changed, DateTimeOffset.UtcNow);
+                        if (scope != GatewayRefreshScope.None)
                         {
-                            await RefreshGatewayDataAsync(runtime, refreshRoster: true, cancellationToken);
+                            await RefreshGatewayDataAsync(runtime, scope, cancellationToken);
                         }
                     }, cancellationToken);
                 }

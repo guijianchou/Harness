@@ -87,13 +87,15 @@ public partial class MainViewModel
         }
 
         var cancellationToken = _lifetimeCts.Token;
+        var environmentId = _selectedEnvironment.Id;
         var environmentName = _selectedEnvironment.Name;
         var gatewayUrl = _selectedEnvironment.GatewayUrl;
+        var backend = _selectedEnvironment.Backend;
         _runtime.Logger.Info("Initializing WebView2 host.", new { environment = environmentName });
 
-        await _webViewService.InitializeAsync(webView, environmentName, cancellationToken);
+        await _webViewService.InitializeAsync(webView, environmentId, environmentName, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!IsCurrentSelectedEnvironment(environmentName, gatewayUrl) ||
+        if (!IsCurrentSelectedEnvironment(environmentId, gatewayUrl, backend) ||
             _isDisposed ||
             !_webViewService.IsInitialized)
         {
@@ -107,7 +109,7 @@ public partial class MainViewModel
             _selectedEnvironment.BackendProfile,
             cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!IsCurrentSelectedEnvironment(environmentName, gatewayUrl) ||
+        if (!IsCurrentSelectedEnvironment(environmentId, gatewayUrl, backend) ||
             _isDisposed ||
             !_hostedUiBridge.IsInitialized)
         {
@@ -125,7 +127,7 @@ public partial class MainViewModel
             _dispatchToUi,
             _autoRefresh);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!IsCurrentSelectedEnvironment(environmentName, gatewayUrl) || _isDisposed)
+        if (!IsCurrentSelectedEnvironment(environmentId, gatewayUrl, backend) || _isDisposed)
         {
             return;
         }
@@ -135,7 +137,7 @@ public partial class MainViewModel
         RefreshResourceScheduling();
         _runtime.Logger.Info("Shell session coordinator attached.", new { environment = environmentName });
 
-        if (_webViewService.IsInitialized && IsCurrentSelectedEnvironment(environmentName, gatewayUrl))
+        if (_webViewService.IsUsingEnvironmentProfile(environmentId) && IsCurrentSelectedEnvironment(environmentId, gatewayUrl, backend))
         {
             _runtime.Logger.Info("Navigating WebView2 to selected environment.", new { environment = environmentName, gatewayUrl });
             _webViewService.Navigate(gatewayUrl);
@@ -287,12 +289,13 @@ public partial class MainViewModel
                 snapshot.Phase == ControlUiPhase.Unavailable);
     }
 
-    private bool IsCurrentSelectedEnvironment(string environmentName, string gatewayUrl)
+    private bool IsCurrentSelectedEnvironment(string environmentId, string gatewayUrl, HostedBackendKind backend)
     {
         return _selectedEnvironment is not null &&
             !_selectedEnvironment.IsPlaceholder &&
-            string.Equals(_selectedEnvironment.Name, environmentName, StringComparison.Ordinal) &&
-            string.Equals(_selectedEnvironment.GatewayUrl, gatewayUrl, StringComparison.Ordinal);
+            string.Equals(_selectedEnvironment.Id, environmentId, StringComparison.Ordinal) &&
+            string.Equals(_selectedEnvironment.GatewayUrl, gatewayUrl, StringComparison.Ordinal) &&
+            _selectedEnvironment.Backend == backend;
     }
 
     private void ResetResourceProbeProjection()

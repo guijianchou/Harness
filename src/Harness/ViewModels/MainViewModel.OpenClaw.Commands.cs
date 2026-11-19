@@ -22,6 +22,7 @@ public partial class MainViewModel
 
         GatewayErrorText = "";
         ResetGatewayRefreshRetry();
+        InvalidateGatewayModels(manual: true);
         var runtime = _gatewayRuntime;
         var client = runtime.Client;
         var version = _gatewayTargetVersion;
@@ -113,7 +114,7 @@ public partial class MainViewModel
                 _gatewaySelectionChanging = false;
                 if (_gatewayEventDuringSelection)
                 {
-                    Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+                    RequestGatewayRefresh(GatewayRefreshScope.History);
                     _gatewayEventDuringSelection = false;
                 }
                 GatewayBusy = false;
@@ -162,7 +163,7 @@ public partial class MainViewModel
             var session = new OpenClawSession { Key = created.Key, SessionId = created.SessionId, AgentId = agentId };
             GatewayBusy = false;
             await SelectGatewaySessionAsync(new OpenClawSessionItem(created.Key, GatewayStrings.Text("NewSession"), created.Key, session));
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            RequestGatewayRefresh(GatewayRefreshScope.Roster | GatewayRefreshScope.History);
         }
         finally
         {
@@ -215,7 +216,7 @@ public partial class MainViewModel
         try
         {
             if (!await ConfirmGatewayTargetAsync(runtime, client, selection.Key, sessionId, token) ||
-                !ReferenceEquals(client, runtime.Client) || !client.IsConnected || version != _gatewayTargetVersion)
+                !ReferenceEquals(client, runtime.Client) || !client.IsConnected || version != _gatewayTargetVersion || !IsGatewayModelCatalogFresh)
             {
                 return;
             }
@@ -226,6 +227,7 @@ public partial class MainViewModel
             {
                 _gatewayTargetVersion++;
                 ResetGatewayModelDraft();
+                InvalidateGatewayModels(manual: true);
                 await RefreshGatewayDataAsync(runtime, true, token);
             }
         }
@@ -270,7 +272,7 @@ public partial class MainViewModel
                 {
                     SetGatewayRunPresentation(GatewayStrings.Text(result.Aborted == true || result.RunIds?.Contains(runId, StringComparer.Ordinal) == true ? "Stopping" : "Reconciling"), true);
                 }
-                Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+                RequestGatewayRefresh(GatewayRefreshScope.History);
             }
         }
         finally

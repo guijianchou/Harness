@@ -327,13 +327,11 @@ public static class HarnessNativeRegression
         anotherInstance.Settings.SelectedEnvironmentName = "Renamed remotely";
         anotherInstance.Settings.AppLanguage = "zh-CN";
         Check(anotherInstance.Save().Succeeded, "another instance changes active environment and language");
-        var profileMoves = WebViewService.ProfileMoves;
         var saved = await draft.SaveAllAsync(store);
         Check(saved is { DidChangeEnvironmentState: true, DidChangeSessionTopology: true, DidChangeLanguage: true },
             "merged environment changes are reported even when this draft only changes notifications");
-        Check(config.Settings.AppLanguage == "zh-CN" && draft.SelectedLanguage != "zh-CN" &&
-            WebViewService.ProfileMoves == profileMoves,
-            "committed language can differ from the draft and imported renames do not move browser profiles");
+        Check(config.Settings.AppLanguage == "zh-CN" && draft.SelectedLanguage != "zh-CN",
+            "committed language can differ from the draft");
         if (saved!.Value.DidChangeEnvironmentState) { main.Reload(); }
         Check(main.SelectedEnvironmentName == "Renamed remotely" && main.CurrentUrl == "https://merged-settings.test/changed" &&
             main.SelectedEnvironment?.OpenClawConnection?.CredentialReference == "other-instance-reference" && main.NavigationCount == 1,
@@ -357,8 +355,8 @@ public static class HarnessNativeRegression
         Check(selectionResult is { DidChangeEnvironmentState: true, DidChangeSessionTopology: true },
             "merged selection-only changes request the environment refresh");
         main.Reload();
-        Check(main.SelectedEnvironmentName == "Secondary" && main.NavigationCount == 2,
-            "merged selected environment reaches the main view model");
+        Check(main.SelectedEnvironmentName == "Secondary" && main.NavigationCount == 1 && main.RecreationCount == 1,
+            "merged selected environment recreates the host for its own profile");
     }
 
     private static void VerifySettingsAndEnvironment(string folder)
@@ -379,7 +377,7 @@ public static class HarnessNativeRegression
         settings.EditName = "Renamed";
         Check(settings.TryApplyEdit(), "prepare environment rename");
         failWrites = true;
-        Check(!settings.SaveAll(out _) && !config.Settings.AlwaysOnTop && WebViewService.ProfileMoves == 0, "failed Settings save preserves runtime configuration and profiles");
+        Check(!settings.SaveAll(out _) && !config.Settings.AlwaysOnTop, "failed Settings save preserves runtime configuration");
         failWrites = false;
         Check(settings.SaveAll(out var saved) && saved.DidChangeLiveShellOptions && saved.DidChangeSessionTopology, "Settings retry retains live and environment changes");
 
@@ -390,6 +388,11 @@ public static class HarnessNativeRegression
         main.Reload();
         Check(main.NavigationCount == 0 && main.RecreationCount == 0 && main.ResetCount == 0, "metadata refresh preserves the current session despite collection selection callbacks");
         draft = config.CreateSnapshot();
+        draft.Environments[0].Name = "Renamed again";
+        Check(config.Save(draft).Succeeded, "save display-only rename");
+        main.Reload();
+        Check(main.NavigationCount == 0 && main.RecreationCount == 0 && main.ResetCount == 0, "stable identity rename retains the active profile and session");
+        draft = config.CreateSnapshot();
         draft.Environments[0].GatewayUrl = "https://settings-native.test/changed";
         Check(config.Save(draft).Succeeded, "save changed gateway");
         main.Reload();
@@ -399,6 +402,11 @@ public static class HarnessNativeRegression
         Check(config.Save(draft).Succeeded, "save changed backend");
         main.Reload();
         Check(main.NavigationCount == 1 && main.RecreationCount == 1, "changed backend recreates the bridge without an extra navigation");
+        draft = config.CreateSnapshot();
+        draft.Environments[0].Id = Guid.NewGuid().ToString("N");
+        Check(config.Save(draft).Succeeded, "replace environment with the same display name and URL");
+        main.Reload();
+        Check(main.NavigationCount == 1 && main.RecreationCount == 2, "a reused display name cannot reuse another environment profile");
     }
 
     private static async Task VerifyErrorPageAsync(CoreWebView2 core, CoreWebView2Controller controller, CoreWebView2Environment environment, string repoRoot, string outputDirectory)
@@ -536,8 +544,7 @@ namespace Harness.Services
         public event Action? ErrorPageSettingsRequested;
         public event Action<string>? NavigationErrorOccurred;
         public event Action<ControlUiProbeSnapshot>? ControlUiSnapshotUpdated;
-        public static int ProfileMoves { get; private set; }
-        public static void TryMoveUserDataFolderToRenamedEnvironment(string from, string to) { ProfileMoves++; }
+        public static void RegisterEnvironmentProfiles(IEnumerable<Harness.Models.EnvironmentConfig> savedEnvironments) { }
         public WebViewService(CoreWebView2 core) { _coreWebView = core; _statusInspector = new TestInspector(snapshot => ApplyControlUiSnapshot(snapshot, false)); core.WebMessageReceived += HandleMessage; core.NavigationStarting += HandleStarting; }
         public void Dispose() { _coreWebView.WebMessageReceived -= HandleMessage; _coreWebView.NavigationStarting -= HandleStarting; }
         public void ShowError(string target, string status, ConnectionState state = ConnectionState.Error) { _lastNavigatedUrl = target; SetState(state); NavigateToErrorPage(target, status); }
@@ -589,6 +596,7 @@ namespace Harness.ViewModels
         private readonly TestCoordinator _coordinator = new();
         private readonly TestLatency _latencyService = new();
         private Harness.Models.EnvironmentConfig? _selectedEnvironment;
+        private bool _isDisposed => false;
         public System.Collections.ObjectModel.ObservableCollection<Harness.Models.EnvironmentConfig> Environments { get; } = new();
         public string CurrentUrl => _selectedEnvironment?.GatewayUrl ?? "";
         public string SelectedEnvironmentName => _selectedEnvironment?.Name ?? "";
@@ -606,6 +614,7 @@ namespace Harness.ViewModels
         {
             _runtime = new TestRuntime(config);
             _selectedEnvironment = config.GetSelectedEnvironment()!.Clone();
+            _webViewService.EnvironmentId = _selectedEnvironment.Id;
             Environments.Add(_selectedEnvironment);
             Environments.CollectionChanged += (_, _) => SelectedEnvironment = null;
             WebViewRecreationRequested += _ => RecreationCount++;
@@ -621,15 +630,19 @@ namespace Harness.ViewModels
         private void ApplyRecoveryState(Harness.Models.RecoveryState state) { }
         private void DismissError() { }
         private void DismissDiagnostics() { }
-        private sealed record TestRuntime(ConfigurationService Configuration);
+        private sealed record TestRuntime(ConfigurationService Configuration)
+        {
+            public IAppLogger Logger { get; } = new WebViewService.TestLogger();
+        }
         private sealed class TestEnvironmentWebView
         {
             public bool IsInitialized => true;
+            public string EnvironmentId { get; set; } = "";
             public int NavigationCount { get; private set; }
-            public bool IsUsingEnvironmentProfile(string name) => true;
+            public bool IsUsingEnvironmentProfile(string environmentId) => EnvironmentId == environmentId;
             public void Navigate(string url) => NavigationCount++;
             public void StopHeartbeat() { }
-            public Task ClearEnvironmentSessionAsync(string name) => Task.CompletedTask;
+            public Task ClearEnvironmentSessionAsync(string environmentId) => Task.CompletedTask;
         }
         private sealed class TestCoordinator
         {

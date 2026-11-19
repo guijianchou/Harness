@@ -1,6 +1,8 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 // Exercises the authored Settings save handlers and ViewModel with in-memory startup registration.
 
+using System.Security.Cryptography;
+using System.Text;
 using Harness.Helpers;
 using Harness.Models;
 using Harness.Services;
@@ -16,6 +18,10 @@ public static class SettingsReliabilityRegression
         var folder = Directory.CreateTempSubdirectory("Harness-settings-reliability-");
         try
         {
+            await VerifyProfileRegistrationBeforeRenameAsync(Path.Combine(folder.FullName, "profile-registration"));
+            VerifyStaleEnvironmentDraft(Path.Combine(folder.FullName, "stale-addition"), remoteAddition: true);
+            VerifyStaleEnvironmentDraft(Path.Combine(folder.FullName, "stale-edit"), remoteAddition: false);
+            VerifyDefaultEnvironmentBaseline(Path.Combine(folder.FullName, "default-baseline"));
             await VerifyCommittedSynchronizationAsync(Path.Combine(folder.FullName, "synchronization"));
             VerifyProfileDeletion(folder.FullName);
             VerifyEmptyEnvironment(Path.Combine(folder.FullName, "empty-environment"));
@@ -44,16 +50,205 @@ public static class SettingsReliabilityRegression
         });
         configuration.Load();
         Harness.App.Configuration = configuration;
+        WebViewService.ProfileStore = new EnvironmentProfileStore(Path.Combine(folder, "profiles"));
         return configuration;
     }
 
     private static SettingsViewModel CreateModel(ConfigurationService configuration) =>
         new(new SettingsPersistenceAdapter(configuration, TestLogger.Instance));
 
+    private static async Task VerifyProfileRegistrationBeforeRenameAsync(string folder)
+    {
+        var profiles = Path.Combine(folder, "profiles");
+        var registry = Path.Combine(profiles, "environment-profiles.json");
+        var requireOwnership = false;
+        var configuration = CreateConfiguration(folder, () =>
+        {
+            if (requireOwnership)
+            {
+                Check(File.Exists(registry), "legacy ownership is durable before the renamed settings file is written");
+            }
+            return false;
+        });
+        var saved = configuration.CreateSnapshot().Environments.Single();
+        var legacy = CreateLegacyProfile(profiles, saved.Name);
+        var unrelated = CreateLegacyProfile(profiles, "Renamed");
+        File.WriteAllText(Path.Combine(legacy.FullName, "Cookies"), "original-login");
+        File.WriteAllText(Path.Combine(unrelated.FullName, "Cookies"), "unrelated-login");
+        var draft = CreateModel(configuration);
+        draft.SelectedEnvironment = draft.Environments.Single();
+        draft.EditName = "Renamed";
+        draft.LaunchAtStartup = true;
+        Check(draft.TryApplyEdit(), "stage a rename before first profile ownership registration");
+        var notifications = 0;
+        configuration.SettingsCommitted += () => notifications++;
+        var before = File.ReadAllText(configuration.SettingsFilePath);
+        var registeredAtStartup = false;
+        var startup = FakeStartup((enabled, _) =>
+        {
+            var previous = registeredAtStartup;
+            registeredAtStartup = enabled;
+            return Task.FromResult(new StartupRegistrationChange(_ =>
+            {
+                registeredAtStartup = previous;
+                return Task.FromResult(true);
+            }));
+        });
+        var credentials = new OpenClawCredentialStore(Path.Combine(folder, "secrets"));
+        using (File.Open(Path.Combine(profiles, "environment-profiles.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+        {
+            var registrationFailed = false;
+            try
+            {
+                WebViewService.RegisterEnvironmentProfiles(configuration.CreateSnapshot().Environments);
+            }
+            catch (IOException)
+            {
+                registrationFailed = true;
+            }
+            Check(registrationFailed && !File.Exists(registry), "startup profile registration fails without capturing ownership");
+            Check(await draft.SaveAllAsync(credentials, startup) is null,
+                "a failed startup profile registration cannot allow the later rename to commit");
+            Check(File.ReadAllText(configuration.SettingsFilePath) == before &&
+                configuration.Settings.Environments.Single().Name == saved.Name && notifications == 0,
+                "profile registration failure preserves saved settings and publishes no commit");
+            Check(!registeredAtStartup && !configuration.Settings.LaunchAtStartup && draft.LaunchAtStartup,
+                "profile registration failure rolls back startup changes and retains the draft");
+            Check(draft.ValidationMessage.StartsWith(string.Format(StringResources.SettingsValidationSaveFailedFormat, string.Empty), StringComparison.Ordinal),
+                "profile registration failure uses the existing settings save validation path");
+            draft.EditUrl = "https://retry.example.org";
+            Check(draft.TryApplyEdit() && draft.Environments.Single().Name == "Renamed",
+                "the failed rename draft remains editable");
+        }
+
+        WebViewService.ProfileStore = new EnvironmentProfileStore(profiles);
+        requireOwnership = true;
+        Check(await draft.SaveAllAsync(credentials, startup) is not null && registeredAtStartup && notifications == 1,
+            "rename retry registers the saved baseline even after discarding pending in-memory ownership");
+        var reloaded = new ConfigurationService(folder);
+        reloaded.Load();
+        var renamed = reloaded.CreateSnapshot().Environments.Single();
+        Check(renamed.Id == saved.Id && renamed.Name == "Renamed" && renamed.GatewayUrl == "https://retry.example.org",
+            "successful retry persists the editable rename with its stable identity");
+        var restarted = new EnvironmentProfileStore(profiles);
+        restarted.RegisterEnvironments([renamed]);
+        var migrated = restarted.PrepareUserDataFolder(renamed.Id);
+        Check(File.ReadAllText(Path.Combine(migrated, "Cookies")) == "original-login" &&
+            File.ReadAllText(Path.Combine(unrelated.FullName, "Cookies")) == "unrelated-login",
+            "restart migrates the original login using durable ownership and preserves the renamed orphan");
+    }
+
+    private static DirectoryInfo CreateLegacyProfile(string root, string name)
+    {
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(name)))[..8];
+        return Directory.CreateDirectory(Path.Combine(root, $"{name}_{hash}"));
+    }
+
+    private static void VerifyStaleEnvironmentDraft(string folder, bool remoteAddition)
+    {
+        var first = CreateConfiguration(folder);
+        var draft = CreateModel(first);
+        var unedited = CreateModel(first);
+        draft.SelectedEnvironment = draft.Environments[0];
+        draft.EditUrl = "https://local.example.org";
+        Check(draft.TryApplyEdit(), "stage local environment edit before the remote commit");
+
+        var second = new ConfigurationService(folder);
+        second.Load();
+        var originalId = second.Settings.Environments[0].Id;
+        if (remoteAddition)
+        {
+            second.Settings.Environments.Add(new EnvironmentConfig
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                Name = "Remote",
+                GatewayUrl = "https://remote.example.org",
+            });
+        }
+        else
+        {
+            second.Settings.Environments[0].GatewayUrl = "https://remote.example.org";
+            second.Settings.Environments[0].OpenClawConnection = new OpenClawConnectionOptions
+            {
+                CredentialReference = "remote-reference",
+            };
+        }
+        second.Settings.AppTheme = "Dark";
+        Check(second.Save().Succeeded, "B commits its environment and theme changes");
+        first.Settings.WindowLeft = 120;
+        Check(first.Save().Succeeded, "A ordinary save imports B while the Settings drafts remain open");
+        var diskBefore = File.ReadAllText(first.SettingsFilePath);
+        var notifications = 0;
+        first.SettingsCommitted += () => notifications++;
+
+        Check(!draft.SaveAll(out _), "A stale environment draft must conflict after the ordinary save advanced its baseline");
+        Check(draft.ValidationMessage == string.Format(StringResources.SettingsValidationSaveFailedFormat,
+            StringResources.SettingsValidationConflict), "environment conflicts use localized validation");
+        Check(File.ReadAllText(first.SettingsFilePath) == diskBefore && notifications == 0,
+            "conflict leaves disk and committed notifications unchanged");
+        Check(draft.Environments[0].GatewayUrl == "https://local.example.org" &&
+            first.Settings.Environments[0].GatewayUrl != "https://local.example.org",
+            "conflict retains the user's draft without applying it to live settings");
+        draft.EditName = "Edited after conflict";
+        Check(draft.TryApplyEdit() && draft.Environments[0].Name == "Edited after conflict",
+            "the rejected draft remains editable");
+        Check(!draft.SaveAll(out _) && File.ReadAllText(first.SettingsFilePath) == diskBefore && notifications == 0,
+            "editing and retrying the rejected draft does not advance its baseline or lose remote data");
+
+        unedited.ThemeIndex = unedited.ThemeIndex;
+        unedited.NotifyOnRunCompleted = false;
+        Check(unedited.SaveAll(out _) && first.Settings.AppTheme == "Dark" && !first.Settings.NotifyOnRunCompleted,
+            "an unrelated dialog edit preserves imported fields and same-value binding writes stay clean");
+        var reloaded = new ConfigurationService(folder);
+        reloaded.Load();
+        Check(reloaded.Settings.Environments[0].Id == originalId &&
+            (remoteAddition
+                ? reloaded.Settings.Environments.Any(environment => environment.Name == "Remote")
+                : reloaded.Settings.Environments[0].GatewayUrl == "https://remote.example.org" &&
+                  reloaded.Settings.Environments[0].OpenClawConnection?.CredentialReference == "remote-reference"),
+            "B environment identity, addition or changed connection survives the stale dialog save");
+
+        var reopened = CreateModel(first);
+        reopened.SelectedEnvironment = reopened.Environments[0];
+        reopened.EditUrl = "https://local.example.org";
+        Check(reopened.TryApplyEdit() && reopened.SaveAll(out _), "reopened draft can reapply its edit against the latest baseline");
+        second.Load();
+        second.Settings.Environments.Add(new EnvironmentConfig
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = "Later addition",
+            GatewayUrl = "https://later.example.org",
+        });
+        Check(second.Save().Succeeded && first.Save().Succeeded, "an ordinary save imports a later remote addition");
+        reopened.NotifyOnlyWhenUnfocused = false;
+        Check(reopened.SaveAll(out _) && first.Settings.Environments.Any(environment => environment.Name == "Later addition"),
+            "saving the same dialog again does not replay its previously committed environment changes");
+    }
+
     private static StartupRegistrationService FakeStartup(
         Func<bool, CancellationToken, Task<StartupRegistrationChange>> apply,
         Func<CancellationToken, Task<StartupRegistrationState>>? read = null) =>
         new(apply, read ?? (_ => Task.FromResult(StartupRegistrationState.NotRegistered)));
+
+    private static void VerifyDefaultEnvironmentBaseline(string folder)
+    {
+        var configuration = CreateConfiguration(folder);
+        configuration.Settings.Environments.Add(new EnvironmentConfig
+        {
+            Id = "remaining-environment",
+            Name = "Remaining",
+            GatewayUrl = "https://remaining.example.org",
+        });
+        Check(configuration.Save().Succeeded, "seed a second environment for default normalization");
+        var draft = CreateModel(configuration);
+        draft.SelectedEnvironment = draft.Environments[0];
+        draft.RemoveEnvironment();
+        Check(draft.SaveAll(out _) && configuration.Settings.Environments.Single().IsDefault,
+            "removing the default promotes the remaining environment");
+        draft.Environments[0].GatewayUrl = "https://updated.example.org";
+        Check(draft.SaveAll(out _) && configuration.Settings.Environments.Single().GatewayUrl == "https://updated.example.org",
+            "later dialog edits compare against its own normalized commit");
+    }
 
     private static async Task VerifyStartupAsync(string folder)
     {
@@ -231,9 +426,10 @@ public static class SettingsReliabilityRegression
 
     private static void VerifyProfileDeletion(string folder)
     {
-        WebViewService.ProfileRoot = Path.Combine(folder, "profiles");
+        WebViewService.ProfileStore = new EnvironmentProfileStore(Path.Combine(folder, "profiles"));
+        WebViewService.ProfileStore.RegisterEnvironments([new EnvironmentConfig { Id = "locked", Name = "Locked" }]);
         var profile = WebViewService.GetUserDataFolderForEnvironment("locked");
-        Directory.CreateDirectory(profile);
+        WebViewService.ProfileStore.PrepareUserDataFolder("locked");
         var file = Path.Combine(profile, "Cookies");
         File.WriteAllText(file, "synthetic");
         using (File.Open(file, FileMode.Open, FileAccess.Read, FileShare.None))
@@ -307,8 +503,8 @@ public static class SettingsReliabilityRegression
         main.ClearSession = _ => pendingClear.Task;
         var button = new Microsoft.UI.Xaml.Controls.Button { Tag = targetId };
         var pending = dialog.ClearSessionForTest(button);
-        Check(!dialog.InteractionEnabled && main.ClearSessionCount == 1 && main.LastClearedEnvironment == target,
-            "session reset uses the saved profile name and disables conflicting Settings actions");
+        Check(!dialog.InteractionEnabled && main.ClearSessionCount == 1 && main.LastClearedEnvironment == targetId,
+            "session reset uses the saved environment ID and disables conflicting Settings actions");
         await dialog.ClearSessionForTest(button);
         dialog.ClickSave();
         Check(main.ClearSessionCount == 1 && !dialog.IsSavingSettings,
@@ -319,11 +515,10 @@ public static class SettingsReliabilityRegression
             "successful session reset restores editing and reports completion");
 
         configuration.Settings.Environments[0].Name = "Renamed after opening Settings";
-        var renamed = configuration.Settings.Environments[0].Name;
         main.ClearSession = _ => Task.CompletedTask;
         await dialog.ClearSessionForTest(button);
-        Check(main.LastClearedEnvironment == renamed,
-            "a stale session row resolves the latest saved profile name by stable environment ID");
+        Check(main.LastClearedEnvironment == targetId,
+            "a stale session row keeps the same profile identity after the saved environment is renamed");
         configuration.Settings.Environments.Clear();
         var cleared = main.ClearSessionCount;
         await dialog.ClearSessionForTest(button);
@@ -435,7 +630,7 @@ namespace Harness.Helpers
 {
     public static partial class StringResources
     {
-        public static string Get(string key) => key;
+        public static string Get(string key) => key == "SettingsValidationSaveFailedFormat" ? "Save failed: {0}" : key;
     }
 }
 
@@ -454,9 +649,9 @@ namespace Harness.Services
 
     public static partial class WebViewService
     {
-        public static string ProfileRoot { get; set; } = "";
-        public static string GetUserDataFolderForEnvironment(string name) => Path.Combine(ProfileRoot, name);
-        public static void TryMoveUserDataFolderToRenamedEnvironment(string original, string renamed) { }
+        public static EnvironmentProfileStore ProfileStore { get; set; } = null!;
+        public static void RegisterEnvironmentProfiles(IEnumerable<EnvironmentConfig> savedEnvironments) => ProfileStore.RegisterEnvironments(savedEnvironments);
+        public static string GetUserDataFolderForEnvironment(string environmentId) => ProfileStore.GetUserDataFolder(environmentId);
     }
 }
 
@@ -581,11 +776,11 @@ namespace Harness.ViewModels
         public System.Windows.Input.ICommand ViewLogsCommand => new TestCommand(this);
         public System.Windows.Input.ICommand DevToolsCommand => new TestCommand(this);
         public System.Windows.Input.ICommand ExportDiagnosticBundleCommand => new TestCommand(this);
-        public Task ClearSessionForEnvironmentAsync(string environmentName)
+        public Task ClearSessionForEnvironmentAsync(string environmentId)
         {
             ClearSessionCount++;
-            LastClearedEnvironment = environmentName;
-            return ClearSession(environmentName);
+            LastClearedEnvironment = environmentId;
+            return ClearSession(environmentId);
         }
         private sealed class TestCommand(MainViewModel owner) : System.Windows.Input.ICommand
         {

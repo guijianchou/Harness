@@ -12,6 +12,18 @@ public partial class MainViewModel
     private string? _gatewaySubscribedKey;
     private string? _gatewayEventRunId;
 
+    [Flags]
+    private enum GatewayRefreshScope
+    {
+        None = 0,
+        History = 1,
+        Roster = 2,
+        Models = 4,
+        All = History | Roster | Models,
+    }
+
+    private void RequestGatewayRefresh(GatewayRefreshScope scope) => Interlocked.Or(ref _gatewayRefreshRequested, (int)scope);
+
     private async Task SubscribeGatewayRosterAsync(OpenClawSessionRuntime runtime, CancellationToken cancellationToken)
     {
         var client = runtime.Client;
@@ -32,16 +44,19 @@ public partial class MainViewModel
         {
             if (IsCurrentGateway(runtime))
             {
-                Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+                RequestGatewayRefresh(GatewayRefreshScope.All);
             }
         }
     }
 
-    private async Task RefreshGatewayDataAsync(OpenClawSessionRuntime runtime, bool refreshRoster, CancellationToken cancellationToken)
+    private Task RefreshGatewayDataAsync(OpenClawSessionRuntime runtime, bool refreshRoster, CancellationToken cancellationToken) =>
+        RefreshGatewayDataAsync(runtime, refreshRoster ? GatewayRefreshScope.Roster | GatewayRefreshScope.History : GatewayRefreshScope.History, cancellationToken);
+
+    private async Task RefreshGatewayDataAsync(OpenClawSessionRuntime runtime, GatewayRefreshScope scope, CancellationToken cancellationToken)
     {
         if (!await _gatewayDataGate.WaitAsync(0, cancellationToken))
         {
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            RequestGatewayRefresh(scope);
             return;
         }
 
@@ -50,7 +65,7 @@ public partial class MainViewModel
         var targetVersion = _gatewayTargetVersion;
         var searchVersion = _gatewaySearchVersion;
         var search = GatewaySearchText.Trim();
-        var historyConfirmed = false;
+        var readingHistory = false;
         try
         {
             if (client?.IsConnected != true)
@@ -60,9 +75,9 @@ public partial class MainViewModel
 
             bool Current() => IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) &&
                 client.IsConnected && pageKey == _gatewayPage?.SessionKey && targetVersion == _gatewayTargetVersion &&
-                searchVersion == _gatewaySearchVersion && !cancellationToken.IsCancellationRequested;
+                (!scope.HasFlag(GatewayRefreshScope.Roster) || searchVersion == _gatewaySearchVersion) && !cancellationToken.IsCancellationRequested;
 
-            if (refreshRoster)
+            if (scope.HasFlag(GatewayRefreshScope.Roster))
             {
                 var expectedCount = searchVersion == _gatewayRosterSearchVersion ? Math.Clamp(_gatewayRoster.Count, 60, 600) : 60;
                 var roster = await client.ListSessionsAsync(cancellationToken: cancellationToken, search: search.Length == 0 ? null : search);
@@ -85,6 +100,12 @@ public partial class MainViewModel
                 ProjectGatewayRoster();
             }
 
+            if (!scope.HasFlag(GatewayRefreshScope.History) && !scope.HasFlag(GatewayRefreshScope.Models))
+            {
+                CompleteGatewayDataRefresh();
+                return;
+            }
+
             if (string.IsNullOrEmpty(pageKey))
             {
                 _gatewayHistory = null;
@@ -95,6 +116,14 @@ public partial class MainViewModel
 
             var selected = _gatewayRoster.FirstOrDefault(session => session.Key == pageKey);
             var agentId = TryGetGatewayAgentId(pageKey, out var canonicalAgentId) ? canonicalAgentId : selected?.AgentId;
+            if (!scope.HasFlag(GatewayRefreshScope.History) && _gatewayHistory is { } confirmed && !_gatewayDataStale)
+            {
+                await RefreshGatewayModelsAsync(runtime, client, agentId, pageKey, confirmed.SessionId,
+                    confirmed.SessionInfo ?? selected, Current, cancellationToken);
+                NotifyGatewayCapabilities();
+                return;
+            }
+            readingHistory = true;
             if (_gatewaySubscribedKey != pageKey)
             {
                 await SubscribeGatewaySessionAsync(client, pageKey, agentId, cancellationToken);
@@ -113,12 +142,13 @@ public partial class MainViewModel
             }
             if (eventVersion != _gatewayEventVersion || !OpenClawSessionSnapshot.CanReplace(_gatewayHistory, history))
             {
-                Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+                RequestGatewayRefresh(GatewayRefreshScope.History);
                 return;
             }
             if (!OpenClawSessionIdentity.Matches(pageKey, history))
             {
                 _gatewayHistory = null;
+                InvalidateGatewayModels(clear: true);
                 GatewayModels.Clear();
                 SelectedGatewayModel = null;
                 GatewayErrorText = GatewayStrings.Text("SelectionNotConfirmed");
@@ -136,8 +166,9 @@ public partial class MainViewModel
                 _gatewayNotifiedRuns.RemoveWhere(id => id.StartsWith(pageKey + "|", StringComparison.Ordinal));
             }
             _gatewayHistory = history;
+            _gatewayDataStale = false;
+            readingHistory = false;
             SynchronizeGatewaySessionDetails();
-            historyConfirmed = true;
             if (history.SessionInfo?.HasActiveRun == false || history.SessionInfo?.ActiveRunIds is { Length: 0 })
             {
                 _gatewayEventRunId = null;
@@ -159,46 +190,8 @@ public partial class MainViewModel
             var effective = ModelIdentifier(row?.Model, row?.ModelProvider);
             ModelSummaryText = ModelIdentifier(row?.ActiveModel, row?.ActiveModelProvider) is { Length: > 0 } active ? active :
                 effective.Length > 0 ? effective : DefaultModelSummary;
-            var models = await client.ListModelsAsync(agentId, pageKey, cancellationToken);
-            if (!Current())
-            {
-                return;
-            }
-            var priorSelection = _gatewayModelEdited ? _selectedGatewayModel?.Id : null;
-            var priorThinking = _gatewayThinkingEdited ? _selectedGatewayThinkingLevel?.Id : null;
-            _gatewayProjectingModel = true;
-            try
-            {
-                GatewayModels.Clear();
-                GatewayModels.Add(new OpenClawModelItem("", GatewayStrings.Text("DefaultModel")));
-                foreach (var model in models.Models.Where(model => model.ManualSelectionAllowed == true && model.Available != false))
-                {
-                    var id = ModelIdentifier(model.Id, model.Provider);
-                    if (!string.IsNullOrEmpty(id) && !GatewayModels.Any(item => item.Id == id))
-                    {
-                        GatewayModels.Add(new OpenClawModelItem(id, string.IsNullOrWhiteSpace(model.Name) ? id : $"{model.Name} · {model.Provider}", model));
-                    }
-                }
-
-                SelectedGatewayModel = GatewayModels.FirstOrDefault(model => model.Id == priorSelection) ??
-                    GatewayModels.FirstOrDefault(model => model.Id == effective) ?? GatewayModels.FirstOrDefault();
-                var retainsModelDraft = priorSelection is not null && priorSelection == SelectedGatewayModel?.Id;
-                _gatewayModelEdited = retainsModelDraft;
-                var thinking = priorThinking ?? (retainsModelDraft && priorSelection != effective ? "" : row?.ThinkingLevel ?? "");
-                ProjectGatewayThinkingOptions(thinking);
-                _gatewayThinkingEdited = priorThinking is not null && priorThinking == SelectedGatewayThinkingLevel?.Id;
-            }
-            finally
-            {
-                _gatewayProjectingModel = false;
-            }
-            ResetGatewayRefreshRetry();
-            _gatewayDataStale = false;
-            if (GatewayErrorText == _gatewayRefreshErrorText)
-            {
-                GatewayErrorText = "";
-            }
-            _gatewayRefreshErrorText = null;
+            CompleteGatewayDataRefresh();
+            await RefreshGatewayModelsAsync(runtime, client, agentId, pageKey, history.SessionId, row, Current, cancellationToken);
             NotifyGatewayCapabilities();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -209,12 +202,12 @@ public partial class MainViewModel
             if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && client?.IsConnected == true &&
                 pageKey == _gatewayPage?.SessionKey && targetVersion == _gatewayTargetVersion && searchVersion == _gatewaySearchVersion)
             {
-                _gatewayDataStale = true;
-                if (!historyConfirmed)
+                if (readingHistory)
                 {
+                    _gatewayDataStale = true;
                     SetGatewayRunPresentation(GatewayStrings.Text("UnknownRun"), false);
                 }
-                ScheduleGatewayRefreshRetry(ex);
+                ScheduleGatewayRefreshRetry(ex, scope);
                 NotifyGatewayCapabilities();
                 ShowGatewayError(ex);
                 _gatewayRefreshErrorText = GatewayErrorText;
@@ -226,6 +219,16 @@ public partial class MainViewModel
         }
     }
 
+    private void CompleteGatewayDataRefresh()
+    {
+        ResetGatewayRefreshRetry();
+        if (GatewayErrorText == _gatewayRefreshErrorText)
+        {
+            GatewayErrorText = "";
+        }
+        _gatewayRefreshErrorText = null;
+    }
+
     private void ResetGatewayRefreshRetry()
     {
         _gatewayRefreshFailures = 0;
@@ -234,7 +237,7 @@ public partial class MainViewModel
         _gatewayEventRecoveryRequested = false;
     }
 
-    private void ScheduleGatewayRefreshRetry(Exception error)
+    private void ScheduleGatewayRefreshRetry(Exception error, GatewayRefreshScope scope)
     {
         var retryable = error is OpenClawGatewayException gateway &&
             (gateway.Retryable || gateway.Code == "UNAVAILABLE" ||
@@ -244,39 +247,59 @@ public partial class MainViewModel
         if (retryable && ++_gatewayRefreshFailures <= 3)
         {
             _gatewayRefreshNotBefore = DateTimeOffset.UtcNow.AddSeconds(1 << _gatewayRefreshFailures);
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            RequestGatewayRefresh(scope);
         }
         else
         {
             // Recovery waits for a new target, connection, manual refresh, or server change.
             _gatewayRefreshNotBefore = DateTimeOffset.MaxValue;
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 0);
         }
     }
 
-    private void RequestGatewayEventRefresh()
+    private void RequestGatewayEventRefresh(GatewayRefreshScope scope = GatewayRefreshScope.History)
     {
         if (_gatewayRefreshRetryable && _gatewayRefreshFailures > 3)
         {
             _gatewayEventRecoveryRequested = true;
         }
-        Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+        RequestGatewayRefresh(scope);
     }
 
-    private bool TakeGatewayRefreshRequest(bool pageChanged, DateTimeOffset now)
+    private GatewayRefreshScope TakeGatewayRefreshRequest(bool pageChanged, DateTimeOffset now)
     {
         if (pageChanged)
         {
             ResetGatewayRefreshRetry();
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 0);
-            return true;
+            RequestGatewayRefresh(GatewayRefreshScope.History);
         }
         if (AutoRefreshEnabled && _gatewayEventRecoveryRequested && now >= _gatewayEventRecoveryNotBefore)
         {
             ResetGatewayRefreshRetry();
         }
-        return (_gatewayRefreshFailures == 0 || AutoRefreshEnabled) && now >= _gatewayRefreshNotBefore && now >= _gatewaySearchNotBefore &&
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 0) != 0;
+        if ((_gatewayRefreshFailures != 0 && !AutoRefreshEnabled) || now < _gatewayRefreshNotBefore)
+        {
+            return GatewayRefreshScope.None;
+        }
+        var scope = (GatewayRefreshScope)Interlocked.Exchange(ref _gatewayRefreshRequested, 0);
+        if (now < _gatewaySearchNotBefore && scope.HasFlag(GatewayRefreshScope.Roster))
+        {
+            RequestGatewayRefresh(GatewayRefreshScope.Roster);
+            scope &= ~GatewayRefreshScope.Roster;
+        }
+        if (_gatewayModelCatalog is not null && now >= _gatewayModelsExpireAt)
+        {
+            NotifyGatewayCapabilities();
+            if (AutoRefreshEnabled)
+            {
+                scope |= GatewayRefreshScope.Models;
+            }
+        }
+        if (scope.HasFlag(GatewayRefreshScope.Models) && !CanRefreshGatewayModels(now))
+        {
+            RequestGatewayRefresh(GatewayRefreshScope.Models);
+            scope &= ~GatewayRefreshScope.Models;
+        }
+        return scope;
     }
 
     private async Task SubscribeGatewaySessionAsync(OpenClawGatewayClient client, string key, string? agentId, CancellationToken cancellationToken)
@@ -302,10 +325,47 @@ public partial class MainViewModel
 
     private void ProjectGatewayRoster()
     {
-        GatewaySessions.Clear();
-        foreach (var row in _gatewayRoster)
+        var retained = GatewaySessions.ToDictionary(item => (item.Session.AgentId, item.Key));
+        var desired = new List<OpenClawSessionItem>();
+        foreach (var rosterRow in _gatewayRoster)
         {
-            GatewaySessions.Add(new OpenClawSessionItem(row.Key, SessionTitle(row), row.LastMessagePreview ?? row.Key, row));
+            var row = rosterRow;
+            if (row.Key == _gatewayPage?.SessionKey && _gatewayHistory?.SessionInfo is { } current &&
+                row.SessionId == _gatewayHistory.SessionId && (row.SnapshotAt ?? 0) <= (current.SnapshotAt ?? 0))
+            {
+                row = current;
+            }
+            var item = new OpenClawSessionItem(row.Key, SessionTitle(row), rosterRow.LastMessagePreview ?? row.Key, row);
+            desired.Add(retained.TryGetValue((row.AgentId, row.Key), out var previous) && SameGatewaySessionItem(previous, item) ? previous : item);
+        }
+        var identities = desired.Select(item => (item.Session.AgentId, item.Key)).ToHashSet();
+        for (var index = GatewaySessions.Count - 1; index >= 0; index--)
+        {
+            if (!identities.Contains((GatewaySessions[index].Session.AgentId, GatewaySessions[index].Key)))
+            {
+                GatewaySessions.RemoveAt(index);
+            }
+        }
+        for (var index = 0; index < desired.Count; index++)
+        {
+            var item = desired[index];
+            var existing = GatewaySessions.FirstOrDefault(candidate => candidate.Key == item.Key && candidate.Session.AgentId == item.Session.AgentId);
+            if (existing is null)
+            {
+                GatewaySessions.Insert(index, item);
+            }
+            else
+            {
+                var previousIndex = GatewaySessions.IndexOf(existing);
+                if (previousIndex != index)
+                {
+                    GatewaySessions.Move(previousIndex, index);
+                }
+                if (!ReferenceEquals(existing, item))
+                {
+                    GatewaySessions[index] = item;
+                }
+            }
         }
 
         var selection = GatewaySessions.FirstOrDefault(item => item.Key == _gatewayPage?.SessionKey);
@@ -315,15 +375,29 @@ public partial class MainViewModel
         }
     }
 
+    private static bool SameGatewaySessionItem(OpenClawSessionItem left, OpenClawSessionItem right) =>
+        left.Key == right.Key && left.Title == right.Title && left.Subtitle == right.Subtitle &&
+        (ReferenceEquals(left.Session, right.Session) ||
+         JsonElement.DeepEquals(JsonSerializer.SerializeToElement(left.Session), JsonSerializer.SerializeToElement(right.Session)));
+
     private void SetGatewaySelection(OpenClawSessionItem value)
     {
         var listed = GatewaySessions.FirstOrDefault(item => item.Key == value.Key);
         if (listed is not null)
         {
             value = value with { Subtitle = listed.Subtitle };
-            _selectedGatewaySession = value;
-            // ListView.SelectedItem must be the same item that the collection exposes.
-            GatewaySessions[GatewaySessions.IndexOf(listed)] = value;
+            if (SameGatewaySessionItem(listed, value))
+            {
+                value = listed;
+            }
+            else
+            {
+                GatewaySessions[GatewaySessions.IndexOf(listed)] = value;
+            }
+        }
+        if (ReferenceEquals(_selectedGatewaySession, value))
+        {
+            return;
         }
         _selectedGatewaySession = value;
         OnPropertyChanged(nameof(SelectedGatewaySession));
@@ -337,6 +411,8 @@ public partial class MainViewModel
         {
             _gatewayTargetVersion++;
             ResetGatewayRefreshRetry();
+            InvalidateGatewayModels(clear: true);
+            Interlocked.And(ref _gatewayRefreshRequested, (int)GatewayRefreshScope.Roster);
             _gatewayDataStale = false;
             _gatewayHistory = null;
             _gatewayEventRunId = null;
@@ -398,14 +474,25 @@ public partial class MainViewModel
         if (_gatewaySelectionChanging && value.Name is "sessions.changed" or "chat" or "agent")
         {
             _gatewayEventDuringSelection = true;
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            RequestGatewayRefresh(GatewayRefreshScope.History);
         }
 
-        if (value.Name == "sessions.changed")
+        if (value.Name is "sessions.changed" or "models.changed")
         {
             if (value.Payload.ValueKind == JsonValueKind.Object)
             {
-                RequestGatewayEventRefresh();
+                var changedKey = ReadGatewayText(value.Payload, "sessionKey") ?? ReadGatewayText(value.Payload, "key");
+                var changedAgent = ReadGatewayText(value.Payload, "agentId");
+                var currentAgent = TryGetGatewayAgentId(_gatewayPage?.SessionKey, out var agent) ? agent : null;
+                var affectsCurrent = (changedKey is null || changedKey == _gatewayPage?.SessionKey) &&
+                    (changedAgent is null || changedAgent == currentAgent);
+                var scope = value.Name == "sessions.changed" ? GatewayRefreshScope.Roster : GatewayRefreshScope.None;
+                if (affectsCurrent)
+                {
+                    InvalidateGatewayModels();
+                    scope |= GatewayRefreshScope.History | GatewayRefreshScope.Models;
+                }
+                RequestGatewayEventRefresh(scope);
             }
             return;
         }
@@ -423,7 +510,7 @@ public partial class MainViewModel
         }
         if (sessionId is not null && _gatewayHistory?.SessionId is { } currentSessionId && sessionId != currentSessionId)
         {
-            Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+            RequestGatewayRefresh(GatewayRefreshScope.History);
             return;
         }
         var identity = key + "|" + run;

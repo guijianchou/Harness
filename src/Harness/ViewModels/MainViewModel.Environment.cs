@@ -2,6 +2,7 @@
 
 using Harness.Helpers;
 using Harness.Models;
+using Harness.Services;
 
 namespace Harness.ViewModels;
 
@@ -14,6 +15,15 @@ public partial class MainViewModel
         _isReloadingEnvironments = true;
         try
         {
+            try
+            {
+                WebViewService.RegisterEnvironmentProfiles(_runtime.Configuration.Settings.Environments);
+            }
+            catch (Exception ex)
+            {
+                _runtime.Logger.Error("webview.profile.registration_failed", new { ex.Message });
+            }
+
             Environments.Clear();
             foreach (var environment in _runtime.Configuration.Settings.Environments)
             {
@@ -31,7 +41,7 @@ public partial class MainViewModel
     private void UpdateEnvironmentSelection(EnvironmentConfig? environment, bool persistSelection)
     {
         var sameSession = environment is not null && _selectedEnvironment is not null &&
-            string.Equals(environment.Name, _selectedEnvironment.Name, StringComparison.Ordinal) &&
+            string.Equals(environment.Id, _selectedEnvironment.Id, StringComparison.Ordinal) &&
             string.Equals(environment.GatewayUrl, _selectedEnvironment.GatewayUrl, StringComparison.Ordinal) &&
             environment.Backend == _selectedEnvironment.Backend;
         var backendChanged = environment?.Backend != _selectedEnvironment?.Backend;
@@ -93,7 +103,7 @@ public partial class MainViewModel
             return;
         }
 
-        if (!backendChanged && _webViewService.IsUsingEnvironmentProfile(environment.Name))
+        if (!backendChanged && _webViewService.IsUsingEnvironmentProfile(environment.Id))
         {
             _webViewService.Navigate(environment.GatewayUrl);
         }
@@ -118,16 +128,13 @@ public partial class MainViewModel
         ShowRetryButton = false;
     }
 
-    public async Task ClearSessionForEnvironmentAsync(string environmentName)
+    public async Task ClearSessionForEnvironmentAsync(string environmentId)
     {
-        if (string.IsNullOrWhiteSpace(environmentName))
-        {
-            return;
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(environmentId);
 
-        await _webViewService.ClearEnvironmentSessionAsync(environmentName);
+        await _webViewService.ClearEnvironmentSessionAsync(environmentId);
 
-        if (string.Equals(_selectedEnvironment?.Name, environmentName, StringComparison.Ordinal))
+        if (!_isDisposed && string.Equals(_selectedEnvironment?.Id, environmentId, StringComparison.Ordinal))
         {
             DismissError();
             DismissDiagnostics();

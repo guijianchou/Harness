@@ -53,6 +53,12 @@ public static class OpenClawWorkspaceRegression
             await ServerModelChangesAsync();
             await ServerSearchAsync();
             await FilteredAgentScopeAsync();
+            await CatalogFailureRetainsExactStopAsync();
+            await ScopedLargeRosterRefreshAsync();
+            await CatalogOwnershipAndInvalidationAsync();
+            await CatalogRetryBudgetAsync();
+            await CatalogConnectionOwnershipAsync();
+            await RosterReconciliationAsync();
             Console.WriteLine($"PASS: {Passed.Count} actual ViewModel checks using loopback Gateway.");
         }
         catch (Exception ex) { failure = ex; throw; }
@@ -150,6 +156,9 @@ public static class OpenClawWorkspaceRegression
     {
         await using var fixture = await Fixture.CreateAsync();
         fixture.View.SetSession(History("physical", label: "Original"));
+        var initial = fixture.View.RefreshData();
+        await CompleteRefreshAsync(fixture, History("physical", label: "Original"));
+        await initial;
         fixture.View.GatewaySessionLabel = "   ";
         var command = ExecuteAsync(fixture.View.ApplyGatewayLabelCommand);
         var request = await ReceiveAsync(fixture, "sessions.patch");
@@ -158,7 +167,7 @@ public static class OpenClawWorkspaceRegression
         Check(parameters.GetProperty("expectedSessionId").GetString() == "physical", "Label clear preserves physical session fence");
         Check(!parameters.TryGetProperty("model", out _) && !parameters.TryGetProperty("thinkingLevel", out _), "Label patch leaves model and reasoning untouched");
         await fixture.Server.ReplyAsync(request, new { ok = true });
-        await CompleteRefreshAsync(fixture, History("physical", label: null, sample: 200), roster: true);
+        await CompleteRefreshAsync(fixture, History("physical", label: null, sample: 200), roster: true, models: false);
         await command;
         Check(fixture.View.GatewaySessionLabel == "" && !fixture.View.CanApplyGatewayLabel, "Label clear reconciles and retires edited state");
     }
@@ -272,7 +281,7 @@ public static class OpenClawWorkspaceRegression
         fixture.View.SelectedGatewayModel = fixture.View.GatewayModels.Single(model => model.Id == "provider/one");
         fixture.View.SelectedGatewayThinkingLevel = fixture.View.GatewayThinkingLevels.Single(level => level.Id == "deep");
         refresh = fixture.View.RefreshData();
-        await CompleteRefreshAsync(fixture, History("physical", model: "two", thinking: "quick", sample: 300));
+        await CompleteRefreshAsync(fixture, History("physical", model: "two", thinking: "quick", sample: 300), models: false);
         await refresh;
         Check(fixture.View.SelectedGatewayModel?.Id == "provider/one" && fixture.View.SelectedGatewayThinkingLevel?.Id == "deep", "A real unsubmitted model and thinking draft survives background refresh");
         fixture.View.SetSession(History("next", key: "agent:main:other", model: "two", thinking: "quick"));
@@ -289,14 +298,17 @@ public static class OpenClawWorkspaceRegression
         var initial = fixture.View.RefreshData();
         await CompleteRefreshAsync(fixture, History("physical", active: true));
         await initial;
+        fixture.View.ExpireModels();
         var failed = fixture.View.RefreshData();
         var request = await ReceiveAsync(fixture, "chat.history");
         await fixture.Server.ReplyAsync(request, History("physical", active: true, sample: 200));
         request = await ReceiveAsync(fixture, "models.list");
         await fixture.Server.SendAsync(new { type = "res", id = request.GetProperty("id").GetString(), ok = false, error = new { code = "UNAVAILABLE" } });
         await failed;
-        Check(fixture.View.GatewayModels.Count == 3 && !fixture.View.CanModifyGatewaySession, "Model-catalog failure preserves displayed choices but disables stale mutations");
+        Check(fixture.View.GatewayModels.Count == 3 && !fixture.View.CanModifyGatewaySession && fixture.View.CanStopGatewayRun,
+            "Model-catalog failure preserves displayed choices, blocks model mutations, and retains exact Stop");
         Check(fixture.View.TakeRefresh(DateTimeOffset.UtcNow.AddMinutes(1)), "Catalog failure schedules automatic recovery");
+        fixture.View.AllowModelRetry();
         var recovered = fixture.View.RefreshData();
         await CompleteRefreshAsync(fixture, History("physical", active: true, sample: 300));
         await recovered;
@@ -341,7 +353,7 @@ public static class OpenClawWorkspaceRegression
         list = await ReceiveAsync(fixture, "sessions.list");
         Check(!list.GetProperty("params").TryGetProperty("search", out var search) || search.ValueKind == JsonValueKind.Null, "Clearing search requests the unfiltered server roster");
         await fixture.Server.ReplyAsync(list, new { sessions = new[] { History("physical").SessionInfo }, hasMore = false });
-        await CompleteRefreshAsync(fixture, History("physical", sample: 300));
+        await CompleteRefreshAsync(fixture, History("physical", sample: 300), models: false);
         await refresh;
         Check(fixture.View.GatewaySessions.Count == 1 && fixture.View.GatewaySessions[0].Key == Key, "Clearing search replaces the filtered list with the default roster");
         fixture.View.GatewaySearchText = "failing";
@@ -384,7 +396,313 @@ public static class OpenClawWorkspaceRegression
             HasActiveRun = active, ActiveRunIds = active ? ["run-a"] : [], SnapshotAt = sample, UpdatedAt = 123456, TotalTokens = 1200, TotalTokensFresh = true },
     };
 
-    private static async Task CompleteRefreshAsync(Fixture fixture, OpenClawChatHistory history, bool roster = false)
+    private static async Task CatalogFailureRetainsExactStopAsync()
+    {
+        foreach (var code in new[] { "UNAVAILABLE", "FORBIDDEN" })
+        {
+            await using var fixture = await Fixture.CreateAsync();
+            fixture.View.SetSession(History("physical", active: true), "run-a");
+            var initial = fixture.View.RefreshData();
+            await CompleteRefreshAsync(fixture, History("physical", active: true));
+            await initial;
+            fixture.View.ExpireModels();
+            var refresh = fixture.View.RefreshData();
+            var request = await ReceiveAsync(fixture, "chat.history");
+            await fixture.Server.ReplyAsync(request, History("physical", active: true, sample: 200));
+            request = await ReceiveAsync(fixture, "models.list");
+            Check(fixture.View.CanStopGatewayRun && !fixture.View.CanModifyGatewaySession,
+                "Pending catalog refresh retains confirmed Stop and fences expired model choices: " + code);
+            await fixture.Server.SendAsync(new { type = "res", id = request.GetProperty("id").GetString(), ok = false, error = new { code } });
+            await refresh;
+            Check(fixture.View.CanStop && fixture.View.GatewayHasError && !fixture.View.CanModifyGatewaySession,
+                "Catalog rejection preserves toolbar Stop and exposes its error: " + code);
+            await ExecuteAsync(fixture.View.ApplyGatewayModelCommand);
+            var stop = fixture.View.StopFromToolbar();
+            request = await ReceiveAsync(fixture, "chat.abort");
+            var parameters = request.GetProperty("params");
+            Check(parameters.GetProperty("runId").GetString() == "run-a" && parameters.GetProperty("sessionId").GetString() == "physical" &&
+                parameters.GetProperty("agentId").GetString() == "main" && parameters.GetProperty("sessionKey").GetString() == Key,
+                "Catalog failure permits only the precise fenced abort, never a model patch: " + code);
+            await fixture.Server.ReplyAsync(request, new { aborted = true });
+            await stop;
+            var recovery = fixture.View.RefreshPending();
+            request = await ReceiveAsync(fixture, "chat.history");
+            await fixture.Server.ReplyAsync(request, History("physical", active: true, sample: 300));
+            await recovery;
+            await AssertNoExtraRequestsAsync(fixture);
+            Check(fixture.View.CanStopGatewayRun, "History continues independently of catalog retry backoff: " + code);
+            if (code == "UNAVAILABLE")
+            {
+                fixture.View.AutoRefreshEnabled = false;
+                Check(!fixture.View.TakeRefresh(DateTimeOffset.UtcNow.AddMinutes(1)), "AutoRefresh off preserves pending catalog retry without executing it");
+                fixture.View.AutoRefreshEnabled = true;
+                fixture.View.AllowModelRetry();
+                recovery = fixture.View.RefreshPending();
+                request = await ReceiveAsync(fixture, "models.list");
+                await fixture.Server.ReplyAsync(request, new { models = Models });
+                await recovery;
+                await AssertNoExtraRequestsAsync(fixture);
+                Check(fixture.View.CanModifyGatewaySession, "Catalog-only retry restores model controls without history or roster reads");
+            }
+        }
+    }
+
+    private static async Task ScopedLargeRosterRefreshAsync()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.View.SetSession(History("physical", active: true), "run-a");
+        var rows = Enumerable.Range(0, 600).Select(index => index == 0 ? History("physical", active: true).SessionInfo! :
+            new OpenClawSession { Key = "agent:main:session" + index, AgentId = "main", SessionId = "session" + index, Label = "Session " + index }).ToArray();
+        var changes = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
+        fixture.View.GatewaySessions.CollectionChanged += (_, change) => changes.Add(change.Action);
+        var refresh = fixture.View.RefreshRoster();
+        var request = await ReceiveAsync(fixture, "sessions.list");
+        await fixture.Server.ReplyAsync(request, new { sessions = rows.Take(60), hasMore = true, nextOffset = 60 });
+        await CompleteRefreshAsync(fixture, History("physical", active: true));
+        await refresh;
+        for (var offset = 60; offset < 600; offset += 60)
+        {
+            var existing = fixture.View.GatewaySessions.ToArray();
+            changes.Clear();
+            var more = ExecuteAsync(fixture.View.LoadMoreGatewaySessionsCommand);
+            request = await ReceiveAsync(fixture, "sessions.list");
+            Check(request.GetProperty("params").GetProperty("offset").GetInt32() == offset, "Large roster follows server cursor " + offset);
+            await fixture.Server.ReplyAsync(request, new { sessions = rows.Skip(offset).Take(60), hasMore = offset < 540, nextOffset = offset + 60 });
+            await more;
+            Check(changes.Count == 60 && changes.All(action => action == System.Collections.Specialized.NotifyCollectionChangedAction.Add) &&
+                existing.Select((item, index) => ReferenceEquals(item, fixture.View.GatewaySessions[index])).All(same => same),
+                "Load more appends exactly one page and retains existing item identities at " + offset);
+        }
+        var stable = fixture.View.GatewaySessions.ToArray();
+        var modelItem = fixture.View.SelectedGatewayModel;
+        changes.Clear();
+        var start = Requests.Count;
+        await fixture.Server.SendAsync(new { type = "event", @event = "chat", seq = 1, payload = new { sessionKey = Key, sessionId = "physical", runId = "run-a", state = "final" } });
+        await UntilAsync(() => fixture.View.EventCount == 1);
+        refresh = fixture.View.RefreshPending();
+        request = await ReceiveAsync(fixture, "chat.history");
+        var overlap = fixture.View.RefreshData();
+        await overlap;
+        await fixture.Server.ReplyAsync(request, History("physical", sample: 200));
+        await refresh;
+        await AssertNoExtraRequestsAsync(fixture);
+        Check(Requests.Skip(start).Select(item => item.GetProperty("method").GetString()).SequenceEqual(new[] { "chat.history", "fixture.barrier" }),
+            "Single terminal event on 600 loaded sessions sends one history read and no roster or catalog requests");
+        Check(changes.Count == 1 && changes[0] == System.Collections.Specialized.NotifyCollectionChangedAction.Replace &&
+            stable.Skip(1).Select((item, index) => ReferenceEquals(item, fixture.View.GatewaySessions[index + 1])).All(same => same),
+            "Terminal refresh replaces only the changed current row and retains the other 599 identities");
+        Check(ReferenceEquals(modelItem, fixture.View.SelectedGatewayModel), "History-only refresh preserves cached model item identity");
+        refresh = fixture.View.RefreshPending();
+        await CompleteRefreshAsync(fixture, History("physical", sample: 200), models: false);
+        await refresh;
+        Check(!fixture.View.TakeRefresh(), "Overlapping reads coalesce to one follow-up and leave no queued work");
+        changes.Clear();
+        refresh = fixture.View.RefreshRoster();
+        for (var offset = 0; offset < 600; offset += 60)
+        {
+            request = await ReceiveAsync(fixture, "sessions.list");
+            await fixture.Server.ReplyAsync(request, new { sessions = rows.Skip(offset).Take(60), hasMore = offset < 540, nextOffset = offset + 60 });
+        }
+        await CompleteRefreshAsync(fixture, History("physical", sample: 200), models: false);
+        await refresh;
+        Check(changes.Count == 0 && fixture.View.GatewaySessions.Count == 600, "Unchanged 600-session refresh emits no collection events, including no Reset");
+        start = Requests.Count;
+        for (var seq = 2; seq <= 4; seq++)
+        {
+            await fixture.Server.SendAsync(new { type = "event", @event = "agent", seq, payload = new { sessionKey = Key, sessionId = "physical", runId = "run-a", stream = "lifecycle", data = new { phase = "end" } } });
+        }
+        await UntilAsync(() => fixture.View.EventCount == 4);
+        fixture.View.AutoRefreshEnabled = false;
+        refresh = fixture.View.RefreshPending();
+        await CompleteRefreshAsync(fixture, History("physical", sample: 200), models: false);
+        await refresh;
+        await AssertNoExtraRequestsAsync(fixture);
+        Check(Requests.Count - start == 2 && !fixture.View.TakeRefresh(), "Lifecycle burst coalesces to one history read even with automatic recovery disabled");
+    }
+
+    private static async Task CatalogOwnershipAndInvalidationAsync()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.View.SetSession(History("physical", active: true), "run-a");
+        var refresh = fixture.View.RefreshData();
+        var request = await ReceiveAsync(fixture, "chat.history");
+        await fixture.Server.ReplyAsync(request, History("physical", active: true));
+        request = await ReceiveAsync(fixture, "models.list");
+        await fixture.Server.SendAsync(new { type = "event", @event = "chat", seq = 1, payload = new { sessionKey = Key, sessionId = "physical", runId = "run-a", state = "final" } });
+        await UntilAsync(() => fixture.View.EventCount == 1);
+        await fixture.Server.ReplyAsync(request, new { models = Models });
+        await refresh;
+        Check(fixture.View.CanModifyGatewaySession && !fixture.View.CanStopGatewayRun && fixture.View.GatewayRunText == GatewayStrings.Text("Completed"),
+            "A terminal event during model fetch accepts the owned catalog while preserving terminal run state");
+        refresh = fixture.View.RefreshPending();
+        await CompleteRefreshAsync(fixture, History("physical", sample: 200), models: false);
+        await refresh;
+        fixture.View.ExpireModels();
+        fixture.View.AutoRefreshEnabled = false;
+        Check(!fixture.View.TakeRefresh() && !fixture.View.CanModifyGatewaySession, "Expired catalog blocks mutation and AutoRefresh off suppresses idle expiry work");
+        fixture.View.AutoRefreshEnabled = true;
+        refresh = fixture.View.RefreshPending();
+        request = await ReceiveAsync(fixture, "models.list");
+        await fixture.Server.ReplyAsync(request, new { models = Models });
+        await refresh;
+        Check(fixture.View.CanModifyGatewaySession, "Five-minute catalog expiry refreshes without a history or roster request");
+        refresh = ExecuteAsync(fixture.View.RefreshGatewayCommand);
+        await CompleteRefreshAsync(fixture, History("physical", sample: 300), roster: true);
+        await refresh;
+        Check(fixture.View.CanModifyGatewaySession, "Manual refresh invalidates an otherwise fresh catalog");
+        await fixture.Server.SendAsync(new { type = "event", @event = "models.changed", seq = 2, payload = new { agentId = "other" } });
+        await UntilAsync(() => fixture.View.EventCount == 2);
+        Check(fixture.View.CanModifyGatewaySession && !fixture.View.TakeRefresh(), "Another agent's model event leaves the current scoped cache intact");
+        await fixture.Server.SendAsync(new { type = "event", @event = "models.changed", seq = 3, payload = new { agentId = "main" } });
+        await UntilAsync(() => fixture.View.EventCount == 3);
+        Check(!fixture.View.CanModifyGatewaySession, "Current-agent model event immediately fences stale catalog mutations");
+        refresh = fixture.View.RefreshPending();
+        request = await ReceiveAsync(fixture, "chat.history");
+        await fixture.Server.ReplyAsync(request, History("physical", sample: 400));
+        request = await ReceiveAsync(fixture, "models.list");
+        await fixture.Server.SendAsync(new { type = "event", @event = "models.changed", seq = 4, payload = new { agentId = "main" } });
+        await UntilAsync(() => fixture.View.EventCount == 4);
+        await fixture.Server.ReplyAsync(request, new { models = Models });
+        await refresh;
+        Check(!fixture.View.CanModifyGatewaySession, "Model invalidation during fetch rejects the older catalog response");
+        refresh = fixture.View.RefreshPending();
+        await CompleteRefreshAsync(fixture, History("physical", sample: 500));
+        await refresh;
+        Check(fixture.View.CanModifyGatewaySession, "Coalesced model invalidation recovers with a newly owned catalog");
+        refresh = fixture.View.RefreshData();
+        await CompleteRefreshAsync(fixture, History("replacement", sample: 600));
+        await refresh;
+        Check(fixture.View.PhysicalSession == "replacement" && fixture.View.CanModifyGatewaySession, "Same-key physical session replacement obtains a separate catalog");
+        fixture.View.ExpireModels();
+        refresh = fixture.View.RefreshData();
+        request = await ReceiveAsync(fixture, "chat.history");
+        await fixture.Server.ReplyAsync(request, History("replacement", sample: 700));
+        request = await ReceiveAsync(fixture, "models.list");
+        fixture.View.SetSession(History("other", key: "agent:research:other", agentId: "research"));
+        fixture.View.SetSession(History("newest", sample: 800));
+        await fixture.Server.ReplyAsync(request, new { models = Models });
+        await refresh;
+        Check(fixture.View.GatewayModels.Count == 0 && !fixture.View.CanModifyGatewaySession && fixture.View.PhysicalSession == "newest",
+            "A to B to A target changes reject late model results despite the matching logical session key");
+        await AssertNoExtraRequestsAsync(fixture);
+    }
+
+    private static async Task AssertNoExtraRequestsAsync(Fixture fixture)
+    {
+        var barrier = fixture.Runtime.Client!.RequestAsync<JsonElement>("fixture.barrier", new { });
+        var request = await ReceiveAsync(fixture, "fixture.barrier");
+        await fixture.Server.ReplyAsync(request, new { });
+        await barrier;
+    }
+
+    private static async Task CatalogRetryBudgetAsync()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.View.SetSession(History("physical", active: true), "run-a");
+        var refresh = fixture.View.RefreshData();
+        await CompleteRefreshAsync(fixture, History("physical", active: true));
+        await refresh;
+        fixture.View.ExpireModels();
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            fixture.View.AllowModelRetry();
+            refresh = fixture.View.RefreshPending();
+            var request = await ReceiveAsync(fixture, "models.list");
+            await fixture.Server.SendAsync(new { type = "res", id = request.GetProperty("id").GetString(), ok = false, error = new { code = "UNAVAILABLE" } });
+            await refresh;
+            Check(fixture.View.CanStopGatewayRun && !fixture.View.CanModifyGatewaySession && !fixture.View.TakeRefresh(),
+                "Catalog retry failure retains exact Stop and respects backoff: attempt " + attempt);
+        }
+        Check(!fixture.View.TakeRefresh(DateTimeOffset.UtcNow.AddMinutes(1)), "Catalog retries stop after the initial attempt and three automatic retries");
+        await fixture.Server.SendAsync(new { type = "event", @event = "models.changed", seq = 1, payload = new { agentId = "main" } });
+        await UntilAsync(() => fixture.View.EventCount == 1);
+        refresh = fixture.View.RefreshPending();
+        await CompleteRefreshAsync(fixture, History("physical", active: true, sample: 200), models: false);
+        await refresh;
+        await AssertNoExtraRequestsAsync(fixture);
+        Check(fixture.View.CanStopGatewayRun && !fixture.View.TakeRefresh(), "Server change during catalog cooldown refreshes history without reopening model retries");
+        fixture.View.AllowModelRecovery();
+        await fixture.Server.SendAsync(new { type = "event", @event = "models.changed", seq = 2, payload = new { agentId = "main" } });
+        await UntilAsync(() => fixture.View.EventCount == 2);
+        refresh = fixture.View.RefreshPending();
+        await CompleteRefreshAsync(fixture, History("physical", active: true, sample: 300));
+        await refresh;
+        Check(fixture.View.CanModifyGatewaySession && !fixture.View.GatewayHasError, "A later model change reopens exhausted catalog retries after cooldown");
+    }
+
+    private static async Task CatalogConnectionOwnershipAsync()
+    {
+        await using var previous = await Fixture.CreateAsync();
+        await using var replacement = await Fixture.CreateAsync();
+        previous.View.SetSession(History("physical"));
+        var refresh = previous.View.RefreshData();
+        await CompleteRefreshAsync(previous, History("physical"));
+        await refresh;
+        previous.View.UseRuntime(replacement.Runtime);
+        Check(!previous.View.CanModifyGatewaySession, "A new connection cannot authorize mutation with the previous connection's cached catalog");
+        refresh = previous.View.RefreshData();
+        await CompleteRefreshAsync(replacement, History("physical", sample: 200));
+        await refresh;
+        Check(previous.View.CanModifyGatewaySession, "The replacement connection fetches its own catalog even for identical agent and session IDs");
+        previous.View.ExpireModels();
+        refresh = previous.View.RefreshPending();
+        var request = await ReceiveAsync(replacement, "models.list");
+        previous.View.UseRuntime(previous.Runtime);
+        await replacement.Server.SendAsync(new { type = "res", id = request.GetProperty("id").GetString(), ok = false, error = new { code = "FORBIDDEN" } });
+        await refresh;
+        Check(!previous.View.GatewayHasError && !previous.View.CanModifyGatewaySession,
+            "A late retired-connection catalog error cannot publish errors or authorize the current connection");
+        refresh = previous.View.RefreshData();
+        await CompleteRefreshAsync(previous, History("physical", sample: 300));
+        await refresh;
+        Check(previous.View.CanModifyGatewaySession, "Returning to a previous connection obtains fresh ownership instead of retaining another connection's catalog");
+    }
+
+    private static async Task RosterReconciliationAsync()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.View.SetSession(History("physical"));
+        var rows = new[] { History("physical").SessionInfo!,
+            new OpenClawSession { Key = "agent:main:b", AgentId = "main", Label = "B" },
+            new OpenClawSession { Key = "agent:main:c", AgentId = "main", Label = "C" },
+            new OpenClawSession { Key = "agent:main:d", AgentId = "main", Label = "D" } };
+        var refresh = fixture.View.RefreshRoster();
+        var request = await ReceiveAsync(fixture, "sessions.list");
+        await fixture.Server.ReplyAsync(request, new { sessions = rows, hasMore = false });
+        await CompleteRefreshAsync(fixture, History("physical"));
+        await refresh;
+        var selected = fixture.View.SelectedGatewaySession;
+        var retained = fixture.View.GatewaySessions[2];
+        var changes = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
+        fixture.View.GatewaySessions.CollectionChanged += (_, change) => changes.Add(change.Action);
+        await fixture.Server.SendAsync(new { type = "event", @event = "sessions.changed", seq = 1, payload = new { key = "agent:main:b" } });
+        await UntilAsync(() => fixture.View.EventCount == 1);
+        refresh = fixture.View.RefreshPending();
+        request = await ReceiveAsync(fixture, "sessions.list");
+        await fixture.Server.ReplyAsync(request, new { sessions = new[] { rows[2], rows[0],
+            new OpenClawSession { Key = "agent:main:b", AgentId = "main", Label = "Renamed" },
+            new OpenClawSession { Key = "agent:main:e", AgentId = "main", Label = "New" } }, hasMore = false });
+        await refresh;
+        await AssertNoExtraRequestsAsync(fixture);
+        Check(fixture.View.GatewaySessions.Select(item => item.Title).SequenceEqual(new[] { "C", "Original", "Renamed", "New" }),
+            "Roster refresh reconciles server ordering, changes, insertion, and deletion");
+        Check(ReferenceEquals(retained, fixture.View.GatewaySessions[0]) && ReferenceEquals(selected, fixture.View.SelectedGatewaySession) &&
+            ReferenceEquals(selected, fixture.View.GatewaySessions[1]) && !changes.Contains(System.Collections.Specialized.NotifyCollectionChangedAction.Reset),
+            "Roster moves retain unchanged item and selection identity without a collection Reset");
+        Check(fixture.View.CanModifyGatewaySession, "An unrelated session change refreshes only the roster and retains the current model cache");
+        fixture.View.GatewaySearchText = "needle";
+        fixture.View.AllowSearchRefresh();
+        refresh = fixture.View.RefreshPending();
+        request = await ReceiveAsync(fixture, "sessions.list");
+        Check(request.GetProperty("params").GetProperty("search").GetString() == "needle", "Queued search refresh sends its server query");
+        await fixture.Server.ReplyAsync(request, new { sessions = Array.Empty<OpenClawSession>(), hasMore = false });
+        await refresh;
+        await AssertNoExtraRequestsAsync(fixture);
+        Check(fixture.View.GatewaySessions.Count == 0 && ReferenceEquals(selected, fixture.View.SelectedGatewaySession) && fixture.View.CanModifyGatewaySession,
+            "Search-only refresh retains the confirmed filtered-out target without history or catalog requests");
+    }
+
+    private static async Task CompleteRefreshAsync(Fixture fixture, OpenClawChatHistory history, bool roster = false, bool models = true)
     {
         if (roster)
         {
@@ -393,8 +711,11 @@ public static class OpenClawWorkspaceRegression
         }
         var request = await ReceiveAsync(fixture, "chat.history");
         await fixture.Server.ReplyAsync(request, history);
-        request = await ReceiveAsync(fixture, "models.list");
-        await fixture.Server.ReplyAsync(request, new { models = Models });
+        if (models)
+        {
+            request = await ReceiveAsync(fixture, "models.list");
+            await fixture.Server.ReplyAsync(request, new { models = Models });
+        }
     }
 
     private static async Task<JsonElement> ReceiveAsync(Fixture fixture, string method)
@@ -540,7 +861,18 @@ namespace Harness.ViewModels
         public Task RefreshData() => RefreshGatewayDataAsync(_gatewayRuntime!, false, _gatewayCancellation!.Token);
         public Task RefreshRoster() => RefreshGatewayDataAsync(_gatewayRuntime!, true, _gatewayCancellation!.Token);
         public Task SelectCurrentSession() => SelectGatewaySessionAsync(SelectedGatewaySession!);
-        public bool TakeRefresh(DateTimeOffset? now = null) => TakeGatewayRefreshRequest(false, now ?? DateTimeOffset.UtcNow);
+        public bool TakeRefresh(DateTimeOffset? now = null) => TakeGatewayRefreshRequest(false, now ?? DateTimeOffset.UtcNow) != GatewayRefreshScope.None;
+        public void ExpireModels() => _gatewayModelsExpireAt = DateTimeOffset.UtcNow.AddSeconds(-1);
+        public void AllowModelRetry() => _gatewayModelRetryAt = default;
+        public void AllowModelRecovery() => _gatewayModelRecoveryNotBefore = default;
+        public void AllowSearchRefresh() => _gatewaySearchNotBefore = default;
+        internal void UseRuntime(OpenClawSessionRuntime runtime) => _gatewayRuntime = runtime;
+        public Task RefreshPending()
+        {
+            var scope = TakeGatewayRefreshRequest(false, DateTimeOffset.UtcNow);
+            return scope == GatewayRefreshScope.None ? Task.CompletedTask :
+                RefreshGatewayDataAsync(_gatewayRuntime!, scope, _gatewayCancellation!.Token);
+        }
         private void SynchronizeGatewayEnvironment(bool force = false) => throw new InvalidOperationException("Connection replacement is outside this regression fixture.");
         private void SetRunIndicatorMode(RunIndicatorMode mode) { }
         private void OnPropertyChanged([CallerMemberName] string name = "") => ChangedProperties.Add(name);

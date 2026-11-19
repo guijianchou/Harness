@@ -205,17 +205,36 @@ public sealed partial class MainWindow
 
                 WebViewHost.Children.Clear();
                 WebViewHost.Children.Add(nextWebView);
-                if (!await WaitForWebViewHostLayoutAsync(nextWebView, cancellationToken))
+                var initializeCandidate = false;
+                try
                 {
-                    _webViewRecreationService.RecordAttempt(
-                        _webViewRecreationService.LastReason ?? begin.Reason);
-                    ScheduleDeferredWebViewRecreationRetry(_webViewRecreationService.LastReason ?? begin.Reason);
-                    WebViewHost.Children.Clear();
-                    nextWebView.Close();
-                    break;
+                    if (!await WaitForWebViewHostLayoutAsync(nextWebView, cancellationToken))
+                    {
+                        if (CanContinueWebViewRecreation(nextWebView, cancellationToken))
+                        {
+                            _webViewRecreationService.RecordAttempt();
+                            ScheduleDeferredWebViewRecreationRetry(_webViewRecreationService.LastReason ?? begin.Reason);
+                        }
+                        break;
+                    }
+
+                    if (!CanContinueWebViewRecreation(nextWebView, cancellationToken))
+                    {
+                        break;
+                    }
+
+                    initializeCandidate = true;
+                }
+                finally
+                {
+                    if (!initializeCandidate && WebViewHost.Children.Contains(nextWebView))
+                    {
+                        WebViewHost.Children.Remove(nextWebView);
+                        nextWebView.Close();
+                    }
                 }
 
-                _webViewRecreationService.RecordAttempt();
+                _webViewRecreationService.RecordAttempt(_webViewRecreationService.LastReason ?? begin.Reason);
                 RecordInstrumentationEvent("webview.recreation.initializing", new
                 {
                     reason = _webViewRecreationService.LastReason,
@@ -259,6 +278,16 @@ public sealed partial class MainWindow
                 merged = finished.MergedRequests
             });
         }
+    }
+
+    private bool CanContinueWebViewRecreation(WebView2 webView, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return !_isClosing &&
+            !_webViewRecreationService.ShouldSkipCurrentRecreation() &&
+            (ViewModel.AutoRefreshEnabled ||
+                !WebViewRecreationService.IsAutomaticRecoveryReason(_webViewRecreationService.LastReason)) &&
+            WebViewHost.Children.Contains(webView);
     }
 
     private async Task<bool> WaitForWebViewHostLayoutAsync(WebView2 webView, CancellationToken cancellationToken)
@@ -405,7 +434,10 @@ public sealed partial class MainWindow
             return;
         }
 
-        var scheduled = _webViewRecreationService.Schedule(reason);
+        var retryReason = WebViewRecreationService.IsAutomaticRecoveryReason(reason)
+            ? "automatic_layout_timeout"
+            : "host_layout_timeout";
+        var scheduled = _webViewRecreationService.Schedule(retryReason);
         RecordInstrumentationEvent("webview.recreation.retry_after_layout_timeout", new
         {
             reason = scheduled.Reason,

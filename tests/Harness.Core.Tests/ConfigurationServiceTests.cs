@@ -381,6 +381,105 @@ public sealed class ConfigurationServiceTests
     }
 
     [TestMethod]
+    public void OldDraftMergesOnlyItsEditsAfterOrdinarySaveImportsRemoteEnvironment()
+    {
+        var first = CreateService();
+        first.Load();
+        var draft = first.CreateSnapshot(out var baseline);
+        draft.NotifyOnRunCompleted = false;
+        var second = CreateService();
+        second.Load();
+        second.Settings.Environments.Add(new EnvironmentConfig
+        {
+            Id = "remote-environment",
+            Name = "Remote",
+            GatewayUrl = "https://remote.example.org",
+        });
+        second.Settings.AppTheme = "Dark";
+        Assert.IsTrue(second.Save().Succeeded);
+        first.Settings.WindowLeft = 120;
+        first.Settings.WindowTop = 60;
+        Assert.IsTrue(first.Save().Succeeded);
+        first.Settings.WindowTop = 80;
+
+        Assert.IsTrue(first.Save(draft, baseline).Succeeded);
+        Assert.AreEqual(1, draft.Environments.Count, "The dialog snapshot must remain independent of imported environments.");
+        Assert.AreEqual(1, baseline.Environments.Count, "Saving must not advance the caller's draft baseline.");
+        Assert.IsFalse(first.Settings.NotifyOnRunCompleted);
+        Assert.AreEqual("Dark", first.Settings.AppTheme);
+        Assert.AreEqual("remote-environment", first.Settings.Environments[1].Id);
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.AreEqual(2, reloaded.Settings.Environments.Count);
+        Assert.AreEqual("remote-environment", reloaded.Settings.Environments[1].Id);
+        Assert.AreEqual("Dark", reloaded.Settings.AppTheme);
+        Assert.AreEqual(120d, reloaded.Settings.WindowLeft);
+        Assert.AreEqual(80d, reloaded.Settings.WindowTop);
+        Assert.IsFalse(reloaded.Settings.NotifyOnRunCompleted);
+    }
+
+    [TestMethod]
+    [DataRow("add", false)]
+    [DataRow("edit", false)]
+    [DataRow("remove", false)]
+    [DataRow("add", true)]
+    [DataRow("edit", true)]
+    public void OldEnvironmentDraftConflictsAfterOrdinarySaveAdvancesDiskBaseline(string remoteChange, bool localRemoval)
+    {
+        var first = CreateService();
+        first.Load();
+        var draft = first.CreateSnapshot(out var baseline);
+        if (localRemoval)
+        {
+            draft.Environments.Clear();
+        }
+        else
+        {
+            draft.Environments[0].GatewayUrl = "https://local.example.org";
+        }
+        draft.AlwaysOnTop = true;
+        var second = CreateService();
+        second.Load();
+        switch (remoteChange)
+        {
+            case "add":
+                second.Settings.Environments.Add(new EnvironmentConfig
+                {
+                    Id = "remote-environment",
+                    Name = "Remote",
+                    GatewayUrl = "https://remote.example.org",
+                });
+                break;
+            case "edit":
+                second.Settings.Environments[0].OpenClawConnection = new OpenClawConnectionOptions
+                {
+                    CredentialReference = "remote-reference",
+                };
+                break;
+            case "remove":
+                second.Settings.Environments.Clear();
+                break;
+        }
+        Assert.IsTrue(second.Save().Succeeded);
+        first.Settings.WindowLeft = 120;
+        Assert.IsTrue(first.Save().Succeeded);
+        var diskBefore = File.ReadAllText(SettingsPath);
+        var environments = first.Settings.Environments;
+        var notifications = 0;
+        first.SettingsCommitted += () => notifications++;
+
+        var result = first.Save(draft, baseline);
+
+        Assert.IsFalse(result.Succeeded);
+        Assert.IsTrue(result.HasConflict);
+        Assert.AreEqual(diskBefore, File.ReadAllText(SettingsPath));
+        Assert.AreSame(environments, first.Settings.Environments);
+        Assert.IsFalse(first.Settings.AlwaysOnTop, "A conflict must reject the entire save.");
+        Assert.AreEqual(0, notifications);
+        Assert.IsTrue(draft.AlwaysOnTop, "The failed draft remains available for retry.");
+    }
+
+    [TestMethod]
     public void CurrentSaveKeepsEditsMadeDuringWriteForNextSave()
     {
         Action? duringWrite = null;
@@ -438,7 +537,7 @@ public sealed class ConfigurationServiceTests
         });
         first.Load();
         var current = first.Settings;
-        var draft = first.CreateSnapshot();
+        var draft = first.CreateSnapshot(out var baseline);
         draft.NotifyOnlyWhenUnfocused = false;
         var second = CreateService();
         second.Load();
@@ -447,14 +546,14 @@ public sealed class ConfigurationServiceTests
         var diskBefore = File.ReadAllText(SettingsPath);
 
         rejectWrite = true;
-        Assert.IsFalse(first.Save(draft).Succeeded);
+        Assert.IsFalse(first.Save(draft, baseline).Succeeded);
         Assert.AreSame(current, first.Settings);
         Assert.AreEqual("System", current.AppTheme);
         Assert.IsTrue(current.NotifyOnlyWhenUnfocused);
         Assert.AreEqual(diskBefore, File.ReadAllText(SettingsPath));
 
         rejectWrite = false;
-        Assert.IsTrue(first.Save(draft).Succeeded);
+        Assert.IsTrue(first.Save(draft, baseline).Succeeded);
         Assert.AreSame(current, first.Settings);
         Assert.AreEqual("Dark", current.AppTheme);
         Assert.IsFalse(current.NotifyOnlyWhenUnfocused);

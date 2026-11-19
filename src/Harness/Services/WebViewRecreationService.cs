@@ -53,11 +53,6 @@ internal sealed class WebViewRecreationService
             return WebViewRecreationBeginResult.NoWork;
         }
 
-        if (!_circuitBreaker.CanAttempt())
-        {
-            return WebViewRecreationBeginResult.CircuitBreakerTripped(LastReason, TotalRecreations);
-        }
-
         var previousReason = LastReason;
         var pendingReason = _pendingReason;
         _pendingReason = null;
@@ -72,6 +67,11 @@ internal sealed class WebViewRecreationService
             {
                 return WebViewRecreationBeginResult.NoWork;
             }
+        }
+
+        if (ShouldCountTowardsCircuitBreaker(pendingReason) && !_circuitBreaker.CanAttempt())
+        {
+            return WebViewRecreationBeginResult.CircuitBreakerTripped(LastReason, TotalRecreations);
         }
 
         IsRecreating = true;
@@ -151,7 +151,7 @@ internal sealed class WebViewRecreationService
 
     public static bool IsAutomaticRecoveryReason(string? reason)
     {
-        return IsNavigationTimeoutRecoveryReason(reason) || reason == "browser_process_exited";
+        return IsNavigationTimeoutRecoveryReason(reason) || reason is "browser_process_exited" or "automatic_layout_timeout";
     }
 
     public static string ChooseHigherPriorityReason(string? currentReason, string newReason)
@@ -168,7 +168,7 @@ internal sealed class WebViewRecreationService
 
     private static int GetReasonPriority(string reason)
     {
-        if (IsNavigationTimeoutRecoveryReason(reason))
+        if (IsNavigationTimeoutRecoveryReason(reason) || reason == "automatic_layout_timeout")
         {
             return 0;
         }
@@ -192,7 +192,8 @@ internal sealed class WebViewRecreationService
 
     public bool CanAttemptInLoop()
     {
-        return _circuitBreaker.CanAttempt();
+        var reason = IsRecreating ? LastReason : _pendingReason ?? LastReason;
+        return !ShouldCountTowardsCircuitBreaker(reason) || _circuitBreaker.CanAttempt();
     }
 
     public void RecordAttempt()
@@ -204,7 +205,11 @@ internal sealed class WebViewRecreationService
     public void RecordAttempt(string reason)
     {
         LastReason = string.IsNullOrWhiteSpace(reason) ? LastReason : reason;
-        RecordAttempt();
+        TotalRecreations++;
+        if (ShouldCountTowardsCircuitBreaker(reason))
+        {
+            _circuitBreaker.RecordAttempt();
+        }
     }
 
     public bool TryConsumeQueued(out string? reason)
@@ -230,6 +235,11 @@ internal sealed class WebViewRecreationService
             _pendingReason,
             TotalRecreations,
             MergedRequests);
+    }
+
+    private static bool ShouldCountTowardsCircuitBreaker(string? reason)
+    {
+        return reason is not ("environment_profile_changed" or "environment_placeholder_replaced" or "active_session_cleared");
     }
 }
 

@@ -185,12 +185,12 @@ public partial class ConfigurationService
     /// <summary>
     /// Saves current settings to disk.
     /// </summary>
-    public SettingsWriteResult Save(AppSettings? updatedSettings = null)
+    public SettingsWriteResult Save(AppSettings? updatedSettings = null, AppSettings? draftBaseline = null)
     {
         SettingsWriteResult result;
         lock (_lock)
         {
-            result = SaveSettings(updatedSettings);
+            result = SaveSettings(updatedSettings, draftBaseline);
         }
         if (result.Succeeded)
         {
@@ -220,7 +220,7 @@ public partial class ConfigurationService
         }
     }
 
-    private SettingsWriteResult SaveSettings(AppSettings? updatedSettings)
+    private SettingsWriteResult SaveSettings(AppSettings? updatedSettings, AppSettings? draftBaseline = null)
     {
         try
         {
@@ -244,6 +244,11 @@ public partial class ConfigurationService
                     ? new JsonObject()
                     : JsonNode.Parse(currentJson)!.AsObject();
             var desired = JsonSerializer.SerializeToNode(settings, AppSettingsJsonContext.Default.AppSettings)!.AsObject();
+            if (draftBaseline is not null)
+            {
+                var baseline = JsonSerializer.SerializeToNode(draftBaseline, AppSettingsJsonContext.Default.AppSettings)!.AsObject();
+                desired = MergeSettings(baseline, desired, (JsonObject)runtimeBeforeSave.DeepClone());
+            }
             var merged = MergeSettings(_settingsBaseline, desired, current);
             var committedSettings = merged.Deserialize(AppSettingsJsonContext.Default.AppSettings)!;
             NormalizeSettings(committedSettings);
@@ -258,6 +263,11 @@ public partial class ConfigurationService
             _settingsBaseline = merged;
             _backedUpCorruptJson = null;
             return SettingsWriteResult.Success();
+        }
+        catch (SettingsConflictException ex)
+        {
+            _logger.Error($"Failed to save settings: {ex.Message}");
+            return SettingsWriteResult.Failure(ex.Message) with { HasConflict = true };
         }
         catch (Exception ex)
         {

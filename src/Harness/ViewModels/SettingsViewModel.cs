@@ -18,6 +18,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
     private readonly Dictionary<EnvironmentConfig, string> _originalNames = [];
     private readonly Dictionary<EnvironmentConfig, EnvironmentConfig> _originalSnapshots = [];
     private readonly SettingsPersistenceAdapter _settingsPersistence;
+    private List<EnvironmentConfig> _environmentBaseline;
     private readonly string? _originalSelectedEnvironmentName;
     private bool _didEditSelectedLanguage;
     private bool _didEditEnableDevLog;
@@ -46,7 +47,8 @@ public partial class SettingsViewModel : INotifyPropertyChanged
     internal SettingsViewModel(SettingsPersistenceAdapter settingsPersistence)
     {
         _settingsPersistence = settingsPersistence ?? throw new ArgumentNullException(nameof(settingsPersistence));
-        var settings = _settingsPersistence.Current;
+        var settings = _settingsPersistence.CreateDraft();
+        _environmentBaseline = settings.Environments.Select(env => env.Clone()).ToList();
         _originalSelectedEnvironmentName = settings.SelectedEnvironmentName;
 
         // Load a copy of environments so we can cancel without persisting
@@ -411,8 +413,8 @@ public partial class SettingsViewModel : INotifyPropertyChanged
             return false;
         }
 
-        var settings = _settingsPersistence.CreateDraft();
-        var didChangeEnvironmentState = DidChangeEnvironmentState || HasEnvironmentMetadataChanges();
+        var settings = _settingsPersistence.CreateDraft(out var baseline);
+        var didChangeEnvironmentState = HasEnvironmentMetadataChanges();
         var beforeEnvironments = settings.Environments;
         var beforeSelectedEnvironment = settings.SelectedEnvironmentName;
         var beforeLanguage = settings.AppLanguage ?? "System";
@@ -420,6 +422,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
 
         if (didChangeEnvironmentState)
         {
+            baseline.Environments = _environmentBaseline;
             settings.Environments = Environments.Select(env => env.Clone()).ToList();
             EnsureAtLeastOneDefault(settings.Environments);
             settings.SelectedEnvironmentName = ResolveSelectedEnvironmentName(settings);
@@ -427,7 +430,20 @@ public partial class SettingsViewModel : INotifyPropertyChanged
 
         ApplyChangedShellSettings(settings);
 
-        var saveResult = _settingsPersistence.Save(settings);
+        SettingsPersistenceSaveResult saveResult;
+        try
+        {
+            if (didChangeEnvironmentState)
+            {
+                WebViewService.RegisterEnvironmentProfiles(beforeEnvironments);
+            }
+
+            saveResult = _settingsPersistence.Save(settings, baseline);
+        }
+        catch (Exception ex)
+        {
+            saveResult = SettingsPersistenceSaveResult.Failure(ex.Message);
+        }
         if (!saveResult.Succeeded)
         {
             ValidationMessage = string.Format(
@@ -438,11 +454,11 @@ public partial class SettingsViewModel : INotifyPropertyChanged
 
         if (didChangeEnvironmentState)
         {
-            SyncRenamedEnvironmentProfiles();
+            UpdateEnvironmentBaseline();
         }
 
         ValidationMessage = StringResources.SettingsValidationDefaultMessage;
-        var committedSettings = _settingsPersistence.Current;
+        var committedSettings = _settingsPersistence.CreateDraft();
         var afterLiveSettings = LiveShellSettings.From(committedSettings);
         var didChangeSelection = !string.Equals(beforeSelectedEnvironment, committedSettings.SelectedEnvironmentName, StringComparison.Ordinal);
         result = new SettingsSaveResult(
@@ -543,16 +559,12 @@ public partial class SettingsViewModel : INotifyPropertyChanged
         Backend = _editBackend,
     };
 
-    private void SyncRenamedEnvironmentProfiles()
+    private void UpdateEnvironmentBaseline()
     {
+        EnsureAtLeastOneDefault(Environments);
+        _environmentBaseline = Environments.Select(env => env.Clone()).ToList();
         foreach (var env in Environments)
         {
-            if (!_originalNames.TryGetValue(env, out var originalName))
-            {
-                continue;
-            }
-
-            WebViewService.TryMoveUserDataFolderToRenamedEnvironment(originalName, env.Name);
             _originalNames[env] = env.Name;
             _originalSnapshots[env] = env.Clone();
         }
@@ -605,8 +617,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
 
     private bool HasEnvironmentMetadataChanges()
     {
-        return Environments.Count != _originalSnapshots.Count ||
-               Environments.Any(DidEnvironmentMetadataChange);
+        return HaveCommittedEnvironmentsChanged(_environmentBaseline, Environments, includeDefault: true);
     }
 
     private bool HasEnvironmentSessionIdentityChanges()
@@ -615,7 +626,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
                Environments.Any(DidEnvironmentSessionIdentityChange);
     }
 
-    private static void EnsureAtLeastOneDefault(List<EnvironmentConfig> environments)
+    private static void EnsureAtLeastOneDefault(IList<EnvironmentConfig> environments)
     {
         if (!environments.Any(e => e.IsDefault) &&
             environments.Count > 0)

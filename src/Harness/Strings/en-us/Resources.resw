@@ -377,6 +377,9 @@
   <data name="SettingsValidationSaveFailedFormat" xml:space="preserve">
     <value>Failed to save settings: {0}</value>
   </data>
+  <data name="SettingsValidationConflict" xml:space="preserve">
+    <value>Settings changed in another window or instance. Restart Harness, reopen Settings, and reapply your changes.</value>
+  </data>
   <data name="SettingsValidationSaveFailedUnknown" xml:space="preserve">
     <value>unknown write error</value>
   </data>

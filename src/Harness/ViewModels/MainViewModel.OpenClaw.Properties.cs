@@ -106,11 +106,12 @@ public partial class MainViewModel
     public bool GatewayHasMore { get => _gatewayHasMore; private set => SetProperty(ref _gatewayHasMore, value); }
     public bool CanCreateGatewaySession => !GatewayBusy && !_gatewaySelectionChanging && _gatewayCanWrite &&
         _gatewayRuntime?.Client?.IsConnected == true && TryGetGatewayAgentId(_gatewayPage?.SessionKey, out _);
-    public bool CanModifyGatewaySession => !GatewayBusy && !_gatewaySelectionChanging && !_gatewayDataStale && _gatewayCanWrite &&
+    private bool CanTargetGatewaySession => !GatewayBusy && !_gatewaySelectionChanging && !_gatewayDataStale && _gatewayCanWrite &&
         _gatewayRuntime?.Client?.IsConnected == true && _gatewayPage?.SessionKey == SelectedGatewaySession?.Key &&
         TryGetGatewayAgentId(SelectedGatewaySession?.Key, out _) && !string.IsNullOrEmpty(_gatewayHistory?.SessionId) &&
         OpenClawSessionIdentity.Matches(_gatewayPage?.SessionKey ?? "", _gatewayHistory);
-    public bool CanStopGatewayRun => CanModifyGatewaySession && GetExactGatewayRunId() is not null;
+    public bool CanModifyGatewaySession => CanTargetGatewaySession && IsGatewayModelCatalogFresh;
+    public bool CanStopGatewayRun => CanTargetGatewaySession && GetExactGatewayRunId() is not null;
     public string GatewaySearchText
     {
         get => _gatewaySearchText;
@@ -126,7 +127,7 @@ public partial class MainViewModel
                     _gatewayNextOffset = null;
                     GatewayHasMore = false;
                     ResetGatewayRefreshRetry();
-                    Interlocked.Exchange(ref _gatewayRefreshRequested, 1);
+                    RequestGatewayRefresh(GatewayRefreshScope.Roster);
                 }
             }
         }

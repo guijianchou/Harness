@@ -1,5 +1,6 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
+using Harness.Helpers;
 using Harness.Models;
 
 namespace Harness.Services;
@@ -19,9 +20,11 @@ internal sealed class SettingsPersistenceAdapter
 
     public AppSettings CreateDraft() => _configuration.CreateSnapshot();
 
-    public SettingsPersistenceSaveResult Save(AppSettings settings)
+    public AppSettings CreateDraft(out AppSettings baseline) => _configuration.CreateSnapshot(out baseline);
+
+    public SettingsPersistenceSaveResult Save(AppSettings settings, AppSettings? draftBaseline = null)
     {
-        var result = _configuration.Save(settings);
+        var result = _configuration.Save(settings, draftBaseline);
         if (result.Succeeded)
         {
             _logger.Info("Settings saved.");
@@ -32,7 +35,9 @@ internal sealed class SettingsPersistenceAdapter
             ? "Unknown settings write failure."
             : result.ErrorMessage;
         _logger.Error($"Settings save failed: {message}");
-        return SettingsPersistenceSaveResult.Failure(message);
+        return SettingsPersistenceSaveResult.Failure(result.HasConflict
+            ? StringResources.SettingsValidationConflict
+            : message);
     }
 
     public EnvironmentConfig? GetSelectedEnvironment()

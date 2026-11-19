@@ -232,6 +232,7 @@ public static class StringResources
     public static string SettingsValidationControlUiUrlScheme => Get("SettingsValidationControlUiUrlScheme");
     public static string SettingsValidationSaveFailedFormat => Get("SettingsValidationSaveFailedFormat");
     public static string SettingsValidationSaveFailedUnknown => Get("SettingsValidationSaveFailedUnknown");
+    public static string SettingsValidationConflict => Get("SettingsValidationConflict");
     public static string SettingsValidationGlobalHotkeyRequired => Get("SettingsValidationGlobalHotkeyRequired");
     public static string SettingsValidationGlobalHotkeyInvalid => Get("SettingsValidationGlobalHotkeyInvalid");
     public static string SettingsGeneratedEnvironmentName => Get("SettingsGeneratedEnvironmentName");

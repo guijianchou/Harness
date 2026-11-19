@@ -738,7 +738,7 @@ if ($mainWindowWebView -notmatch 'if \(!await WaitForWebViewHostLayoutAsync\(nex
     $mainWindowWebView -notmatch 'ScheduleDeferredWebViewRecreationRetry' -or
     $mainWindowWebView -notmatch '_webViewRecreationService\.Defer\(reason\)' -or
     $mainWindowWebView -notmatch 'ScheduleDeferredWebViewRecreationRetry\(_webViewRecreationService\.LastReason \?\? begin\.Reason\)' -or
-    $mainWindowWebView -notmatch 'ScheduleDeferredWebViewRecreationRetry\(string reason\)[\s\S]*_webViewRecreationService\.Schedule\(reason\)' -or
+    $mainWindowWebView -notmatch 'ScheduleDeferredWebViewRecreationRetry\(string reason\)[\s\S]*_webViewRecreationService\.Schedule\(retryReason\)' -or
     $mainWindowWebView -notmatch 'TryConsumeDeferred\(out var reason\)' -or
     $mainWindowWebView -notmatch 'ScheduleWebViewRecreation\(reason\)' -or
     $mainWindowWebView -notmatch 'webView\.Loaded \+=' -or
@@ -834,7 +834,7 @@ if ($webViewNavigation -notmatch 'private async void OnNavigationCompleted[\s\S]
     throw 'WebView navigation completion async event handling must be observed, logged, and projected as an error instead of leaving Loading stale.'
 }
 
-if ($webViewSession -notmatch 'await Task\.Run\(\(\) => DeleteUserDataFolderForEnvironment\(environmentName, _logger\)\)') {
+if ($webViewSession -notmatch 'await Task\.Run\(\(\) => DeleteUserDataFolderForEnvironment\(environmentId, _logger\)\)') {
     throw 'Inactive WebView2 profile deletion must run off the UI thread.'
 }
 
@@ -913,10 +913,10 @@ $mainViewModelLifecycle = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Har
 if ($mainViewModelLifecycle -notmatch '_lifetimeCts' -or
     $mainViewModelLifecycle -notmatch 'var environmentName = _selectedEnvironment\.Name' -or
     $mainViewModelLifecycle -notmatch 'var gatewayUrl = _selectedEnvironment\.GatewayUrl' -or
-    $mainViewModelLifecycle -notmatch 'InitializeAsync\(webView, environmentName, cancellationToken\)' -or
+    $mainViewModelLifecycle -notmatch 'InitializeAsync\(webView, environmentId, environmentName, cancellationToken\)' -or
     $mainViewModelLifecycle -notmatch 'InitializeAsync\(webView,[\s\S]*?_selectedEnvironment\.BackendProfile,[\s\S]*?cancellationToken\)' -or
-    $mainViewModelLifecycle -notmatch 'IsCurrentSelectedEnvironment\(environmentName, gatewayUrl\)' -or
-    $mainViewModelLifecycle -notmatch 'private bool IsCurrentSelectedEnvironment\(string environmentName, string gatewayUrl\)') {
+    $mainViewModelLifecycle -notmatch 'IsCurrentSelectedEnvironment\(environmentId, gatewayUrl, backend\)' -or
+    $mainViewModelLifecycle -notmatch 'private bool IsCurrentSelectedEnvironment\(string environmentId, string gatewayUrl, HostedBackendKind backend\)') {
     throw 'MainViewModel WebView initialization must honor the ViewModel lifetime cancellation token and selected-environment identity across awaits.'
 }
 
@@ -1084,7 +1084,7 @@ if ($settingsViewModel -match 'App\.Logger') {
 
 $settingsViewModelWebViewServiceCalls = [regex]::Matches($settingsViewModel, 'WebViewService\.(?<method>[A-Za-z_][A-Za-z0-9_]*)')
 foreach ($call in $settingsViewModelWebViewServiceCalls) {
-    if ($call.Groups['method'].Value -ne 'TryMoveUserDataFolderToRenamedEnvironment') {
+    if ($call.Groups['method'].Value -ne 'RegisterEnvironmentProfiles') {
         throw "SettingsViewModel must not call WebViewService runtime/session APIs; keep WebView work behind MainViewModel/MainWindow/service boundaries: $($call.Value)"
     }
 }
@@ -1131,10 +1131,10 @@ if ($settingsPersistenceAdapter -match 'App\.Configuration|App\.Logger') {
 }
 
 $settingsViewModel = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/ViewModels/SettingsViewModel.cs') -Raw
-if ($settingsPersistenceAdapter -notmatch 'public SettingsPersistenceSaveResult Save\(AppSettings settings\)' -or
+if ($settingsPersistenceAdapter -notmatch 'public SettingsPersistenceSaveResult Save\(AppSettings settings, AppSettings\? draftBaseline = null\)' -or
     $settingsPersistenceAdapter -match 'void Save\(\)' -or
-    $settingsViewModel -notmatch 'var settings = _settingsPersistence\.CreateDraft\(\)' -or
-    $settingsViewModel -notmatch 'var saveResult = _settingsPersistence\.Save\(settings\)' -or
+    $settingsViewModel -notmatch 'var settings = _settingsPersistence\.CreateDraft\(out var baseline\)' -or
+    $settingsViewModel -notmatch 'saveResult = _settingsPersistence\.Save\(settings, baseline\)' -or
     $settingsViewModel -notmatch 'if \(!saveResult\.Succeeded\)' -or
     $settingsViewModel -match '_settingsPersistence\.Save\(\);\s*ValidationMessage') {
     throw 'Settings save failures must flow from persistence to SettingsViewModel instead of being reported as successful saves.'
@@ -1154,7 +1154,7 @@ if ($configurationService -match '_ = Task\.Run\(ProcessDeferredSaveQueueAsync\)
     throw 'ConfigurationService deferred-save worker must own and cancel its task, and serialize coalesced save versions under one lifetime gate.'
 }
 
-if ($configurationService -notmatch 'public SettingsWriteResult Save\(AppSettings\? updatedSettings = null\)' -or
+if ($configurationService -notmatch 'public SettingsWriteResult Save\(AppSettings\? updatedSettings = null, AppSettings\? draftBaseline = null\)' -or
     $configurationService -notmatch 'return SettingsWriteResult\.Success' -or
     $configurationService -notmatch 'return SettingsWriteResult\.Failure' -or
     $configurationService -match 'public void Save\(\)') {

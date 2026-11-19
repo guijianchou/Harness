@@ -149,6 +149,8 @@ public partial class WebViewService : IDiagnosticWebViewSession, IDisposable
     /// </summary>
     public string? CurrentEnvironmentName { get; private set; }
 
+    public string? CurrentEnvironmentId { get; private set; }
+
     /// <summary>
     /// Navigates the WebView2 to the specified URL.
     /// </summary>

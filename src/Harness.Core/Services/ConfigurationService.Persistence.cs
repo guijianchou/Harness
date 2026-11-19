@@ -16,6 +16,15 @@ public partial class ConfigurationService
         }
     }
 
+    public AppSettings CreateSnapshot(out AppSettings baseline)
+    {
+        lock (_lock)
+        {
+            baseline = CloneSettings(Settings);
+            return CloneSettings(baseline);
+        }
+    }
+
     private static AppSettings CloneSettings(AppSettings settings)
     {
         var json = JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings);
@@ -69,7 +78,7 @@ public partial class ConfigurationService
 
             if (!JsonNode.DeepEquals(current[name], baseline[name]) && !JsonNode.DeepEquals(current[name], value))
             {
-                throw new IOException($"Setting '{name}' changed in another instance. Reopen Harness to load the latest settings before editing it.");
+                throw new SettingsConflictException(name);
             }
 
             current[name] = value?.DeepClone();
@@ -80,4 +89,7 @@ public partial class ConfigurationService
         current.Remove("minimizeToTray");
         return current;
     }
+
+    private sealed class SettingsConflictException(string name)
+        : IOException($"Setting '{name}' changed in another instance. Reopen Harness to load the latest settings before editing it.");
 }

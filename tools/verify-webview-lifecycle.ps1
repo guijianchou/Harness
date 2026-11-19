@@ -55,7 +55,27 @@ foreach ($selection in @(
 }
 $viewModelSource = 'namespace Harness.ViewModels { public partial class MainViewModel {' + ($viewModelMethods -join "`n") + '} }'
 $trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText($viewModelSource, $parseOptions))
+$windowMethods = [Collections.Generic.List[string]]::new()
+foreach ($selection in @(
+    @{ Path = 'src/Harness/MainWindow.WebView.cs'; Names = @('ScheduleWebViewRecreation', 'RecreateWebViewAsync', 'CanContinueWebViewRecreation', 'ScheduleDeferredWebViewRecreationRetry', 'ClearWebViewHostForPlaceholderEnvironment') },
+    @{ Path = 'src/Harness/MainWindow.Commands.cs'; Names = @('CancelAutomaticWebViewRecovery') }
+)) {
+    $tree = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText((Get-Content -LiteralPath (Join-Path $repoRoot $selection.Path) -Raw), $parseOptions)
+    $found = @()
+    foreach ($method in $tree.GetRoot().DescendantNodes()) {
+        if ($method -is [Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax] -and $method.Identifier.ValueText -in $selection.Names) {
+            $found += $method.Identifier.ValueText
+            $windowMethods.Add($method.ToFullString())
+        }
+    }
+    foreach ($name in $selection.Names) {
+        if ($name -notin $found) { throw "Missing production method $name in $($selection.Path)" }
+    }
+}
+$windowSource = 'using System.Linq; using Harness.Helpers; using Harness.Services; using Microsoft.UI.Xaml; using Microsoft.UI.Xaml.Controls; namespace Harness { public partial class MainWindow {' + ($windowMethods -join "`n") + '} }'
+$trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText($windowSource, $parseOptions))
 foreach ($relativePath in @(
+    'src/Harness/Services/UiTaskDispatcher.cs',
     'src/Harness/Services/WebViewGenerationTracker.cs',
     'src/Harness/Services/WebViewRecreationService.cs',
     'src/Harness.Core/Services/WebViewCircuitBreaker.cs',
