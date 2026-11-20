@@ -18,7 +18,7 @@ public sealed class OpenClawConnectionOptions
     public string? Password { get; init; }
     public string? DeviceToken { get; init; }
     public required IOpenClawDeviceIdentity DeviceIdentity { get; init; }
-    public string ClientVersion { get; init; } = "5.3.8";
+    public string ClientVersion { get; init; } = "5.3.9";
     public string Platform { get; init; } = "windows";
     public string DeviceFamily { get; init; } = "desktop";
     public string? Origin { get; init; }

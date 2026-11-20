@@ -34,7 +34,7 @@ published by the same GitHub repository and is not an independent digital signat
 Official builds that include `portable-manifest.json` and `Updater/Harness.Updater.exe`
 support replacement. Debug outputs and older portable releases still allow version
 checks and provide the release-page link. **Existing 5.3.8 releases need one manual
-upgrade to the first published portable package containing the updater.** Do not
+upgrade to 5.3.9, the first published portable package containing the updater.** Do not
 overwrite or retag the existing 5.3.8 release to deliver this feature.
 
 ## Failure and recovery
@@ -77,4 +77,4 @@ Updates are limited to local writable folders and x64. No elevation is attempted
 “保存设置并重启更新”。设置保存失败时不会退出；下载与校验失败时不会替换程序；新版启动失败
 会恢复旧版。旧程序保存在相邻的 `.harness-update-<id>\backup` 中，确认新版正常后可自行清理。
 如果断电导致更新中断，请关闭所有实例，保留失败目录，再将备份移回原程序路径。
-当前已发布的 5.3.8 需要先手动升级一次到包含更新器的便携包。
+之前发布的 5.3.8 需要先手动升级一次到包含更新器的 5.3.9 便携包。

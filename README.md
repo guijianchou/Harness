@@ -2,7 +2,7 @@
 
 **Language:** English | [简体中文](readme_zh.md)
 
-**Current version:** 5.3.8
+**Current version:** 5.3.9
 
 Lightweight Windows-native shell for hosted agent Control UIs, built with WinUI 3 and WebView2.
 
@@ -70,9 +70,9 @@ It is best suited for users who:
 - access it through Cloudflare Tunnel or a reverse proxy
 - want a lightweight Windows-native client instead of keeping a browser tab open
 
-## Current 5.3.8 Notes
+## Current 5.3.9 Notes
 
-Released on **2026-11-10**.
+Released on **2026-11-19**. This release adds verified portable updates in Settings > About, restart installation with startup-failure rollback, and startup and Settings reliability fixes. See the [5.3.9 release notes](docs/releases/5.3.9.md).
 
 - Add opt-in OpenClaw Gateway v4 controls for session browsing and search, empty-session creation, model selection, exact run cancellation, and observed run completion notifications. Chat input, attachments, and rendering remain in the hosted Web UI.
 - Configure the native connection per environment in Settings, with protected credentials, a persistent signed device identity, optional Cloudflare Access user tokens, and explicit pairing and connection feedback. Native Gateway authentication does not automatically share the web page's login or cookies.
@@ -280,7 +280,7 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
-The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.8\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
+The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.9\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
 
 ### Code Style
 
@@ -362,11 +362,11 @@ dotnet restore Harness.sln --locked-mode
 pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
 ```
 
-The script creates a new version directory such as `artifacts/release/5.3.8`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
+The script creates a new version directory such as `artifacts/release/5.3.9`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
 
-Portable builds from this source include **Settings > About > Check for updates**, verified downloads, and **Save settings and restart to update**. The updater keeps the installation path and AppData, preserves extra user files, and rolls back if the new app fails startup. Existing published 5.3.8 packages require one manual upgrade to a future release containing the updater. See [portable updates and recovery](docs/portable-updates.md).
+Portable builds from this source include **Settings > About > Check for updates**, verified downloads, and **Save settings and restart to update**. The updater keeps the installation path and AppData, preserves extra user files, and rolls back if the new app fails startup. Existing published 5.3.8 packages require one manual upgrade to 5.3.9, which includes the updater. See [portable updates and recovery](docs/portable-updates.md).
 
-Pushing a numeric version tag such as `5.3.8` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
+Pushing a numeric version tag such as `5.3.9` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
 
 ### First Launch
 

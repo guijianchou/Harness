@@ -8,9 +8,11 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 
 ## English
 
-### Unreleased
+### v5.3.9 (2026-11-19)
 
+- Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.9`.
 - Added portable in-app update checks, verified downloads, explicit save-and-restart installation, per-installation process ownership, and startup-failure rollback. Packaging includes a self-contained updater and a file integrity manifest; CI exercises the real updater process against isolated fixtures.
+- Fixed missing startup dependencies in local builds and improved Settings save/conflict feedback, narrow-window layouts, Gateway state, and hosted profile isolation.
 - Previously published 5.3.8 packages need one manual upgrade to the first release containing the updater. See [portable update and recovery details](docs/portable-updates.md).
 
 ### v5.3.8 (2026-11-10)
@@ -398,6 +400,13 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 ---
 
 ## 简体中文
+
+### v5.3.9 (2026-11-19)
+
+- 将 app、assembly、file、package manifest、application manifest、README、中文 README 和 changelog 元数据同步到 `5.3.9`。
+- 增加便携版应用内检查更新、校验下载、保存设置并重启更新、按安装目录管理进程占用及新版启动失败回滚。发布包包含自包含更新器和文件完整性清单，CI 使用隔离测试进程验证实际更新器。
+- 修复本机构建缺少启动依赖的问题，完善设置保存与冲突反馈、窄窗布局、Gateway 状态和托管配置隔离。
+- 之前发布的 5.3.8 需先手动升级一次到 5.3.9，之后可通过应用内更新。详见[便携更新与恢复说明](docs/portable-updates.md)。
 
 ### v5.3.8 (2026-11-10)
 
