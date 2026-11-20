@@ -147,6 +147,7 @@ public sealed partial class SettingsDialog
     private void OnSettingsDialogClosed(object sender, WindowEventArgs args)
     {
         _isClosed = true;
+        _updateCleanupTask = Updates.CloseAsync();
         ViewModel.RetireStartupStatusRequests();
         StopOpenDiagnostics();
         if (this.Content is FrameworkElement rootElement)

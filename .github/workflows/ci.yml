@@ -85,3 +85,7 @@ jobs:
       - name: Verify whitespace
         shell: pwsh
         run: git diff --check
+
+      - name: Verify portable update and rollback
+        shell: pwsh
+        run: ./tools/verify-portable-update.ps1

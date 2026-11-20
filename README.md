@@ -364,6 +364,8 @@ pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
 
 The script creates a new version directory such as `artifacts/release/5.3.8`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
 
+Portable builds from this source include **Settings > About > Check for updates**, verified downloads, and **Save settings and restart to update**. The updater keeps the installation path and AppData, preserves extra user files, and rolls back if the new app fails startup. Existing published 5.3.8 packages require one manual upgrade to a future release containing the updater. See [portable updates and recovery](docs/portable-updates.md).
+
 Pushing a numeric version tag such as `5.3.8` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
 
 ### First Launch

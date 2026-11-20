@@ -19,7 +19,7 @@ public sealed partial class SettingsDialog
         _settingsSaveTask = SaveSettingsAsync();
     }
 
-    private async Task SaveSettingsAsync()
+    private async Task<bool> SaveSettingsAsync(bool closeWindow = true)
     {
         _isSaving = true;
         SettingsInteractionRoot.IsEnabled = false;
@@ -29,14 +29,14 @@ public sealed partial class SettingsDialog
             var result = await ViewModel.SaveAllAsync(new Services.OpenClawCredentialStore(), _startupRegistration);
             if (_isClosed)
             {
-                return;
+                return false;
             }
 
             RefreshStartupRegistrationStatus();
             if (result is not { } saveResult)
             {
                 ShowEnvironmentMessage(ValidationErrorTitle, InfoBarSeverity.Error);
-                return;
+                return false;
             }
             try
             {
@@ -71,7 +71,7 @@ public sealed partial class SettingsDialog
             }
         }
 
-        if (closeAfterSave && !_isClosed)
+        if (closeAfterSave && closeWindow && !_isClosed)
         {
             try
             {
@@ -82,6 +82,7 @@ public sealed partial class SettingsDialog
                 App.Logger.Warning($"Settings were saved but the window could not close: {ex.GetType().Name}");
             }
         }
+        return closeAfterSave;
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e)

@@ -32,6 +32,9 @@ try {
     dotnet publish $projectPath -c Release -p:Platform=x64 -r win-x64 --self-contained true --no-restore `
         -p:PublishSingleFile=false -p:PublishTrimmed=false -o $publishDirectory -v:minimal
     if ($LASTEXITCODE -ne 0) { throw 'Release publish failed.' }
+    dotnet publish src/Harness.Updater/Harness.Updater.csproj -c Release -r win-x64 --self-contained true --no-restore `
+        -o (Join-Path $publishDirectory 'Updater') -v:minimal
+    if ($LASTEXITCODE -ne 0) { throw 'Portable updater publish failed.' }
 
     $requiredFiles = @(
         'Harness.exe', 'Harness.dll', 'Harness.Core.dll', 'Harness.pri',
@@ -41,7 +44,9 @@ try {
         'Microsoft.ui.xaml.dll', 'Microsoft.UI.Xaml.Controls.dll', 'Microsoft.WinUI.dll',
         'Microsoft.Web.WebView2.Core.dll', 'Microsoft.Web.WebView2.Core.Projection.dll', 'WebView2Loader.dll',
         'WinRT.Runtime.dll', 'NSec.Cryptography.dll', 'libsodium.dll',
-        'System.Security.Cryptography.ProtectedData.dll', 'Assets/WindowIcon.ico', 'Assets/harness-logo.png'
+        'System.Security.Cryptography.ProtectedData.dll', 'Assets/WindowIcon.ico', 'Assets/harness-logo.png',
+        'Updater/Harness.Updater.exe', 'Updater/Harness.Updater.dll', 'Updater/Harness.Updater.runtimeconfig.json',
+        'Updater/Harness.Core.dll', 'Updater/hostfxr.dll', 'Updater/coreclr.dll'
     )
     foreach ($relativePath in $requiredFiles) {
         $path = Join-Path $publishDirectory $relativePath
@@ -85,11 +90,20 @@ Close the previous Harness instance before launching this version.
 Target platform: Windows 11 24H2 (build 26100) or later.
 .NET and Windows App SDK are included. Microsoft Edge WebView2 Runtime is required.
 Settings and browser profiles remain in %LOCALAPPDATA%\Harness.
+Future updates: Settings > About > Check for updates > Download > Save settings and restart to update.
+Close other Harness instances first. Downloads use the stable GitHub Release and SHA-256 verification.
+The updater keeps the previous folder in a sibling .harness-update-<id>\backup folder.
+If startup fails, it restores and restarts the previous version. After a power interruption, close all
+Harness instances, keep the failed folder aside, and move that backup back to the original app location.
+After confirming the updated app works, you may remove its sibling .harness-update-<id> folder.
 OpenClaw Gateway controls are opt-in in Settings; browser authentication is not shared.
 
 请将 ZIP 完整解压到新目录，先退出旧版 Harness，再运行 Harness.exe。
 当前目标系统为 Windows 11 24H2（26100）及以上，仍需系统 WebView2 运行时。
 原有配置和登录资料保存在 %LOCALAPPDATA%\Harness，不要删除该目录。
+后续可在“设置 > 关于”中检查、下载更新，并点击“保存设置并重启更新”。请先关闭其他 Harness 实例。
+更新校验 SHA-256 并备份旧版目录，启动失败时恢复旧版。断电等中断后，可关闭所有实例，将失败目录另行保留，
+再把相邻 .harness-update-<id>\backup 目录移回原程序位置。确认新版正常后，可自行删除相邻更新备份目录。
 OpenClaw 原生控制需在设置中启用并配置凭据，不会自动复用网页认证。
 
 Source: https://github.com/Guijianchou/Harness/tree/$sourceCommit
@@ -103,8 +117,19 @@ Release notes: https://github.com/Guijianchou/Harness/releases/tag/$version
         targetFramework = [string]$project.Project.PropertyGroup.TargetFramework
         selfContained = $true
         webView2RuntimeIncluded = $false
+        portableUpdateSchema = 1
     }
     [IO.File]::WriteAllText((Join-Path $publishDirectory 'BUILD-INFO.json'), ($buildInfo | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+
+    $manifestFiles = @(Get-ChildItem -LiteralPath $publishDirectory -File -Recurse | Sort-Object FullName | ForEach-Object {
+        [ordered]@{
+            path = [IO.Path]::GetRelativePath($publishDirectory, $_.FullName).Replace('\', '/')
+            size = $_.Length
+            sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    })
+    $manifest = [ordered]@{ schema = 1; version = $version; runtime = 'win-x64'; files = $manifestFiles }
+    [IO.File]::WriteAllText((Join-Path $publishDirectory 'portable-manifest.json'), ($manifest | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
 
     $zipPath = Join-Path $releaseDirectory "Harness-$version-win-x64.zip"
     [IO.Compression.ZipFile]::CreateFromDirectory($publishDirectory, $zipPath, [IO.Compression.CompressionLevel]::Optimal, $false)

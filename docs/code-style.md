@@ -177,6 +177,8 @@ This guide is the project-specific layer on top of `.editorconfig`, `.gitattribu
 
 The WinUI project must select a Windows RuntimeIdentifier for each supported platform and verify its unpackaged native dependencies after Build. A successful compile alone does not prove that the executable starts. For a local x64 handoff, use the `win-x64` output and confirm a real process reaches main-window activation.
 
+Portable update changes require Core tests and `pwsh -NoProfile -File tools/verify-portable-update.ps1`. Keep update downloads and extraction in Core, process replacement in the standalone updater, and settings-save/restart ownership at the WinUI edge. Never replace the live app before its process exits or treat a downloaded ZIP as proof of a healthy launch. See `docs/portable-updates.md` for the package and recovery contract.
+
 Run these commands before handing off code:
 
 ```powershell

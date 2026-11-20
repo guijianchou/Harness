@@ -369,6 +369,8 @@ pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
 
 脚本会创建新的版本目录，例如 `artifacts/release/5.3.8`，验证发布文件并生成 ZIP 和 SHA-256 校验文件。已有版本目录不会被覆盖；再次构建时请选择其他 `OutputRoot`。
 
+当前源码生成的便携包支持“设置 > 关于 > 检查更新”、校验下载和“保存设置并重启更新”。更新保留程序路径、AppData 和用户额外文件，新版启动失败时回滚。已发布的 5.3.8 需先手动升级一次到将来包含更新器的版本。详见[便携更新与恢复说明](docs/portable-updates.md)。
+
 推送 `5.3.8` 这样的纯数字版本 tag（不带 `v` 前缀）后，[.github/workflows/release.yml](.github/workflows/release.yml) 会自动执行。tag 必须与项目版本一致，并有对应的 `docs/releases/<version>.md` 发布说明。工作流完成验证和打包后，会将 ZIP 及 SHA-256 校验文件发布到 GitHub Releases。
 
 ### 首次启动

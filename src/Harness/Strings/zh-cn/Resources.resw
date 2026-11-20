@@ -1115,4 +1115,91 @@
   <data name="GatewayClientReconcilingShort" xml:space="preserve">
     <value>正在确认</value>
   </data>
+  <data name="UpdateTitle" xml:space="preserve">
+    <value>便携版更新</value>
+  </data>
+  <data name="UpdateIdle" xml:space="preserve">
+    <value>从 GitHub Releases 检查新版本。</value>
+  </data>
+  <data name="UpdateCheck" xml:space="preserve">
+    <value>检查更新</value>
+  </data>
+  <data name="UpdateChecking" xml:space="preserve">
+    <value>正在检查更新…</value>
+  </data>
+  <data name="UpdateUpToDate" xml:space="preserve">
+    <value>暂无更新的稳定版本。</value>
+  </data>
+  <data name="UpdateAvailable" xml:space="preserve">
+    <value>发现新版本 {0}（{1:F1} MB）。</value>
+  </data>
+  <data name="UpdateDownload" xml:space="preserve">
+    <value>下载更新</value>
+  </data>
+  <data name="UpdateDownloading" xml:space="preserve">
+    <value>正在下载更新…</value>
+  </data>
+  <data name="UpdateDownloadProgress" xml:space="preserve">
+    <value>已下载 {0:F1} / {1:F1} MB</value>
+  </data>
+  <data name="UpdateVerifying" xml:space="preserve">
+    <value>正在校验并准备更新…</value>
+  </data>
+  <data name="UpdateReady" xml:space="preserve">
+    <value>版本 {0} 已准备好安装。</value>
+  </data>
+  <data name="UpdateRestart" xml:space="preserve">
+    <value>保存设置并重启更新</value>
+  </data>
+  <data name="UpdateRestartHint" xml:space="preserve">
+    <value>请先完成聊天中的工作。此操作会保存设置草稿并退出 Harness。更新保留程序目录位置、配置和登录资料，并备份旧版程序。</value>
+  </data>
+  <data name="UpdateRestarting" xml:space="preserve">
+    <value>正在准备重启…</value>
+  </data>
+  <data name="UpdateCancelled" xml:space="preserve">
+    <value>已取消，当前版本未更改。</value>
+  </data>
+  <data name="UpdateManual" xml:space="preserve">
+    <value>自动替换需要官方 Windows x64 便携包。此构建请从发布页面下载完整包。</value>
+  </data>
+  <data name="UpdateReleaseNotes" xml:space="preserve">
+    <value>发布说明与手动下载</value>
+  </data>
+  <data name="UpdateNetworkError" xml:space="preserve">
+    <value>无法连接 GitHub，请检查网络后重试。</value>
+  </data>
+  <data name="UpdateInvalidRelease" xml:space="preserve">
+    <value>此发布没有兼容且完整的更新包。请查看发布页面或稍后再试。</value>
+  </data>
+  <data name="UpdateChecksumMismatch" xml:space="preserve">
+    <value>更新校验失败。请重新下载，当前版本未被替换。</value>
+  </data>
+  <data name="UpdateInvalidPackage" xml:space="preserve">
+    <value>更新包不完整或格式无效，请重新下载。</value>
+  </data>
+  <data name="UpdateRateLimited" xml:space="preserve">
+    <value>GitHub 请求受限，请稍后重试。</value>
+  </data>
+  <data name="UpdateAccessDenied" xml:space="preserve">
+    <value>更新需要可写的程序目录和足够磁盘空间。请将便携程序移到可写目录，或手动下载。</value>
+  </data>
+  <data name="UpdateUnsafeLocation" xml:space="preserve">
+    <value>此程序位置无法自动更新。请使用不含目录链接的本地文件夹。</value>
+  </data>
+  <data name="UpdateInstallationChanged" xml:space="preserve">
+    <value>已安装文件发生变化，请重新打开 Harness 并检查更新。</value>
+  </data>
+  <data name="UpdateHelperFailed" xml:space="preserve">
+    <value>更新器无法启动。请保留 Harness 并重试，或手动下载更新。</value>
+  </data>
+  <data name="UpdateFailed" xml:space="preserve">
+    <value>无法准备更新，请重试或查看发布页面。</value>
+  </data>
+  <data name="UpdateRestored" xml:space="preserve">
+    <value>上次更新未完成，旧版程序已保留。请关闭其他 Harness 实例后重试。</value>
+  </data>
+  <data name="UpdateRecoveryRequired" xml:space="preserve">
+    <value>更新需要手动恢复。请关闭所有 Harness 实例，并恢复此备份目录：{0}</value>
+  </data>
 </root>

@@ -60,6 +60,7 @@ public partial class App : Application
     private async Task LaunchAsync(LaunchActivatedEventArgs args)
     {
         Logger.Info("Application launching.");
+        await AcquirePortableLeaseAsync();
         Configuration.Load();
         Logger.Info("Configuration loaded.");
 
@@ -90,6 +91,7 @@ public partial class App : Application
         }
 
         Logger.Info("Main window activated.");
+        ConfirmUpdatedLaunch();
     }
 
     private async Task<bool> RedirectSecondaryLaunchToPrimaryInstanceAsync()

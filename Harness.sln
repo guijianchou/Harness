@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Harness.Core.Tests", "tests\Harness.Core.Tests\Harness.Core.Tests.csproj", "{6DB246C9-EA2B-474A-8365-26ACD317C0CD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Harness.Updater", "src\Harness.Updater\Harness.Updater.csproj", "{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -63,6 +65,18 @@ Global
 		{6DB246C9-EA2B-474A-8365-26ACD317C0CD}.Release|x86.Build.0 = Release|Any CPU
 		{6DB246C9-EA2B-474A-8365-26ACD317C0CD}.Release|ARM64.ActiveCfg = Release|Any CPU
 		{6DB246C9-EA2B-474A-8365-26ACD317C0CD}.Release|ARM64.Build.0 = Release|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Debug|x64.Build.0 = Debug|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Debug|x86.Build.0 = Debug|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Release|x64.ActiveCfg = Release|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Release|x64.Build.0 = Release|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Release|x86.ActiveCfg = Release|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Release|x86.Build.0 = Release|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{1450B230-53B9-4D04-B8C8-2CA4A3C3FDAB}.Release|ARM64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

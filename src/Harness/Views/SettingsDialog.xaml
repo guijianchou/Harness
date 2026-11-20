@@ -557,6 +557,32 @@
                         <TextBlock Text="{x:Bind helpers:StringResources.AboutTitle}"
                                    Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
 
+                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="4" Padding="16">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="{x:Bind helpers:UpdateLocalization.Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind Updates.Status, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                                <ProgressBar Value="{x:Bind Updates.Progress, Mode=OneWay}" IsIndeterminate="{x:Bind Updates.IsIndeterminate, Mode=OneWay}"
+                                             Visibility="{x:Bind Updates.BusyVisibility, Mode=OneWay}" AutomationProperties.Name="{x:Bind helpers:UpdateLocalization.Downloading}" />
+                                <TextBlock Text="{x:Bind helpers:UpdateLocalization.Manual}" TextWrapping="Wrap" FontSize="12"
+                                           Visibility="{x:Bind Updates.ManualVisibility}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <Button Content="{x:Bind helpers:UpdateLocalization.Check}" Command="{x:Bind Updates.CheckCommand}"
+                                        IsEnabled="{x:Bind Updates.CanCheck, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Content="{x:Bind helpers:UpdateLocalization.Download}" Command="{x:Bind Updates.DownloadCommand}"
+                                        Visibility="{x:Bind Updates.DownloadVisibility, Mode=OneWay}" IsEnabled="{x:Bind Updates.CanDownload, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Command="{x:Bind Updates.CancelCommand}" Content="{x:Bind helpers:StringResources.Cancel}"
+                                        Visibility="{x:Bind Updates.BusyVisibility, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                <Button Click="OnRestartUpdateClick" Visibility="{x:Bind Updates.RestartVisibility, Mode=OneWay}"
+                                        IsEnabled="{x:Bind Updates.CanRestart, Mode=OneWay}" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Stretch">
+                                    <TextBlock Text="{x:Bind helpers:UpdateLocalization.Restart}" TextWrapping="Wrap" />
+                                </Button>
+                                <TextBlock Text="{x:Bind helpers:UpdateLocalization.RestartHint}" Visibility="{x:Bind Updates.RestartVisibility, Mode=OneWay}"
+                                           TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <HyperlinkButton Content="{x:Bind helpers:UpdateLocalization.ReleaseNotes}" NavigateUri="{x:Bind Updates.ReleasePage, Mode=OneWay}"
+                                                 HorizontalAlignment="Left" Padding="0" />
+                            </StackPanel>
+                        </Border>
+
                         <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                                 BorderThickness="1" CornerRadius="4" Padding="16">

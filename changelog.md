@@ -8,6 +8,11 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 
 ## English
 
+### Unreleased
+
+- Added portable in-app update checks, verified downloads, explicit save-and-restart installation, per-installation process ownership, and startup-failure rollback. Packaging includes a self-contained updater and a file integrity manifest; CI exercises the real updater process against isolated fixtures.
+- Previously published 5.3.8 packages need one manual upgrade to the first release containing the updater. See [portable update and recovery details](docs/portable-updates.md).
+
 ### v5.3.8 (2026-11-10)
 
 - Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.8`.

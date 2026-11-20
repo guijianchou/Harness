@@ -1495,6 +1495,7 @@ $appGlobalAllowedFiles = @(
     'src/Harness/Views/SettingsDialog.Actions.cs',
     'src/Harness/Views/SettingsDialog.Initialization.cs',
     'src/Harness/Views/SettingsDialog.Theme.cs',
+    'src/Harness/Views/SettingsDialog.Updates.cs',
     'src/Harness/Views/SettingsDialog.xaml.cs'
 )
 $appGlobalAccessMatches = Get-ChildItem -LiteralPath (Join-Path $repoRoot 'src/Harness') -Recurse -File -Filter *.cs |
