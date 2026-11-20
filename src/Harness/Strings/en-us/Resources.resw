@@ -174,7 +174,7 @@
     <value>Set as default</value>
   </data>
   <data name="SettingsApply" xml:space="preserve">
-    <value>Apply</value>
+    <value>Update draft</value>
   </data>
   <data name="AddEnvironment" xml:space="preserve">
     <value>Add Environment</value>
@@ -1090,5 +1090,29 @@
   </data>
   <data name="ShellGatewaySessionProperties" xml:space="preserve">
     <value>Session details</value>
+  </data>
+  <data name="GatewayClientConfigure" xml:space="preserve">
+    <value>Configure Gateway</value>
+  </data>
+  <data name="GatewayClientRefresh" xml:space="preserve">
+    <value>Refresh / reconnect</value>
+  </data>
+  <data name="GatewayClientReturnToPage" xml:space="preserve">
+    <value>Return to chat</value>
+  </data>
+  <data name="GatewayClientWaitingForPageShort" xml:space="preserve">
+    <value>Awaiting chat</value>
+  </data>
+  <data name="GatewayClientSelectSessionShort" xml:space="preserve">
+    <value>No session</value>
+  </data>
+  <data name="GatewayClientUnknownRunShort" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="GatewayClientStoppingShort" xml:space="preserve">
+    <value>Stopping</value>
+  </data>
+  <data name="GatewayClientReconcilingShort" xml:space="preserve">
+    <value>Checking</value>
   </data>
 </root>

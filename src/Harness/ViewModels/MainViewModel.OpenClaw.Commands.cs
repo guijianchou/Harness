@@ -60,14 +60,14 @@ public partial class MainViewModel
             }
             if (before?.HasDraft == true)
             {
-                GatewayErrorText = GatewayStrings.Text("DraftBeforeSwitch");
+                SetGatewayIssue(GatewayStrings.Text("DraftBeforeSwitch"), GatewayRecoveryAction.ReturnToPage);
                 return;
             }
             if (before?.SessionKey != item.Key)
             {
                 if (before is null)
                 {
-                    GatewayErrorText = GatewayStrings.Text("WaitingForPage");
+                    SetGatewayIssue(GatewayStrings.Text("WaitingForPage"), GatewayRecoveryAction.ReturnToPage);
                     return;
                 }
                 var target = OpenClawSessionRoute.Build(new Uri(_selectedEnvironment!.GatewayUrl), item.Key, modern: !before.IsLegacy);
@@ -91,7 +91,7 @@ public partial class MainViewModel
                 if (confirmed?.SessionKey != item.Key)
                 {
                     SetGatewayPageSelection(null);
-                    GatewayErrorText = GatewayStrings.Text("SelectionNotConfirmed");
+                    SetGatewayIssue(GatewayStrings.Text("SelectionNotConfirmed"), GatewayRecoveryAction.Refresh);
                     return;
                 }
                 SetGatewayPageSelection(confirmed);
@@ -140,12 +140,12 @@ public partial class MainViewModel
         }
         if (!ReferenceEquals(client, runtime.Client) || !client.IsConnected || _gatewaySelectionChanging || GatewayBusy)
         {
-            GatewayErrorText = GatewayStrings.Text("SelectionNotConfirmed");
+            SetGatewayIssue(GatewayStrings.Text("SelectionNotConfirmed"), GatewayRecoveryAction.Refresh);
             return;
         }
         if (page?.HasDraft == true || !TryGetGatewayAgentId(page?.SessionKey, out var agentId))
         {
-            GatewayErrorText = GatewayStrings.Text(page?.HasDraft == true ? "DraftBeforeSwitch" : "WaitingForPage");
+            SetGatewayIssue(GatewayStrings.Text(page?.HasDraft == true ? "DraftBeforeSwitch" : "WaitingForPage"), GatewayRecoveryAction.ReturnToPage);
             return;
         }
         GatewayBusy = true;
@@ -187,7 +187,7 @@ public partial class MainViewModel
             if (IsCurrentGateway(runtime))
             {
                 SetGatewayPageSelection(page);
-                GatewayErrorText = GatewayStrings.Text("SelectionNotConfirmed");
+                SetGatewayIssue(GatewayStrings.Text("SelectionNotConfirmed"), GatewayRecoveryAction.Refresh);
                 NotifyGatewayCapabilities();
             }
             return false;
@@ -250,7 +250,7 @@ public partial class MainViewModel
         if (runtime is null || client is null || selection is null || runId is null || sessionId is null || !CanStopGatewayRun ||
             !TryGetGatewayAgentId(selection.Key, out var agentId))
         {
-            GatewayErrorText = GatewayStrings.Text("NoExactRun");
+            SetGatewayIssue(GatewayStrings.Text("NoExactRun"), GatewayRecoveryAction.Refresh);
             return;
         }
         var token = _gatewayCancellation?.Token ?? _lifetimeCts.Token;
@@ -270,7 +270,7 @@ public partial class MainViewModel
                 if (OpenClawSessionSnapshot.CanAcknowledgeStop(_gatewayHistory, _gatewayPage?.SessionKey,
                     selection.Key, sessionId, runId, GetExactGatewayRunId(), _gatewayNotifiedRuns.Contains(selection.Key + "|" + runId)))
                 {
-                    SetGatewayRunPresentation(GatewayStrings.Text(result.Aborted == true || result.RunIds?.Contains(runId, StringComparer.Ordinal) == true ? "Stopping" : "Reconciling"), true);
+                    SetGatewayRunPresentation(result.Aborted == true || result.RunIds?.Contains(runId, StringComparer.Ordinal) == true ? "Stopping" : "Reconciling", true);
                 }
                 RequestGatewayRefresh(GatewayRefreshScope.History);
             }

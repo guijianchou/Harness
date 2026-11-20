@@ -174,7 +174,7 @@
     <value>设为默认</value>
   </data>
   <data name="SettingsApply" xml:space="preserve">
-    <value>应用</value>
+    <value>更新草稿</value>
   </data>
   <data name="AddEnvironment" xml:space="preserve">
     <value>添加环境</value>
@@ -1090,5 +1090,29 @@
   </data>
   <data name="ShellGatewaySessionProperties" xml:space="preserve">
     <value>会话详情</value>
+  </data>
+  <data name="GatewayClientConfigure" xml:space="preserve">
+    <value>配置 Gateway</value>
+  </data>
+  <data name="GatewayClientRefresh" xml:space="preserve">
+    <value>刷新 / 重连</value>
+  </data>
+  <data name="GatewayClientReturnToPage" xml:space="preserve">
+    <value>返回聊天页面</value>
+  </data>
+  <data name="GatewayClientWaitingForPageShort" xml:space="preserve">
+    <value>等待聊天页面</value>
+  </data>
+  <data name="GatewayClientSelectSessionShort" xml:space="preserve">
+    <value>未选会话</value>
+  </data>
+  <data name="GatewayClientUnknownRunShort" xml:space="preserve">
+    <value>状态未知</value>
+  </data>
+  <data name="GatewayClientStoppingShort" xml:space="preserve">
+    <value>正在停止</value>
+  </data>
+  <data name="GatewayClientReconcilingShort" xml:space="preserve">
+    <value>正在确认</value>
   </data>
 </root>

@@ -7,6 +7,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' And '$(Platform)' == 'x86'">win-x86</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' And '$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -20,6 +23,20 @@
     <BaseOutputPath>..\..\bin\$(Configuration)\</BaseOutputPath>
     <OutputPath>$(BaseOutputPath)$(Version)\</OutputPath>
   </PropertyGroup>
+
+  <Target Name="VerifyUnpackagedRuntimeFiles" AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' And '$(WindowsPackageType)' == 'None' And '$(WindowsAppSDKSelfContained)' == 'true'">
+    <ItemGroup>
+      <RequiredRuntimeFile Include="$(TargetDir)Microsoft.WindowsAppRuntime.dll;
+                                    $(TargetDir)Microsoft.ui.xaml.dll;
+                                    $(TargetDir)Microsoft.WinUI.dll;
+                                    $(TargetDir)WebView2Loader.dll;
+                                    $(TargetDir)libsodium.dll;
+                                    $(TargetDir)Harness.pri" />
+    </ItemGroup>
+    <Error Condition="!Exists('%(RequiredRuntimeFile.Identity)')"
+           Text="Missing unpackaged runtime dependency: %(RequiredRuntimeFile.Identity). Build with a matching Windows RuntimeIdentifier before running Harness.exe." />
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />

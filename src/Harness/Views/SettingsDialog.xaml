@@ -13,6 +13,7 @@
 
     <ContentControl x:Name="SettingsInteractionRoot" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
     <Grid x:Name="SettingsRoot"
+          SizeChanged="OnSettingsRootSizeChanged"
           Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.Resources>
             <x:Double x:Key="SettingsEditorWidth">160</x:Double>
@@ -41,13 +42,30 @@
 
         <!-- Main content: sidebar + panels -->
         <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="180" />
+                <ColumnDefinition x:Name="SettingsNavigationColumn" Width="180" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
+            <ComboBox x:Name="CompactNavigation" Grid.ColumnSpan="2"
+                      Margin="12,12,12,0" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                      AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsTitle}"
+                      SelectionChanged="OnCompactNavigationChanged">
+                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" />
+                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}" />
+                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavEnvironments}" />
+                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" />
+                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavSessions}" />
+                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavDevTools}" />
+                <ComboBoxItem Content="{x:Bind helpers:StringResources.AboutTitle}" />
+            </ComboBox>
+
             <!-- LEFT SIDEBAR -->
-            <Border Grid.Column="0"
+            <Border x:Name="SettingsNavigationSidebar" Grid.Column="0" Grid.RowSpan="2"
                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                     BorderThickness="0,0,1,0">
@@ -138,7 +156,7 @@
             </Border>
 
             <!-- RIGHT CONTENT -->
-            <ScrollViewer x:Name="SettingsContentScroll" Grid.Column="1"
+            <ScrollViewer x:Name="SettingsContentScroll" Grid.Column="1" Grid.Row="1"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           Padding="24,20">
@@ -377,7 +395,11 @@
                                 CornerRadius="4"
                                 Padding="12,8"
                                 Margin="0,4,0,0">
-                            <Grid ColumnSpacing="16" MinHeight="36">
+                            <Grid x:Name="EnvironmentActionsLayout" ColumnSpacing="16" RowSpacing="8" MinHeight="36">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -392,6 +414,7 @@
                                     </Grid.ColumnDefinitions>
 
                                     <TextBlock Text="{x:Bind helpers:StringResources.SetAsDefault}"
+                                               TextWrapping="Wrap"
                                                FontSize="13"
                                                VerticalAlignment="Center" />
                                     <ToggleSwitch Grid.Column="1"
@@ -402,7 +425,7 @@
                                                   OffContent="" />
                                 </Grid>
 
-                                <Button Grid.Column="1"
+                                <Button x:Name="ApplyEnvironmentDraft" Grid.Column="1"
                                         Content="{x:Bind helpers:StringResources.SettingsApply}"
                                         Click="OnApplyClick"
                                         Style="{StaticResource AccentButtonStyle}"

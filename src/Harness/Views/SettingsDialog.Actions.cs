@@ -250,6 +250,7 @@ public sealed partial class SettingsDialog
     {
         if (ViewModel.TryApplyEdit())
         {
+            ValidationInfoBar.IsOpen = false;
             return true;
         }
 

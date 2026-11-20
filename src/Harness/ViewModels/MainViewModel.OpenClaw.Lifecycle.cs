@@ -51,6 +51,9 @@ public partial class MainViewModel
         _gatewayObservedRuns.Clear();
         _gatewayNotifiedRuns.Clear();
         GatewayBusy = false;
+        _gatewayRosterLoaded = false;
+        _gatewayRosterLoading = false;
+        NotifyGatewayRosterState();
         GatewayHasMore = false;
         GatewayErrorText = "";
         GatewayVersionText = "";
@@ -67,7 +70,7 @@ public partial class MainViewModel
             return;
         }
 
-        SetGatewayRunPresentation(GatewayRunText, false);
+        SetGatewayRunPresentation("SelectSession", false);
         ModelSummaryText = DefaultModelSummary;
 
         Uri endpoint;
@@ -77,7 +80,7 @@ public partial class MainViewModel
         }
         catch (UriFormatException)
         {
-            GatewayErrorText = GatewayStrings.Text("InvalidEndpoint");
+            SetGatewayIssue(GatewayStrings.Text("InvalidEndpoint"), GatewayRecoveryAction.Configure);
             return;
         }
 
@@ -133,6 +136,9 @@ public partial class MainViewModel
             }
 
             GatewayStatusText = GatewayStrings.Text("Connected");
+            _gatewayRosterLoaded = false;
+            _gatewayRosterLoading = true;
+            NotifyGatewayRosterState();
             GatewayVersionText = $"OpenClaw {hello.Server.Version} · v{hello.Protocol}";
             GatewayErrorText = "";
             _gatewayCanWrite = hello.Auth.Scopes.Contains("operator.write", StringComparer.Ordinal) || hello.Auth.Scopes.Contains("operator.admin", StringComparer.Ordinal);
@@ -157,12 +163,14 @@ public partial class MainViewModel
             }
 
             _gatewayCanWrite = false;
+            _gatewayRosterLoading = false;
+            NotifyGatewayRosterState();
             _gatewayTargetVersion++;
             _gatewayHistory = null;
             InvalidateGatewayModels(clear: true);
             ResetGatewaySessionDetails();
             GatewayStatusText = GatewayStrings.Text(retrying ? "Reconnecting" : "Disconnected");
-            SetGatewayRunPresentation(GatewayStrings.Text("UnknownRun"), false);
+            SetGatewayRunPresentation("UnknownRun", false);
             if (error is not null)
             {
                 ShowGatewayError(error);
@@ -171,6 +179,8 @@ public partial class MainViewModel
         });
         runtime.EventReceived += value => DispatchUiUpdate(() => HandleGatewayEvent(runtime, value));
         GatewayStatusText = GatewayStrings.Text("Connecting");
+        _gatewayRosterLoading = true;
+        NotifyGatewayRosterState();
         IsOpenClawPanelOpen = true;
         runtime.Start();
         _gatewayMonitorTask = MonitorGatewayAsync(runtime, cancellation.Token);
@@ -182,6 +192,8 @@ public partial class MainViewModel
 
     private void StopGatewayRuntime()
     {
+        _gatewaySearchCancellation?.Cancel();
+        _gatewaySearchCancellation = null;
         _gatewayCancellation?.Cancel();
         _gatewayCancellation = null;
         _gatewayRuntime = null;

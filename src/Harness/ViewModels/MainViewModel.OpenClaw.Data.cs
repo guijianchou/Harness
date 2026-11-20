@@ -52,9 +52,9 @@ public partial class MainViewModel
     private Task RefreshGatewayDataAsync(OpenClawSessionRuntime runtime, bool refreshRoster, CancellationToken cancellationToken) =>
         RefreshGatewayDataAsync(runtime, refreshRoster ? GatewayRefreshScope.Roster | GatewayRefreshScope.History : GatewayRefreshScope.History, cancellationToken);
 
-    private async Task RefreshGatewayDataAsync(OpenClawSessionRuntime runtime, GatewayRefreshScope scope, CancellationToken cancellationToken)
+    private async Task RefreshGatewayDataAsync(OpenClawSessionRuntime runtime, GatewayRefreshScope scope, CancellationToken cancellationToken, bool waitForGate = false)
     {
-        if (!await _gatewayDataGate.WaitAsync(0, cancellationToken))
+        if (!await _gatewayDataGate.WaitAsync(waitForGate ? Timeout.Infinite : 0, cancellationToken))
         {
             RequestGatewayRefresh(scope);
             return;
@@ -65,20 +65,23 @@ public partial class MainViewModel
         var targetVersion = _gatewayTargetVersion;
         var searchVersion = _gatewaySearchVersion;
         var search = GatewaySearchText.Trim();
+        var targetsSession = scope.HasFlag(GatewayRefreshScope.History) || scope.HasFlag(GatewayRefreshScope.Models);
         var readingHistory = false;
         try
         {
-            if (client?.IsConnected != true)
+            if (!IsCurrentGateway(runtime) || client?.IsConnected != true)
             {
                 return;
             }
 
             bool Current() => IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) &&
-                client.IsConnected && pageKey == _gatewayPage?.SessionKey && targetVersion == _gatewayTargetVersion &&
+                client.IsConnected && (!targetsSession || (pageKey == _gatewayPage?.SessionKey && targetVersion == _gatewayTargetVersion)) &&
                 (!scope.HasFlag(GatewayRefreshScope.Roster) || searchVersion == _gatewaySearchVersion) && !cancellationToken.IsCancellationRequested;
 
             if (scope.HasFlag(GatewayRefreshScope.Roster))
             {
+                _gatewayRosterLoading = true;
+                NotifyGatewayRosterState();
                 var expectedCount = searchVersion == _gatewayRosterSearchVersion ? Math.Clamp(_gatewayRoster.Count, 60, 600) : 60;
                 var roster = await client.ListSessionsAsync(cancellationToken: cancellationToken, search: search.Length == 0 ? null : search);
                 var rows = roster.Sessions.ToList();
@@ -95,6 +98,7 @@ public partial class MainViewModel
                 _gatewayRoster.Clear();
                 _gatewayRoster.AddRange(rows.DistinctBy(row => (row.AgentId, row.Key)));
                 _gatewayRosterSearchVersion = searchVersion;
+                _gatewayRosterLoaded = true;
                 _gatewayNextOffset = roster.NextOffset;
                 GatewayHasMore = roster.HasMore == true && roster.NextOffset.HasValue;
                 ProjectGatewayRoster();
@@ -109,7 +113,7 @@ public partial class MainViewModel
             if (string.IsNullOrEmpty(pageKey))
             {
                 _gatewayHistory = null;
-                SetGatewayRunPresentation(GatewayStrings.Text("WaitingForPage"), false);
+                SetGatewayRunPresentation("WaitingForPage", false);
                 NotifyGatewayCapabilities();
                 return;
             }
@@ -151,8 +155,8 @@ public partial class MainViewModel
                 InvalidateGatewayModels(clear: true);
                 GatewayModels.Clear();
                 SelectedGatewayModel = null;
-                GatewayErrorText = GatewayStrings.Text("SelectionNotConfirmed");
-                SetGatewayRunPresentation(GatewayStrings.Text("UnknownRun"), false);
+                SetGatewayIssue(GatewayStrings.Text("SelectionNotConfirmed"), GatewayRecoveryAction.Refresh);
+                SetGatewayRunPresentation("UnknownRun", false);
                 NotifyGatewayCapabilities();
                 return;
             }
@@ -200,12 +204,12 @@ public partial class MainViewModel
         catch (Exception ex)
         {
             if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && client?.IsConnected == true &&
-                pageKey == _gatewayPage?.SessionKey && targetVersion == _gatewayTargetVersion && searchVersion == _gatewaySearchVersion)
+                (!targetsSession || (pageKey == _gatewayPage?.SessionKey && targetVersion == _gatewayTargetVersion)) && searchVersion == _gatewaySearchVersion)
             {
                 if (readingHistory)
                 {
                     _gatewayDataStale = true;
-                    SetGatewayRunPresentation(GatewayStrings.Text("UnknownRun"), false);
+                    SetGatewayRunPresentation("UnknownRun", false);
                 }
                 ScheduleGatewayRefreshRetry(ex, scope);
                 NotifyGatewayCapabilities();
@@ -215,6 +219,11 @@ public partial class MainViewModel
         }
         finally
         {
+            if (IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && scope.HasFlag(GatewayRefreshScope.Roster))
+            {
+                _gatewayRosterLoading = false;
+                NotifyGatewayRosterState();
+            }
             _gatewayDataGate.Release();
         }
     }
@@ -281,7 +290,7 @@ public partial class MainViewModel
             return GatewayRefreshScope.None;
         }
         var scope = (GatewayRefreshScope)Interlocked.Exchange(ref _gatewayRefreshRequested, 0);
-        if (now < _gatewaySearchNotBefore && scope.HasFlag(GatewayRefreshScope.Roster))
+        if ((now < _gatewaySearchNotBefore || _gatewaySearchCancellation is not null) && scope.HasFlag(GatewayRefreshScope.Roster))
         {
             RequestGatewayRefresh(GatewayRefreshScope.Roster);
             scope &= ~GatewayRefreshScope.Roster;
@@ -421,7 +430,7 @@ public partial class MainViewModel
             GatewayModels.Clear();
             ResetGatewaySessionDetails();
             ModelSummaryText = DefaultModelSummary;
-            SetGatewayRunPresentation(GatewayStrings.Text("WaitingForPage"), false);
+            SetGatewayRunPresentation("WaitingForPage", false);
             OnPropertyChanged(nameof(SelectedGatewaySession));
             OnPropertyChanged(nameof(SelectedGatewayModel));
             OnPropertyChanged(nameof(GatewaySessionTitle));
@@ -441,14 +450,14 @@ public partial class MainViewModel
             NotifyGatewayCapabilities();
             return;
         }
-        SetGatewayRunPresentation(GatewayStrings.Text(exact is not null || busy == true ? "Running" : busy == false ? "Idle" : "UnknownRun"), exact is not null || busy == true);
+        SetGatewayRunPresentation(exact is not null || busy == true ? "Running" : busy == false ? "Idle" : "UnknownRun", exact is not null || busy == true);
         NotifyGatewayCapabilities();
     }
 
-    private void SetGatewayRunPresentation(string text, bool running)
+    private void SetGatewayRunPresentation(string key, bool running)
     {
-        GatewayRunText = text;
-        WorkStatusText = text;
+        GatewayRunText = GatewayStrings.Text(key);
+        WorkStatusText = GatewayStrings.Text(key is "WaitingForPage" or "Stopping" or "Reconciling" or "UnknownRun" or "SelectSession" ? key + "Short" : key);
         WorkStatusBrush = running ? WarningBrush : NeutralBrush;
         SetRunIndicatorMode(running ? RunIndicatorMode.Live : RunIndicatorMode.Wait);
     }
@@ -548,7 +557,7 @@ public partial class MainViewModel
                 }
             }
             _gatewayEventRunId = null;
-            SetGatewayRunPresentation(GatewayStrings.Text(state == "final" ? "Completed" : state == "aborted" ? "Stopped" : "Failed"), false);
+            SetGatewayRunPresentation(state == "final" ? "Completed" : state == "aborted" ? "Stopped" : "Failed", false);
             RequestGatewayEventRefresh();
         }
         else
@@ -559,7 +568,7 @@ public partial class MainViewModel
                 RequestGatewayEventRefresh();
             }
             _gatewayEventRunId = run;
-            SetGatewayRunPresentation(GatewayStrings.Text(ReadGatewayText(value.Payload, "stream") == "tool" ? "ToolRunning" : "Running"), true);
+            SetGatewayRunPresentation(ReadGatewayText(value.Payload, "stream") == "tool" ? "ToolRunning" : "Running", true);
         }
         NotifyGatewayCapabilities();
     }

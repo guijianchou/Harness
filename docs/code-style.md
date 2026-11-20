@@ -175,6 +175,8 @@ This guide is the project-specific layer on top of `.editorconfig`, `.gitattribu
 
 ## Verification
 
+The WinUI project must select a Windows RuntimeIdentifier for each supported platform and verify its unpackaged native dependencies after Build. A successful compile alone does not prove that the executable starts. For a local x64 handoff, use the `win-x64` output and confirm a real process reaches main-window activation.
+
 Run these commands before handing off code:
 
 ```powershell

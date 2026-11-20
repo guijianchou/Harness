@@ -267,12 +267,12 @@
 
                     <Grid x:Name="WorkStatusSegment"
                           Grid.Column="4"
-                          MinWidth="88"
+                          MinWidth="88" MaxWidth="156"
                           ColumnSpacing="4"
                           VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Grid.Column="0"
@@ -282,6 +282,8 @@
 
                         <TextBlock Grid.Column="1"
                                     Text="{x:Bind ViewModel.WorkStatusText, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis"
+                                    ToolTipService.ToolTip="{x:Bind GetWorkStatusTooltip(ViewModel.IsOpenClawAvailable, ViewModel.GatewayRunText, ViewModel.WorkStatusText), Mode=OneWay}"
                                     Foreground="{x:Bind ViewModel.WorkStatusBrush, Mode=OneWay}"
                                     Style="{StaticResource TopStatusValueTextBlockStyle}"
                                     CharacterSpacing="{StaticResource TopStatusWorkStateCharacterSpacing}"
@@ -502,8 +504,9 @@
                                          Severity="Warning"
                                          IsClosable="False">
                                     <InfoBar.ActionButton>
-                                        <Button Content="{x:Bind helpers:ShellGatewayLocalization.Configure}"
-                                                Click="OnConfigureGatewayClick" />
+                                        <Button Content="{x:Bind ViewModel.GatewayErrorActionText, Mode=OneWay}"
+                                                Visibility="{x:Bind ShowWhen(ViewModel.GatewayHasErrorAction), Mode=OneWay}"
+                                                Click="OnGatewayRecoveryClick" />
                                     </InfoBar.ActionButton>
                                 </InfoBar>
 
@@ -537,7 +540,7 @@
                                                  VerticalAlignment="Bottom"
                                                  Margin="0,20,0,0"
                                                  IsIndeterminate="True"
-                                                 Visibility="{x:Bind ShowWhen(ViewModel.GatewayBusy), Mode=OneWay}" />
+                                                 Visibility="{x:Bind ShowGatewayProgress(ViewModel.GatewayBusy, ViewModel.GatewaySessionsLoading), Mode=OneWay}" />
                                 </Grid>
                             </Grid>
 
@@ -547,6 +550,7 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <ListView x:Name="GatewaySessionList"
+                                          IsEnabled="{x:Bind ViewModel.CanSelectGatewaySession, Mode=OneWay}"
                                           ItemsSource="{x:Bind ViewModel.GatewaySessions}"
                                           SelectedItem="{x:Bind ViewModel.SelectedGatewaySession, Mode=TwoWay}"
                                           SelectionMode="Single"
@@ -569,7 +573,7 @@
                                 <StackPanel Spacing="8"
                                             Margin="8,12"
                                             VerticalAlignment="Center"
-                                            Visibility="{x:Bind ShowGatewayEmptyState(ViewModel.GatewaySessions.Count, ViewModel.GatewayBusy, ViewModel.GatewayHasError), Mode=OneWay}">
+                                            Visibility="{x:Bind ShowGatewayEmptyState(ViewModel.GatewaySessions.Count, ViewModel.GatewayBusy, ViewModel.GatewaySessionsLoading, ViewModel.GatewayHasError, ViewModel.GatewayRosterLoaded), Mode=OneWay}">
                                     <FontIcon Glyph="&#xE8F2;" FontSize="28"
                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.NoSessions}"
@@ -611,6 +615,10 @@
                                                FontSize="12"
                                                AutomationProperties.LiveSetting="Polite"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <Button Content="{x:Bind helpers:ShellGatewayLocalization.StopRun}"
+                                            Command="{x:Bind ViewModel.StopGatewayRunCommand}"
+                                            IsEnabled="{x:Bind ViewModel.CanStopGatewayRun, Mode=OneWay}"
+                                            HorizontalAlignment="Stretch" />
                                     <ComboBox ItemsSource="{x:Bind ViewModel.GatewayModels}"
                                               SelectedItem="{x:Bind ViewModel.SelectedGatewayModel, Mode=TwoWay}"
                                               DisplayMemberPath="DisplayName"
@@ -630,10 +638,7 @@
                                             Command="{x:Bind ViewModel.ApplyGatewayModelCommand}"
                                             IsEnabled="{x:Bind ViewModel.CanModifyGatewaySession, Mode=OneWay}"
                                             HorizontalAlignment="Stretch" />
-                                    <Button Content="{x:Bind helpers:ShellGatewayLocalization.StopRun}"
-                                            Command="{x:Bind ViewModel.StopGatewayRunCommand}"
-                                            IsEnabled="{x:Bind ViewModel.CanStopGatewayRun, Mode=OneWay}"
-                                            HorizontalAlignment="Stretch" />
+
                                     <Expander Header="{x:Bind helpers:ShellGatewayLocalization.SessionProperties}"
                                               HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                         <StackPanel Spacing="10">
@@ -641,7 +646,7 @@
                                                      Header="{x:Bind helpers:ShellGatewayLocalization.SessionLabel}"
                                                      PlaceholderText="{x:Bind helpers:ShellGatewayLocalization.SessionLabelHint}"
                                                      AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.SessionLabel}"
-                                                     IsEnabled="{x:Bind ViewModel.CanModifyGatewaySession, Mode=OneWay}"
+                                                     IsEnabled="{x:Bind ViewModel.CanEditGatewayLabel, Mode=OneWay}"
                                                      MaxLength="1024" />
                                             <Button Content="{x:Bind helpers:ShellGatewayLocalization.SaveLabel}"
                                                     Command="{x:Bind ViewModel.ApplyGatewayLabelCommand}"

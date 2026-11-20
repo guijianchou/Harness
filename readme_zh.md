@@ -285,6 +285,8 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
+应用项目会按所选平台设置 Windows 运行时，并在构建后检查原生依赖。本机 x64 测试请运行 `bin\Debug\5.3.8\net10.0-windows10.0.26100.0\win-x64\Harness.exe`；旧的不含 `win-x64` 子目录的产物依赖不完整，请勿使用。Debug 版本需要本机安装 .NET 10 和 WebView2 运行时。
+
 ### 代码规范
 
 - `.editorconfig` 是仓库根级代码风格契约：LF 换行、文件末尾换行、清理行尾空白、C#/XAML 四空格缩进、控制流必须加花括号，并通过 SDK 执行格式诊断。

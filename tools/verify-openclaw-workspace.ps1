@@ -13,6 +13,8 @@ $sourceFiles += @(
     'src/Harness/ViewModels/MainViewModel.OpenClaw.Data.cs',
     'src/Harness/ViewModels/MainViewModel.OpenClaw.Models.cs',
     'src/Harness/ViewModels/MainViewModel.OpenClaw.SessionDetails.cs',
+    'src/Harness/ViewModels/MainViewModel.OpenClaw.Search.cs',
+    'src/Harness/ViewModels/MainViewModel.OpenClaw.Presentation.cs',
     'src/Harness/ViewModels/RunIndicatorMode.cs',
     'src/Harness/Helpers/GatewayStrings.cs',
     'src/Harness/Helpers/SimpleCommand.cs',
@@ -27,8 +29,9 @@ foreach ($path in $sourceFiles) {
     $trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText($source, $parseOptions))
 }
 $lifecycle = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText((Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/ViewModels/MainViewModel.OpenClaw.Lifecycle.cs') -Raw), $parseOptions)
-$currentMethod = $lifecycle.GetRoot().DescendantNodes() | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax] -and $_.Identifier.ValueText -eq 'IsCurrentGateway' } | Select-Object -First 1
-$trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText('using Harness.Services; namespace Harness.ViewModels { public partial class MainViewModel {' + $currentMethod.ToFullString() + '} }', $parseOptions))
+$lifecycleMethods = @($lifecycle.GetRoot().DescendantNodes() | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax] -and $_.Identifier.ValueText -in @('IsCurrentGateway', 'StopGatewayRuntime') } | ForEach-Object { $_.ToFullString() })
+if ($lifecycleMethods.Count -ne 2) { throw 'Missing authored Gateway ownership and cancellation methods.' }
+$trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText('using Harness.Services; namespace Harness.ViewModels { public partial class MainViewModel {' + ($lifecycleMethods -join "`n") + '} }', $parseOptions))
 $shellProperties = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText((Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/ViewModels/MainViewModel.Core.Properties.cs') -Raw), $parseOptions)
 $stopProperties = @($shellProperties.GetRoot().DescendantNodes() | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax] -and $_.Identifier.ValueText -in @('CanStop', 'IsLoading', 'LoadingVisibility', 'IsPlaceholderEnvironment') } | ForEach-Object { $_.ToFullString() })
 if ($stopProperties.Count -ne 4) { throw 'Missing authored Stop availability properties.' }

@@ -46,12 +46,15 @@ public static class OpenClawWorkspaceRegression
             await OldHistoryAfterSelectionAsync();
             await ModelAndReasoningPatchAsync();
             await LabelClearPatchAsync();
+            await LabelWithoutModelsAsync();
+            await RecoveryPresentationAsync();
             await StreamingHistoryAsync();
             await TerminalWhileSelectingAsync();
             await TransientRefreshFailureAsync();
             await AutomaticRefreshRecoveryAsync();
             await ServerModelChangesAsync();
             await ServerSearchAsync();
+            await SearchWhileHistoryPendingAsync();
             await FilteredAgentScopeAsync();
             await CatalogFailureRetainsExactStopAsync();
             await ScopedLargeRosterRefreshAsync();
@@ -324,23 +327,27 @@ public static class OpenClawWorkspaceRegression
     {
         await using var fixture = await Fixture.CreateAsync();
         fixture.View.SetSession(History("physical"));
+        fixture.View.AutoRefreshEnabled = false;
+        fixture.View.GatewaySearchText = "discarded";
         fixture.View.GatewaySearchText = "old";
-        Check(!fixture.View.TakeRefresh(), "Search input waits for the debounce deadline");
-        var oldRefresh = fixture.View.RefreshRoster();
+        Check(!fixture.View.TakeRefresh() && fixture.View.GatewaySessionsLoading && !fixture.View.CanSelectGatewaySession,
+            "Search debounces independently of automatic recovery and disables old results immediately");
+        var oldRefresh = fixture.View.PendingSearch;
         var oldRequest = await ReceiveAsync(fixture, "sessions.list");
+        Check(oldRequest.GetProperty("params").GetProperty("search").GetString() == "old", "Rapid typing sends only the latest debounced query without a monitor tick");
         fixture.View.GatewaySearchText = " needle ";
         Check(!fixture.View.GatewayHasMore, "Changing search immediately invalidates pagination");
         await fixture.Server.ReplyAsync(oldRequest, new { sessions = new[] { new OpenClawSession { Key = "agent:main:old" } }, hasMore = false });
         await oldRefresh;
-        Check(fixture.View.GatewaySessions.All(item => item.Key != "agent:main:old"), "Late results from a prior search cannot replace the current list");
-        var refresh = fixture.View.RefreshRoster();
+        Check(fixture.View.GatewaySessions.All(item => item.Key != "agent:main:old") && fixture.View.GatewaySessionsLoading,
+            "Retired search cannot publish results or clear the replacement loading state");
         var list = await ReceiveAsync(fixture, "sessions.list");
         Check(list.GetProperty("params").GetProperty("search").GetString() == "needle" && list.GetProperty("params").GetProperty("offset").GetInt32() == 0, "Search is sent to Gateway from offset zero");
         var matches = Enumerable.Range(0, 60).Select(i => new OpenClawSession { Key = "agent:main:remote" + i, AgentId = "main", SessionId = "remote" + i, Label = "Server match " + i }).ToArray();
         await fixture.Server.ReplyAsync(list, new { sessions = matches, hasMore = true, nextOffset = 60 });
-        await CompleteRefreshAsync(fixture, History("physical", sample: 200));
-        await refresh;
-        Check(fixture.View.GatewaySessions.Count == 60, "Server matches outside loaded titles are displayed without a second local filter");
+        await fixture.View.PendingSearch;
+        Check(fixture.View.GatewaySessions.Count == 60 && !fixture.View.GatewaySessionsLoading && fixture.View.CanSelectGatewaySession,
+            "Search completion publishes server matches and restores list interaction");
         Check(fixture.View.SelectedGatewaySession?.Key == Key && fixture.View.PhysicalSession == "physical", "A filtered-out session remains the exact active page target");
         var more = ExecuteAsync(fixture.View.LoadMoreGatewaySessionsCommand);
         list = await ReceiveAsync(fixture, "sessions.list");
@@ -349,20 +356,107 @@ public static class OpenClawWorkspaceRegression
         await fixture.Server.ReplyAsync(list, new { sessions = new[] { new OpenClawSession { Key = "agent:main:late-page" } }, hasMore = false });
         await more;
         Check(fixture.View.GatewaySessions.All(item => item.Key != "agent:main:late-page"), "Late pages cannot append into a changed query");
-        refresh = fixture.View.RefreshRoster();
         list = await ReceiveAsync(fixture, "sessions.list");
         Check(!list.GetProperty("params").TryGetProperty("search", out var search) || search.ValueKind == JsonValueKind.Null, "Clearing search requests the unfiltered server roster");
         await fixture.Server.ReplyAsync(list, new { sessions = new[] { History("physical").SessionInfo }, hasMore = false });
-        await CompleteRefreshAsync(fixture, History("physical", sample: 300), models: false);
-        await refresh;
+        await fixture.View.PendingSearch;
         Check(fixture.View.GatewaySessions.Count == 1 && fixture.View.GatewaySessions[0].Key == Key, "Clearing search replaces the filtered list with the default roster");
         fixture.View.GatewaySearchText = "failing";
-        var oldFailure = fixture.View.RefreshRoster();
+        var oldFailure = fixture.View.PendingSearch;
         list = await ReceiveAsync(fixture, "sessions.list");
         fixture.View.GatewaySearchText = "replacement";
         await fixture.Server.SendAsync(new { type = "res", id = list.GetProperty("id").GetString(), ok = false, error = new { code = "FORBIDDEN" } });
         await oldFailure;
-        Check(!fixture.View.GatewayHasError && fixture.View.CanModifyGatewaySession && fixture.View.TakeRefresh(DateTimeOffset.UtcNow.AddMinutes(1)), "A retired search error cannot invalidate or block its replacement query");
+        Check(!fixture.View.GatewayHasError && fixture.View.GatewaySessionsLoading, "A retired search error cannot invalidate or block its replacement query");
+        list = await ReceiveAsync(fixture, "sessions.list");
+        await fixture.Server.ReplyAsync(list, new { sessions = Array.Empty<OpenClawSession>(), hasMore = false });
+        await fixture.View.PendingSearch;
+        Check(fixture.View.GatewayRosterLoaded && !fixture.View.GatewaySessionsLoading && fixture.View.GatewaySessions.Count == 0,
+            "An empty result becomes an empty state only after the current query completes");
+        fixture.View.GatewaySearchText = "cancel before dispatch";
+        await fixture.View.StopSearchForTest();
+        Check(!fixture.View.GatewaySessionsLoading, "Runtime cancellation retires the pending debounce and clears loading");
+        await AssertNoExtraRequestsAsync(fixture);
+    }
+
+    private static async Task LabelWithoutModelsAsync()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.View.SetSession(History("physical", label: "Original"));
+        var refresh = fixture.View.RefreshData();
+        var request = await ReceiveAsync(fixture, "chat.history");
+        await fixture.Server.ReplyAsync(request, History("physical", label: "Original"));
+        request = await ReceiveAsync(fixture, "models.list");
+        await fixture.Server.SendAsync(new { type = "res", id = request.GetProperty("id").GetString(), ok = false, error = new { code = "FORBIDDEN" } });
+        await refresh;
+        fixture.View.GatewaySessionLabel = "Renamed";
+        Check(fixture.View.CanEditGatewayLabel && fixture.View.CanApplyGatewayLabel && !fixture.View.CanModifyGatewaySession,
+            "Unavailable model catalog does not disable session label editing");
+        fixture.View.SetReadOnly(true);
+        Check(!fixture.View.CanEditGatewayLabel && !fixture.View.CanApplyGatewayLabel, "Read-only sessions still reject label writes");
+        fixture.View.SetReadOnly(false);
+        fixture.View.SetStale(true);
+        Check(!fixture.View.CanApplyGatewayLabel, "Stale session identity still rejects label writes");
+        fixture.View.SetStale(false);
+        var command = ExecuteAsync(fixture.View.ApplyGatewayLabelCommand);
+        request = await ReceiveAsync(fixture, "sessions.patch");
+        Check(request.GetProperty("params").GetProperty("label").GetString() == "Renamed", "Label can be saved after catalog failure");
+        await fixture.Server.ReplyAsync(request, new { ok = true });
+        await CompleteRefreshAsync(fixture, History("physical", label: "Renamed", sample: 200), roster: true, models: false);
+        await command;
+        Check(!fixture.View.CanApplyGatewayLabel && fixture.View.GatewaySessionLabel == "Renamed", "Label save reconciles with catalog still unavailable");
+    }
+
+    private static async Task SearchWhileHistoryPendingAsync()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.View.SetSession(History("physical"));
+        var history = fixture.View.RefreshData();
+        var request = await ReceiveAsync(fixture, "chat.history");
+        fixture.View.GatewaySearchText = "queued old query";
+        var oldSearch = fixture.View.PendingSearch;
+        await Task.Delay(350);
+        Check(!oldSearch.IsCompleted && fixture.View.GatewaySessionsLoading, "Debounced search waits for the active history read without losing loading state");
+        fixture.View.GatewaySearchText = "latest query";
+        fixture.View.SetSession(History("replacement", key: "agent:main:replacement"));
+        await fixture.Server.ReplyAsync(request, History("physical", sample: 200));
+        await history;
+        await oldSearch;
+        request = await ReceiveAsync(fixture, "sessions.list");
+        Check(request.GetProperty("params").GetProperty("search").GetString() == "latest query",
+            "A superseded search waiting for the gate never dispatches its old query");
+        await fixture.Server.ReplyAsync(request, new { sessions = Array.Empty<OpenClawSession>(), hasMore = false });
+        await fixture.View.PendingSearch;
+        Check(fixture.View.PhysicalSession == "replacement" && fixture.View.GatewayRosterLoaded && !fixture.View.GatewaySessionsLoading,
+            "Roster-only search preserves the newer confirmed page target");
+        await AssertNoExtraRequestsAsync(fixture);
+    }
+
+    private static async Task RecoveryPresentationAsync()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.View.SetSession(History("physical"));
+        fixture.View.PresentFailure(new OpenClawGatewayException(OpenClawFailureKind.Timeout));
+        Check(fixture.View.GatewayErrorAction == GatewayRecoveryAction.Refresh && fixture.View.GatewayHasErrorAction,
+            "Uncertain writes offer a read refresh instead of configuration or replay");
+        fixture.View.PresentFailure(new OpenClawGatewayException(OpenClawFailureKind.Rejected, detailCode: "CREDENTIAL_ENDPOINT_CHANGED"));
+        Check(fixture.View.GatewayErrorAction == GatewayRecoveryAction.Configure, "Credential endpoint mismatch offers configuration");
+        fixture.View.PresentFailure(new OpenClawGatewayException(OpenClawFailureKind.Rejected, code: "UNAVAILABLE"));
+        Check(fixture.View.GatewayErrorAction == GatewayRecoveryAction.Refresh, "Temporary server rejection offers refresh");
+        fixture.View.PresentFailure(new OpenClawGatewayException(OpenClawFailureKind.Rejected, pairingRequestId: "pairing-fixture"));
+        Check(fixture.View.GatewayErrorAction == GatewayRecoveryAction.Refresh, "Pending pairing offers reconnect after approval");
+        fixture.View.SetDraft(true);
+        await fixture.View.SelectCurrentSession();
+        Check(fixture.View.GatewayErrorAction == GatewayRecoveryAction.ReturnToPage, "Unsaved chat draft offers return to the page");
+        fixture.View.SetDraft(false);
+        fixture.View.GatewaySessionLabel = new string('a', 513);
+        await ExecuteAsync(fixture.View.ApplyGatewayLabelCommand);
+        Check(fixture.View.GatewayHasError && !fixture.View.GatewayHasErrorAction, "Invalid label has no unrelated configuration action");
+        foreach (var key in new[] { "WaitingForPage", "Stopping", "Reconciling" })
+        {
+            fixture.View.PresentRun(key);
+            Check(fixture.View.WorkStatusText.Length < fixture.View.GatewayRunText.Length, "Toolbar uses a compact status while details retain guidance: " + key);
+        }
     }
 
     private static async Task FilteredAgentScopeAsync()
@@ -691,8 +785,7 @@ public static class OpenClawWorkspaceRegression
             "Roster moves retain unchanged item and selection identity without a collection Reset");
         Check(fixture.View.CanModifyGatewaySession, "An unrelated session change refreshes only the roster and retains the current model cache");
         fixture.View.GatewaySearchText = "needle";
-        fixture.View.AllowSearchRefresh();
-        refresh = fixture.View.RefreshPending();
+        refresh = fixture.View.PendingSearch;
         request = await ReceiveAsync(fixture, "sessions.list");
         Check(request.GetProperty("params").GetProperty("search").GetString() == "needle", "Queued search refresh sends its server query");
         await fixture.Server.ReplyAsync(request, new { sessions = Array.Empty<OpenClawSession>(), hasMore = false });
@@ -764,6 +857,7 @@ public static class OpenClawWorkspaceRegression
         }
         public async ValueTask DisposeAsync()
         {
+            await View.StopSearchForTest();
             await Runtime.DisposeAsync();
             await Server.DisposeAsync();
         }
@@ -865,7 +959,19 @@ namespace Harness.ViewModels
         public void ExpireModels() => _gatewayModelsExpireAt = DateTimeOffset.UtcNow.AddSeconds(-1);
         public void AllowModelRetry() => _gatewayModelRetryAt = default;
         public void AllowModelRecovery() => _gatewayModelRecoveryNotBefore = default;
-        public void AllowSearchRefresh() => _gatewaySearchNotBefore = default;
+        public Task PendingSearch => _gatewaySearchTask;
+        public async Task StopSearchForTest()
+        {
+            var cancellation = _gatewayCancellation;
+            StopGatewayRuntime();
+            await _gatewaySearchTask;
+            cancellation?.Dispose();
+        }
+        public void SetReadOnly(bool value) => _gatewayCanWrite = !value;
+        public void SetStale(bool value) => _gatewayDataStale = value;
+        public void PresentFailure(Exception error) => ShowGatewayError(error);
+        public void PresentRun(string key) => SetGatewayRunPresentation(key, false);
+        public void SetDraft(bool value) => _webViewService.Selection = _webViewService.Selection! with { HasDraft = value };
         internal void UseRuntime(OpenClawSessionRuntime runtime) => _gatewayRuntime = runtime;
         public Task RefreshPending()
         {

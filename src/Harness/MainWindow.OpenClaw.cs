@@ -9,8 +9,32 @@ public sealed partial class MainWindow
 {
     private Visibility ShowWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
-    private Visibility ShowGatewayEmptyState(int count, bool busy, bool hasError) =>
-        count == 0 && !busy && !hasError ? Visibility.Visible : Visibility.Collapsed;
+    private Visibility ShowGatewayProgress(bool busy, bool loading) => ShowWhen(busy || loading);
+
+    private Visibility ShowGatewayEmptyState(int count, bool busy, bool loading, bool hasError, bool loaded) =>
+        count == 0 && loaded && !busy && !loading && !hasError ? Visibility.Visible : Visibility.Collapsed;
+
+    private string GetWorkStatusTooltip(bool isOpenClaw, string runText, string workText) => isOpenClaw ? runText : workText;
+
+    private void OnGatewayRecoveryClick(object sender, RoutedEventArgs e)
+    {
+        switch (ViewModel.GatewayErrorAction)
+        {
+            case ViewModels.GatewayRecoveryAction.Configure:
+                ShowSettingsWindow(showEnvironment: true);
+                break;
+            case ViewModels.GatewayRecoveryAction.Refresh:
+                ViewModel.RefreshGatewayCommand.Execute(null);
+                break;
+            case ViewModels.GatewayRecoveryAction.ReturnToPage:
+                ViewModel.IsOpenClawPanelOpen = false;
+                foreach (var child in WebViewHost.Children.OfType<Control>())
+                {
+                    child.Focus(FocusState.Programmatic);
+                }
+                break;
+        }
+    }
 
     private void OnGatewayPaneSizeChanged(object sender, SizeChangedEventArgs e)
     {

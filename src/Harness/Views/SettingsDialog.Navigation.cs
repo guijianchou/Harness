@@ -14,6 +14,18 @@ public sealed partial class SettingsDialog
         if (sender is ListView navigation && navigation.SelectedItem is ListViewItem item && item.Tag is string tag)
         {
             ShowPanel(tag);
+            if (CompactNavigation is not null && CompactNavigation.SelectedIndex != navigation.SelectedIndex)
+            {
+                CompactNavigation.SelectedIndex = navigation.SelectedIndex;
+            }
+        }
+    }
+
+    private void OnCompactNavigationChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (NavList is not null && CompactNavigation.SelectedIndex >= 0 && NavList.SelectedIndex != CompactNavigation.SelectedIndex)
+        {
+            NavList.SelectedIndex = CompactNavigation.SelectedIndex;
         }
     }
 

@@ -531,6 +531,10 @@ public static class SettingsReliabilityRegression
         dialog.ClickSave();
         Check(dialog.EnvironmentPanelSelected && !dialog.IsSavingSettings && dialog.CloseCount == 0,
             "environment validation failure returns to the editable environment page before saving");
+        Check(dialog.ValidationIsOpen, "invalid environment opens the validation message");
+        model.EditName = "Corrected environment";
+        Check(dialog.ApplyDraftForTest() && !dialog.ValidationIsOpen,
+            "successful correction dismisses the stale validation error");
 
         pendingClear = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         main.ClearSession = _ => pendingClear.Task;
@@ -691,6 +695,9 @@ namespace Harness.Views
         public string? LastMessage { get; private set; }
         public bool IsSavingSettings => _isSaving;
         public bool InteractionEnabled => SettingsInteractionRoot.IsEnabled;
+        private readonly ValidationControl ValidationInfoBar = new();
+        public bool ValidationIsOpen => ValidationInfoBar.IsOpen;
+        public bool ApplyDraftForTest() => TryApplyEdit();
         private readonly NavigationControl NavList = new();
         private readonly object NavEnvironments = new();
         public bool EnvironmentPanelSelected => ReferenceEquals(NavList.SelectedItem, NavEnvironments);
@@ -742,6 +749,7 @@ namespace Harness.Views
         {
             if (_isClosed) { throw new ObjectDisposedException(nameof(SettingsDialog)); }
             LastMessage = message ?? ViewModel.ValidationMessage;
+            ValidationInfoBar.IsOpen = true;
         }
 
         private sealed class InteractionControl
@@ -758,6 +766,7 @@ namespace Harness.Views
                 }
             }
         }
+        private sealed class ValidationControl { public bool IsOpen { get; set; } }
         private sealed class NavigationControl { public object? SelectedItem { get; set; } }
     }
 }

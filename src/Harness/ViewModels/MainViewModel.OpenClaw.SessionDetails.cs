@@ -21,7 +21,7 @@ public partial class MainViewModel
 
     public ObservableCollection<OpenClawThinkingItem> GatewayThinkingLevels { get; } = [];
     public ICommand ApplyGatewayLabelCommand { get; private set; } = null!;
-    public bool CanApplyGatewayLabel => CanModifyGatewaySession && _gatewayLabelEdited;
+    public bool CanApplyGatewayLabel => CanEditGatewayLabel && _gatewayLabelEdited;
     public bool CanSelectGatewayThinkingLevel => CanModifyGatewaySession && GatewayThinkingLevels.Count > 1;
     public string GatewayRunIdText => GetExactGatewayRunId() ?? "";
     public string GatewaySessionLabel
@@ -142,7 +142,7 @@ public partial class MainViewModel
         var label = GatewaySessionLabel.Trim();
         if (label.EnumerateRunes().Count() > 512)
         {
-            GatewayErrorText = GatewayStrings.Text("SessionLabelTooLong");
+            SetGatewayIssue(GatewayStrings.Text("SessionLabelTooLong"), GatewayRecoveryAction.None);
             return;
         }
         var token = _gatewayCancellation?.Token ?? _lifetimeCts.Token;

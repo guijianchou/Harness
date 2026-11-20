@@ -90,6 +90,7 @@ public partial class MainViewModel
             if (SetProperty(ref _gatewayErrorText, value))
             {
                 OnPropertyChanged(nameof(GatewayHasError));
+                OnPropertyChanged(nameof(GatewayHasErrorAction));
             }
         }
     }
@@ -111,6 +112,7 @@ public partial class MainViewModel
         TryGetGatewayAgentId(SelectedGatewaySession?.Key, out _) && !string.IsNullOrEmpty(_gatewayHistory?.SessionId) &&
         OpenClawSessionIdentity.Matches(_gatewayPage?.SessionKey ?? "", _gatewayHistory);
     public bool CanModifyGatewaySession => CanTargetGatewaySession && IsGatewayModelCatalogFresh;
+    public bool CanEditGatewayLabel => CanTargetGatewaySession;
     public bool CanStopGatewayRun => CanTargetGatewaySession && GetExactGatewayRunId() is not null;
     public string GatewaySearchText
     {
@@ -128,6 +130,7 @@ public partial class MainViewModel
                     GatewayHasMore = false;
                     ResetGatewayRefreshRetry();
                     RequestGatewayRefresh(GatewayRefreshScope.Roster);
+                    ScheduleGatewaySearch();
                 }
             }
         }
@@ -204,6 +207,8 @@ public partial class MainViewModel
     {
         OnPropertyChanged(nameof(CanCreateGatewaySession));
         OnPropertyChanged(nameof(CanModifyGatewaySession));
+        OnPropertyChanged(nameof(CanEditGatewayLabel));
+        OnPropertyChanged(nameof(CanSelectGatewaySession));
         OnPropertyChanged(nameof(CanStopGatewayRun));
         OnPropertyChanged(nameof(CanStop));
         OnPropertyChanged(nameof(CanApplyGatewayLabel));
@@ -237,7 +242,7 @@ public partial class MainViewModel
             return;
         }
 
-        GatewayErrorText = ex switch
+        SetGatewayIssue(ex switch
         {
             OpenClawGatewayException { DetailCode: "CREDENTIAL_ENDPOINT_CHANGED" } => GatewayStrings.Text("CredentialEndpointChanged"),
             OpenClawGatewayException { PairingRequestId: not null } gateway => GatewayStrings.Format("Pairing", gateway.PairingRequestId),
@@ -247,7 +252,7 @@ public partial class MainViewModel
             OpenClawGatewayException { Kind: OpenClawFailureKind.Transport } => GatewayStrings.Text("TransportError"),
             OpenClawGatewayException { Kind: OpenClawFailureKind.EdgeAuthenticationRequired } => GatewayStrings.Text("AccessRequired"),
             _ => GatewayStrings.Text("OperationFailed"),
-        };
+        }, GetGatewayRecoveryAction(ex));
         _runtime.Logger.Warning("gateway.operation.failed", new { kind = ex.GetType().Name });
     }
 }
