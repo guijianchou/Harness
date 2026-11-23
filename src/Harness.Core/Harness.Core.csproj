@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
-    <Version>5.3.9</Version>
+    <Version>5.3.10</Version>
     <BaseOutputPath>..\..\bin\$(Configuration)\</BaseOutputPath>
     <OutputPath>$(BaseOutputPath)$(Version)\</OutputPath>
   </PropertyGroup>

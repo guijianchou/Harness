@@ -8,6 +8,14 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 
 ## English
 
+### v5.3.10 (2026-11-23)
+
+- Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.10`; aligned the Core library, updater, and Gateway client version.
+- Added a Mica Settings window with a transparent custom title bar and shared headings, surfaces, and cards across all seven pages. Theme colors retain the Windows high-contrast fallback.
+- Improved narrow-window navigation, card editors, environment controls, and the persistent footer; saving settings and clearing browser data now show progress feedback.
+- Replaced Developer Tools buttons with descriptive action cards and refined About with grouped app/version information, concise update guidance, clickable project/release cards, and no initial update prompt.
+- Fixed Settings initialization by using the system color-change event supported by the unpackaged app, avoiding the unsupported accessibility event subscription.
+
 ### v5.3.9 (2026-11-19)
 
 - Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.9`.
@@ -400,6 +408,14 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 ---
 
 ## 简体中文
+
+### v5.3.10 (2026-11-23)
+
+- 将应用、程序集、文件、包清单、应用清单、README、中英文说明和更新日志版本统一到 `5.3.10`，并同步 Core、更新器及 Gateway 客户端版本。
+- 设置窗口采用 Mica 和透明自定义标题栏，七个页面统一标题、容器与卡片，主题颜色保留 Windows 高对比度回退。
+- 优化窄窗口导航、卡片编辑控件、环境操作与固定页脚；保存设置和清除浏览器数据时显示进度反馈。
+- 开发工具改为带说明的操作卡片；关于页集中显示应用与版本，精简更新说明，项目/发行说明整卡可点击，并移除初始更新提示语。
+- 改用非打包应用支持的系统颜色变化事件，避免不支持的辅助功能事件订阅导致设置初始化失败。
 
 ### v5.3.9 (2026-11-19)
 

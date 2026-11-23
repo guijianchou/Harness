@@ -1,5 +1,6 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
+using Harness.Helpers;
 using Harness.ViewModels;
 using Microsoft.UI.Xaml;
 
@@ -20,7 +21,7 @@ public sealed partial class SettingsDialog
     {
         if (!await SaveSettingsAsync(closeWindow: false) || _isClosed) { return; }
         _isSaving = true;
-        SettingsInteractionRoot.IsEnabled = false;
+        SetSettingsBusyState(true, UpdateLocalization.Restarting);
         var ready = false;
         try
         {
@@ -31,7 +32,7 @@ public sealed partial class SettingsDialog
         finally
         {
             _isSaving = false;
-            if (!_isClosed) { SettingsInteractionRoot.IsEnabled = true; }
+            SetSettingsBusyState(false);
         }
         if (ready && !_isClosed && App.MainWindow is MainWindow mainWindow) { mainWindow.ExitForPortableUpdate(); }
     }

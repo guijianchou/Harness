@@ -28,7 +28,7 @@ foreach ($path in @(
 }
 $methods = [Collections.Generic.List[string]]::new()
 foreach ($selection in @(
-    @{ Path = 'src/Harness/Views/SettingsDialog.Actions.cs'; Names = @('OnSaveClick', 'SaveSettingsAsync', 'OnCancelClick', 'RefreshStartupRegistrationStatus', 'ObserveStartupRegistrationStatusAsync', 'OnRunDiagnosticsClick', 'OnViewLogsClick', 'OnDevToolsClick', 'OnExportDiagnosticBundleClick', 'ExecuteDeveloperCommand', 'ClearEnvironmentSessionAsync', 'GetSavedSessionEnvironment', 'TryApplyEdit') },
+    @{ Path = 'src/Harness/Views/SettingsDialog.Actions.cs'; Names = @('OnSaveClick', 'SaveSettingsAsync', 'OnCancelClick', 'SetSettingsBusyState', 'RefreshStartupRegistrationStatus', 'ObserveStartupRegistrationStatusAsync', 'OnRunDiagnosticsClick', 'OnViewLogsClick', 'OnDevToolsClick', 'OnExportDiagnosticBundleClick', 'ExecuteDeveloperCommand', 'ClearEnvironmentSessionAsync', 'GetSavedSessionEnvironment', 'TryApplyEdit') },
     @{ Path = 'src/Harness/Views/SettingsDialog.Initialization.cs'; Names = @('OnSettingsAppWindowClosing') }
 )) {
     $tree = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText((Get-Content -LiteralPath (Join-Path $repoRoot $selection.Path) -Raw), $parseOptions)

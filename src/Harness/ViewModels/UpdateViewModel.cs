@@ -24,7 +24,7 @@ public sealed class UpdateViewModel : ObservableObject
     private bool _busy;
     private bool _indeterminate;
     private double _progress;
-    private string _status = UpdateLocalization.Idle;
+    private string _status = string.Empty;
     private PortableRelease? _release;
     private string? _job;
 
@@ -47,7 +47,20 @@ public sealed class UpdateViewModel : ObservableObject
     public bool CanRestart => !IsBusy && _job is not null && !_handedOff;
     public bool IsIndeterminate { get => _indeterminate; private set => SetProperty(ref _indeterminate, value); }
     public double Progress { get => _progress; private set => SetProperty(ref _progress, value); }
-    public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    public string Status
+    {
+        get => _status;
+        private set
+        {
+            if (SetProperty(ref _status, value))
+            {
+                OnPropertyChanged(nameof(StatusVisibility));
+                OnPropertyChanged(nameof(DescriptionVisibility));
+            }
+        }
+    }
+    public Visibility StatusVisibility => string.IsNullOrEmpty(Status) ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility DescriptionVisibility => IsPortable && string.IsNullOrEmpty(Status) ? Visibility.Collapsed : Visibility.Visible;
     public Uri ReleasePage => _release?.PageUrl ?? new Uri("https://github.com/guijianchou/Harness/releases/latest");
     public Visibility BusyVisibility => IsBusy ? Visibility.Visible : Visibility.Collapsed;
     public Visibility DownloadVisibility => _release is not null && _job is null && IsPortable ? Visibility.Visible : Visibility.Collapsed;

@@ -3,13 +3,18 @@
 using System.Diagnostics;
 using Harness.Helpers;
 using Harness.ViewModels;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using Windows.UI.ViewManagement;
 
 namespace Harness.Views;
 
 public sealed partial class SettingsDialog
 {
+    private readonly AccessibilitySettings _settingsAccessibilitySettings = new();
+    private readonly UISettings _settingsUiSettings = new();
+
     private void OnRootLoaded(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement rootElement)
@@ -101,10 +106,15 @@ public sealed partial class SettingsDialog
 
     private void RefreshTitleBarVisualState()
     {
-        if (this.Content is FrameworkElement rootElement)
+        if (!_isClosed && this.Content is FrameworkElement rootElement)
         {
             UpdateTitleBarColors(rootElement.ActualTheme);
         }
+    }
+
+    private void OnSettingsSystemColorsChanged(UISettings sender, object args)
+    {
+        DispatcherQueue.TryEnqueue(RefreshTitleBarVisualState);
     }
 
     internal void BeginOpenDiagnostics(long startedAt)
@@ -139,24 +149,22 @@ public sealed partial class SettingsDialog
     private void UpdateTitleBarColors(ElementTheme actualTheme)
     {
         var palette = WindowFrameHelper.CreateThemePalette(actualTheme);
-        WindowFrameHelper.ApplyTitleBarColors(this, new WindowTitleBarColors
-        {
-            IsDark = palette.IsDark,
-            ForegroundColor = palette.ForegroundColor,
-            BackgroundColor = palette.BackgroundColor,
-            InactiveForegroundColor = palette.InactiveForegroundColor,
-            InactiveBackgroundColor = palette.BackgroundColor,
-            ButtonForegroundColor = palette.ForegroundColor,
-            ButtonBackgroundColor = palette.BackgroundColor,
-            ButtonInactiveForegroundColor = palette.InactiveForegroundColor,
-            ButtonInactiveBackgroundColor = palette.BackgroundColor,
-            ButtonHoverForegroundColor = palette.ForegroundColor,
-            ButtonHoverBackgroundColor = palette.ButtonHoverBackgroundColor,
-            ButtonPressedForegroundColor = palette.ForegroundColor,
-            ButtonPressedBackgroundColor = palette.ButtonPressedBackgroundColor,
-            NativeBackgroundColor = palette.BackgroundColor,
-            NativeBorderColor = palette.BackgroundColor,
-            NativeTextColor = palette.ForegroundColor,
-        });
+        var titleBar = AppWindow.TitleBar;
+        var highContrast = _settingsAccessibilitySettings.HighContrast;
+
+        // Keep the custom title bar on Mica. Windows owns contrast-theme colors
+        // and the backdrop's solid fallback when transparency is unavailable.
+        titleBar.ForegroundColor = highContrast ? null : palette.ForegroundColor;
+        titleBar.BackgroundColor = highContrast ? null : Colors.Transparent;
+        titleBar.InactiveForegroundColor = highContrast ? null : palette.InactiveForegroundColor;
+        titleBar.InactiveBackgroundColor = highContrast ? null : Colors.Transparent;
+        titleBar.ButtonForegroundColor = highContrast ? null : palette.ForegroundColor;
+        titleBar.ButtonBackgroundColor = highContrast ? null : Colors.Transparent;
+        titleBar.ButtonInactiveForegroundColor = highContrast ? null : palette.InactiveForegroundColor;
+        titleBar.ButtonInactiveBackgroundColor = highContrast ? null : Colors.Transparent;
+        titleBar.ButtonHoverForegroundColor = highContrast ? null : palette.ForegroundColor;
+        titleBar.ButtonHoverBackgroundColor = highContrast ? null : palette.ButtonHoverBackgroundColor;
+        titleBar.ButtonPressedForegroundColor = highContrast ? null : palette.ForegroundColor;
+        titleBar.ButtonPressedBackgroundColor = highContrast ? null : palette.ButtonPressedBackgroundColor;
     }
 }

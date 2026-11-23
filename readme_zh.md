@@ -2,7 +2,7 @@
 
 **语言：** [English](README.md) | 简体中文
 
-**当前版本：** 5.3.9
+**当前版本：** 5.3.10
 
 Harness 是一个轻量的 Windows 原生客户端，用于承载托管的 agent Control UI，基于 WinUI 3 和 WebView2 构建。
 
@@ -70,9 +70,21 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 - 通过 Cloudflare Tunnel 或反向代理访问它
 - 想用轻量 Windows 原生客户端，而不是一直开着浏览器标签页
 
-## 当前 5.3.9 注意事项
+## 当前 5.3.10 注意事项
 
-发布日期：**2026-11-19**。本次增加“设置 > 关于”中的便携更新、校验下载、重启安装与启动失败回滚，并修复启动依赖和设置可靠性问题。详见 [5.3.9 发布说明](docs/releases/5.3.9.md)。
+发布日期：**2026-11-23**。本次整体优化设置体验，增加 Mica 材质、统一卡片与操作布局，并精简关于页。详见 [5.3.10 发布说明](docs/releases/5.3.10.md)。
+
+- 设置窗口采用 Mica 材质，标题栏、侧栏和页脚保持透明，七个子页面使用统一标题、间距和卡片。
+- 导航、编辑控件、环境操作和固定保存/取消栏随窗口宽度调整，改善窄窗口下的可读性。
+- 保存设置和清除浏览器数据时显示进度反馈，环境草稿提示保持可见。
+- 开发工具统一为带说明的操作卡片；关于页集中显示名称与版本，精简更新说明，项目和发行说明支持整卡点击，检查更新前不再显示初始提示语。
+- 使用兼容非打包应用的系统颜色变化订阅修复设置初始化，同时保留主题与高对比度处理。
+
+### 历史变更
+
+- `5.3.9` 引入校验下载、保存并重启安装、启动失败回滚及启动/设置可靠性修复，是首个包含更新器的版本。
+
+`5.3.8` 增加了以下功能：
 
 - 增加按需启用的 OpenClaw Gateway v4 控制，支持会话浏览与搜索、新建空会话、模型选择、精确停止运行及已观察运行的完成通知。聊天输入、附件和渲染继续由托管 Web UI 负责。
 - 在设置中按环境配置原生连接，支持受保护的凭据、持久签名设备身份、可选 Cloudflare Access 用户令牌，以及明确的配对和连接反馈。原生 Gateway 认证不会自动共享网页登录或 Cookie。
@@ -81,8 +93,6 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 - 通过有界文本采样、模型控件命中后提前返回和合并 DOM 变更检查，降低造成聊天页面卡顿的 DOM 探测开销。已连接的运行不再仅因可见输出暂时静默而自动重同步或刷新；断线和连接卡住时的恢复仍然保留。
 - 性能验证使用包含 **1000 条消息**的合成 WebView2 页面，衡量的是 bridge 探测开销，并非真实登录环境下输入、滚动或折叠操作的帧率。真实 VPS / Cloudflare 端到端流程仍需测试。
 - 渲染引擎仍为 WebView2，其 Runtime 仍是外部依赖；本版本未打包独立 Chromium 内核。认证边界和验证方法见 [OpenClaw 集成说明](docs/openclaw-integration.md)。
-
-### 历史变更
 
 - `5.3.7` 改进状态栏可靠性：所有状态控件（Model、Heartbeat、Latency、Access、Work Status）在信息不可用时统一显示 "N/A"，而不是显示空白或默认占位文本。这提供了清晰的视觉反馈，明确表示检测失败。
 - OpenClaw 模型检测增强了多层回退机制：从 `<openclaw-app>` 元素直接读取属性（如果暴露）、类模式匹配（`[class*="model-select"]`）、从模型相关按钮的 ARIA 标签提取、以及按钮文本模式检测。这种多层方法使模型检测对 UI 变化更加鲁棒，同时保持源码读取方案。
@@ -285,7 +295,7 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
-应用项目会按所选平台设置 Windows 运行时，并在构建后检查原生依赖。本机 x64 测试请运行 `bin\Debug\5.3.9\net10.0-windows10.0.26100.0\win-x64\Harness.exe`；旧的不含 `win-x64` 子目录的产物依赖不完整，请勿使用。Debug 版本需要本机安装 .NET 10 和 WebView2 运行时。
+应用项目会按所选平台设置 Windows 运行时，并在构建后检查原生依赖。本机 x64 测试请运行 `bin\Debug\5.3.10\net10.0-windows10.0.26100.0\win-x64\Harness.exe`；旧的不含 `win-x64` 子目录的产物依赖不完整，请勿使用。Debug 版本需要本机安装 .NET 10 和 WebView2 运行时。
 
 ### 代码规范
 
@@ -367,11 +377,11 @@ dotnet restore Harness.sln --locked-mode
 pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
 ```
 
-脚本会创建新的版本目录，例如 `artifacts/release/5.3.9`，验证发布文件并生成 ZIP 和 SHA-256 校验文件。已有版本目录不会被覆盖；再次构建时请选择其他 `OutputRoot`。
+脚本会创建新的版本目录，例如 `artifacts/release/5.3.10`，验证发布文件并生成 ZIP 和 SHA-256 校验文件。已有版本目录不会被覆盖；再次构建时请选择其他 `OutputRoot`。
 
 当前源码生成的便携包支持“设置 > 关于 > 检查更新”、校验下载和“保存设置并重启更新”。更新保留程序路径、AppData 和用户额外文件，新版启动失败时回滚。已发布的 5.3.8 需先手动升级一次到包含更新器的 5.3.9。详见[便携更新与恢复说明](docs/portable-updates.md)。
 
-推送 `5.3.9` 这样的纯数字版本 tag（不带 `v` 前缀）后，[.github/workflows/release.yml](.github/workflows/release.yml) 会自动执行。tag 必须与项目版本一致，并有对应的 `docs/releases/<version>.md` 发布说明。工作流完成验证和打包后，会将 ZIP 及 SHA-256 校验文件发布到 GitHub Releases。
+推送 `5.3.10` 这样的纯数字版本 tag（不带 `v` 前缀）后，[.github/workflows/release.yml](.github/workflows/release.yml) 会自动执行。tag 必须与项目版本一致，并有对应的 `docs/releases/<version>.md` 发布说明。工作流完成验证和打包后，会将 ZIP 及 SHA-256 校验文件发布到 GitHub Releases。
 
 ### 首次启动
 

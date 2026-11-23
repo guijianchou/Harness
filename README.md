@@ -2,7 +2,7 @@
 
 **Language:** English | [简体中文](readme_zh.md)
 
-**Current version:** 5.3.9
+**Current version:** 5.3.10
 
 Lightweight Windows-native shell for hosted agent Control UIs, built with WinUI 3 and WebView2.
 
@@ -70,9 +70,21 @@ It is best suited for users who:
 - access it through Cloudflare Tunnel or a reverse proxy
 - want a lightweight Windows-native client instead of keeping a browser tab open
 
-## Current 5.3.9 Notes
+## Current 5.3.10 Notes
 
-Released on **2026-11-19**. This release adds verified portable updates in Settings > About, restart installation with startup-failure rollback, and startup and Settings reliability fixes. See the [5.3.9 release notes](docs/releases/5.3.9.md).
+Release date: **2026-11-23**. This release refines the entire Settings experience with Mica, consistent cards, clearer actions, and a compact About page. See the [5.3.10 release notes](docs/releases/5.3.10.md).
+
+- Use a Mica window with transparent title bar, sidebar, and footer, plus consistent headings and cards across all seven Settings pages.
+- Keep controls readable as the window narrows, with responsive navigation, editors, environment actions, and persistent save/cancel controls.
+- Show progress while saving settings or clearing browser data, and keep environment draft feedback visible.
+- Present Developer Tools as descriptive action cards. About groups the app name and version, simplifies update guidance, and makes project/release cards clickable; no idle update prompt appears before checking.
+- Fix Settings initialization with a system color-change subscription compatible with the unpackaged app, while retaining theme and high-contrast handling.
+
+### Earlier changes
+
+- `5.3.9` introduced verified portable updates, save-and-restart installation, startup-failure rollback, and startup/Settings reliability fixes. It is the first release containing the updater.
+
+The `5.3.8` release added the following:
 
 - Add opt-in OpenClaw Gateway v4 controls for session browsing and search, empty-session creation, model selection, exact run cancellation, and observed run completion notifications. Chat input, attachments, and rendering remain in the hosted Web UI.
 - Configure the native connection per environment in Settings, with protected credentials, a persistent signed device identity, optional Cloudflare Access user tokens, and explicit pairing and connection feedback. Native Gateway authentication does not automatically share the web page's login or cookies.
@@ -81,8 +93,6 @@ Released on **2026-11-19**. This release adds verified portable updates in Setti
 - Reduce the DOM inspection work that contributes to chat-page stalls through bounded text sampling, early model-control matches, and coalesced mutation checks. A connected run with quiet visible output no longer triggers automatic resync or reload solely because it is quiet; disconnected and stalled-connection recovery remains available.
 - Performance validation used a synthetic WebView2 page with **1,000 messages**. This measures bridge inspection cost, not typing, scrolling, or folding frame rates in a real authenticated deployment. Real VPS / Cloudflare end-to-end testing is still required.
 - WebView2 remains the rendering engine and its Runtime remains an external dependency. This release does not bundle a standalone Chromium engine. See [OpenClaw integration](docs/openclaw-integration.md) for authentication boundaries and validation details.
-
-### Earlier changes
 
 - `5.3.7` improves status bar reliability: all status controls (Model, Heartbeat, Latency, Access, Work Status) now display "N/A" when information is unavailable instead of showing blank or default placeholder text. This provides clear visual feedback when detection fails.
 - OpenClaw model detection is enhanced with multiple fallback patterns: direct property reading from `<openclaw-app>` element (if exposed), class pattern matching (`[class*="model-select"]`), ARIA label extraction from model-related buttons, and button text pattern detection. This multi-layered approach makes model detection more resilient to UI changes while maintaining the source code reading approach.
@@ -280,7 +290,7 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
-The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.9\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
+The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.10\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
 
 ### Code Style
 
@@ -362,11 +372,11 @@ dotnet restore Harness.sln --locked-mode
 pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
 ```
 
-The script creates a new version directory such as `artifacts/release/5.3.9`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
+The script creates a new version directory such as `artifacts/release/5.3.10`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
 
 Portable builds from this source include **Settings > About > Check for updates**, verified downloads, and **Save settings and restart to update**. The updater keeps the installation path and AppData, preserves extra user files, and rolls back if the new app fails startup. Existing published 5.3.8 packages require one manual upgrade to 5.3.9, which includes the updater. See [portable updates and recovery](docs/portable-updates.md).
 
-Pushing a numeric version tag such as `5.3.9` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
+Pushing a numeric version tag such as `5.3.10` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
 
 ### First Launch
 

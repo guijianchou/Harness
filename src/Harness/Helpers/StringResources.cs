@@ -16,6 +16,17 @@ public static class StringResources
     public static string SettingsThemeDescription => Get("SettingsThemeDescription");
     public static string SettingsZoomTitle => Get("SettingsZoomTitle");
     public static string SettingsZoomDescription => Get("SettingsZoomDescription");
+    public static string SettingsSaving => Get("SettingsSaving");
+    public static string SettingsClearingSession => Get("SettingsClearingSession");
+    public static string SettingsAboutDescription => Get("SettingsAboutDescription");
+    public static string SettingsRunDiagnosticsDescription => Get("SettingsRunDiagnosticsDescription");
+    public static string SettingsViewLogsDescription => Get("SettingsViewLogsDescription");
+    public static string SettingsOpenDevToolsDescription => Get("SettingsOpenDevToolsDescription");
+    public static string SettingsExportDiagnosticBundleDescription => Get("SettingsExportDiagnosticBundleDescription");
+    public static string SettingsUpdateDownloadDescription => Get("SettingsUpdateDownloadDescription");
+    public static string SettingsProjectLinkDescription => Get("SettingsProjectLinkDescription");
+    public static string SettingsReleaseNotesDescription => Get("SettingsReleaseNotesDescription");
+    public static string SettingsEnvironmentSelectionHint => Get("SettingsEnvironmentSelectionHint");
     public static string SettingsApplyHint => Get("SettingsApplyHint");
     public static string SettingsWindowStartupTitle => Get("SettingsWindowStartupTitle");
     public static string SettingsStartupHeader => Get("SettingsStartupHeader");

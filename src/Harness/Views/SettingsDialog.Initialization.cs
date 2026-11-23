@@ -1,7 +1,10 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
 using Harness.Helpers;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 
 namespace Harness.Views;
@@ -10,12 +13,17 @@ public sealed partial class SettingsDialog
 {
     private void ConfigureWindowChrome()
     {
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(SettingsTitleBar);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        SystemBackdrop = new MicaBackdrop { Kind = MicaKind.Base };
         Title = Helpers.StringResources.SettingsTitle;
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WindowIcon.ico"));
         RestoreSettingsWindowBounds();
         this.Closed += OnSettingsDialogClosed;
         this.Activated += OnWindowActivated;
         AppWindow.Closing += OnSettingsAppWindowClosing;
+        _settingsUiSettings.ColorValuesChanged += OnSettingsSystemColorsChanged;
     }
 
     private void AttachRootEventHandlers()
@@ -160,6 +168,7 @@ public sealed partial class SettingsDialog
         this.Closed -= OnSettingsDialogClosed;
         this.Activated -= OnWindowActivated;
         AppWindow.Closing -= OnSettingsAppWindowClosing;
+        _settingsUiSettings.ColorValuesChanged -= OnSettingsSystemColorsChanged;
     }
 
     private void OnSettingsAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)

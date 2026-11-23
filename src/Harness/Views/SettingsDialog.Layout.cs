@@ -3,7 +3,6 @@
 using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 
 namespace Harness.Views;
 
@@ -11,33 +10,52 @@ public sealed partial class SettingsDialog
 {
     private void OnSettingsRootSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (SettingsContentScroll is null || ApplyEnvironmentDraft is null)
+        if (SettingsContentScroll is null || SettingsFooterButtons is null)
         {
             return;
         }
 
-        var compact = e.NewSize.Width < 680;
-        SettingsNavigationColumn.Width = new GridLength(compact ? 0 : 180);
+        var compact = e.NewSize.Width < 760;
+        SettingsNavigationColumn.Width = new GridLength(compact ? 0 : 208);
         SettingsNavigationSidebar.Visibility = ToPanelVisibility(!compact);
         CompactNavigation.Visibility = ToPanelVisibility(compact);
-        SettingsContentScroll.Padding = compact ? new Thickness(12) : new Thickness(24, 20, 24, 20);
-        Grid.SetColumn(ApplyEnvironmentDraft, compact ? 0 : 1);
-        Grid.SetRow(ApplyEnvironmentDraft, compact ? 1 : 0);
-        Grid.SetColumnSpan(DefaultEnvironmentRow, compact ? 2 : 1);
-        Grid.SetColumnSpan(ApplyEnvironmentDraft, compact ? 2 : 1);
-        ApplyEnvironmentDraft.HorizontalAlignment = compact ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
-        SetSettingsCardLayout(SettingsContentScroll, compact);
+        SettingsContentScroll.Padding = compact ? new Thickness(16) : new Thickness(24, 16, 24, 24);
+        SettingsFooter.Padding = compact ? new Thickness(16, 12, 16, 12) : new Thickness(24, 16, 24, 16);
+        Grid.SetColumnSpan(SettingsStatus, compact ? 2 : 1);
+        Grid.SetColumn(SettingsFooterButtons, compact ? 0 : 1);
+        Grid.SetRow(SettingsFooterButtons, compact ? 1 : 0);
+        Grid.SetColumnSpan(SettingsFooterButtons, compact ? 2 : 1);
     }
 
-    private static void SetSettingsCardLayout(DependencyObject parent, bool compact)
+    private void OnSettingsCardSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (parent is SettingsCard card)
+        if (sender is not SettingsCard card || e.NewSize.Width <= 0)
         {
-            card.ContentAlignment = compact ? ContentAlignment.Vertical : ContentAlignment.Right;
+            return;
         }
-        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+
+        // Measure the card itself, including when a previously hidden page first opens.
+        var stacked = e.NewSize.Width < (card.Content is ToggleSwitch ? 340 : 560);
+        card.ContentAlignment = stacked ? ContentAlignment.Vertical : ContentAlignment.Right;
+        if (card.Content is FrameworkElement editor)
         {
-            SetSettingsCardLayout(VisualTreeHelper.GetChild(parent, index), compact);
+            editor.HorizontalAlignment = stacked ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+            editor.MaxWidth = Math.Max(0, e.NewSize.Width - card.Padding.Left - card.Padding.Right - 2);
         }
+    }
+
+    private void OnEnvironmentActionsSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (ApplyEnvironmentDraft is null)
+        {
+            return;
+        }
+
+        var stacked = e.NewSize.Width < 460;
+        Grid.SetColumn(ApplyEnvironmentDraft, stacked ? 0 : 1);
+        Grid.SetRow(ApplyEnvironmentDraft, stacked ? 1 : 0);
+        Grid.SetColumnSpan(DefaultEnvironmentRow, stacked ? 2 : 1);
+        Grid.SetColumnSpan(ApplyEnvironmentDraft, stacked ? 2 : 1);
+        ApplyEnvironmentDraft.HorizontalAlignment = stacked ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
     }
 }

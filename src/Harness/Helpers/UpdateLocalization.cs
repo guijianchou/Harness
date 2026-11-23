@@ -7,7 +7,6 @@ namespace Harness.Helpers;
 public static class UpdateLocalization
 {
     public static string Title => StringResources.Get("UpdateTitle");
-    public static string Idle => StringResources.Get("UpdateIdle");
     public static string Check => StringResources.Get("UpdateCheck");
     public static string Checking => StringResources.Get("UpdateChecking");
     public static string UpToDate => StringResources.Get("UpdateUpToDate");

@@ -402,7 +402,7 @@
     <value>About</value>
   </data>
   <data name="AboutDescription" xml:space="preserve">
-    <value>A native Windows shell for hosted agent Control UIs, including OpenClaw Gateway and DeepSeek Harness. Built with WinUI 3 and WebView2.</value>
+    <value>A native Windows workspace for OpenClaw Gateway and DeepSeek Harness.</value>
   </data>
   <data name="AboutGitHubProfile" xml:space="preserve">
     <value>Project on GitHub</value>
@@ -1008,7 +1008,7 @@
     <value>Scale hosted page content from 50% to 200%. The app toolbar keeps its size.</value>
   </data>
   <data name="SettingsApplyHint" xml:space="preserve">
-    <value>Appearance changes take effect after saving. The toolbar theme button also switches themes directly.</value>
+    <value>Changes take effect when you save and close.</value>
   </data>
   <data name="SettingsWindowStartupTitle" xml:space="preserve">
     <value>Window &amp; startup</value>
@@ -1118,9 +1118,6 @@
   <data name="UpdateTitle" xml:space="preserve">
     <value>Portable updates</value>
   </data>
-  <data name="UpdateIdle" xml:space="preserve">
-    <value>Check GitHub Releases for a new version.</value>
-  </data>
   <data name="UpdateCheck" xml:space="preserve">
     <value>Check for updates</value>
   </data>
@@ -1161,7 +1158,7 @@
     <value>Cancelled. Your current version is unchanged.</value>
   </data>
   <data name="UpdateManual" xml:space="preserve">
-    <value>Automatic replacement requires an official Windows x64 portable package. For this build, download a full package from the release page.</value>
+    <value>This build uses manual updates. Get the latest package from the release page.</value>
   </data>
   <data name="UpdateReleaseNotes" xml:space="preserve">
     <value>Release notes and manual download</value>
@@ -1201,5 +1198,38 @@
   </data>
   <data name="UpdateRecoveryRequired" xml:space="preserve">
     <value>Update recovery needs attention. Close all Harness instances and restore the backup folder: {0}</value>
+  </data>
+  <data name="SettingsSaving" xml:space="preserve">
+    <value>Saving settings…</value>
+  </data>
+  <data name="SettingsClearingSession" xml:space="preserve">
+    <value>Clearing browser data…</value>
+  </data>
+  <data name="SettingsAboutDescription" xml:space="preserve">
+    <value>Version information, updates, and project details.</value>
+  </data>
+  <data name="SettingsEnvironmentSelectionHint" xml:space="preserve">
+    <value>Select an environment to edit, or add one to get started.</value>
+  </data>
+  <data name="SettingsRunDiagnosticsDescription" xml:space="preserve">
+    <value>Check the current connection and report issues.</value>
+  </data>
+  <data name="SettingsViewLogsDescription" xml:space="preserve">
+    <value>Browse application events and recent errors.</value>
+  </data>
+  <data name="SettingsOpenDevToolsDescription" xml:space="preserve">
+    <value>Inspect the current page with browser developer tools.</value>
+  </data>
+  <data name="SettingsExportDiagnosticBundleDescription" xml:space="preserve">
+    <value>Save logs and diagnostic details for troubleshooting.</value>
+  </data>
+  <data name="SettingsUpdateDownloadDescription" xml:space="preserve">
+    <value>Download and verify the update before restarting.</value>
+  </data>
+  <data name="SettingsProjectLinkDescription" xml:space="preserve">
+    <value>Browse the source code, documentation, and issues.</value>
+  </data>
+  <data name="SettingsReleaseNotesDescription" xml:space="preserve">
+    <value>See release changes and available downloads.</value>
   </data>
 </root>

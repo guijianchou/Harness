@@ -22,7 +22,7 @@ public sealed partial class SettingsDialog
     private async Task<bool> SaveSettingsAsync(bool closeWindow = true)
     {
         _isSaving = true;
-        SettingsInteractionRoot.IsEnabled = false;
+        SetSettingsBusyState(true, StringResources.SettingsSaving);
         var closeAfterSave = false;
         try
         {
@@ -65,10 +65,7 @@ public sealed partial class SettingsDialog
         finally
         {
             _isSaving = false;
-            if (!_isClosed)
-            {
-                SettingsInteractionRoot.IsEnabled = true;
-            }
+            SetSettingsBusyState(false);
         }
 
         if (closeAfterSave && closeWindow && !_isClosed)
@@ -91,6 +88,19 @@ public sealed partial class SettingsDialog
         {
             this.Close();
         }
+    }
+
+    private void SetSettingsBusyState(bool busy, string? message = null)
+    {
+        if (_isClosed)
+        {
+            return;
+        }
+
+        SettingsInteractionRoot.IsEnabled = !busy;
+        SettingsOperationProgress.IsActive = busy;
+        SettingsOperationProgress.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        SettingsStatusText.Text = message ?? StringResources.SettingsApplyHint;
     }
 
     private void RefreshStartupRegistrationStatus()
@@ -148,6 +158,23 @@ public sealed partial class SettingsDialog
     private void OnResetHotkeyClick(object sender, RoutedEventArgs e)
     {
         ViewModel.ResetGlobalHotkey();
+    }
+
+    private async Task OpenAboutLinkAsync(Uri uri)
+    {
+        if (_isClosed || _isSaving || _isClearingSession)
+        {
+            return;
+        }
+
+        try
+        {
+            await Windows.System.Launcher.LaunchUriAsync(uri);
+        }
+        catch (Exception ex)
+        {
+            App.Logger.Warning($"Could not open About link: {ex.GetType().Name}");
+        }
     }
 
     private void OnApplyClick(object sender, RoutedEventArgs e)
@@ -214,7 +241,7 @@ public sealed partial class SettingsDialog
         }
 
         _isClearingSession = true;
-        SettingsInteractionRoot.IsEnabled = false;
+        SetSettingsBusyState(true, StringResources.SettingsClearingSession);
         try
         {
             await MainViewModel.ClearSessionForEnvironmentAsync(environment.Id);
@@ -228,10 +255,7 @@ public sealed partial class SettingsDialog
         finally
         {
             _isClearingSession = false;
-            if (!_isClosed)
-            {
-                SettingsInteractionRoot.IsEnabled = true;
-            }
+            SetSettingsBusyState(false);
         }
     }
 

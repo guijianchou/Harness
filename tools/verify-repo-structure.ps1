@@ -104,7 +104,7 @@ foreach ($linkedCompileItem in $linkedCompileItems) {
     }
 }
 
-$currentVersion = '5.3.9'
+$currentVersion = '5.3.10'
 $currentFileVersion = "$currentVersion.0"
 if ($project -notmatch [regex]::Escape("<Version>$currentVersion</Version>") -or
     $project -notmatch [regex]::Escape("<AssemblyVersion>$currentFileVersion</AssemblyVersion>") -or
@@ -985,7 +985,8 @@ if ($viewLogsHandler -notmatch 'ExecuteDeveloperCommand\(MainViewModel\?\.ViewLo
 
 if ($settingsDialogActions -notmatch 'private async void OnClearEnvironmentSessionClick[\s\S]*try[\s\S]*await ClearEnvironmentSessionAsync' -or
     $settingsDialogActions -notmatch 'private async Task ClearEnvironmentSessionAsync' -or
-    $settingsDialogActions -notmatch '_isClearingSession = true[\s\S]*SettingsInteractionRoot\.IsEnabled = false[\s\S]*finally[\s\S]*_isClearingSession = false[\s\S]*if \(!_isClosed\)[\s\S]*SettingsInteractionRoot\.IsEnabled = true' -or
+    $settingsDialogActions -notmatch '_isClearingSession = true[\s\S]*SetSettingsBusyState\(true, StringResources.SettingsClearingSession\)[\s\S]*finally[\s\S]*_isClearingSession = false[\s\S]*SetSettingsBusyState\(false\)' -or
+    $settingsDialogActions -notmatch 'private void SetSettingsBusyState[\s\S]*if \(_isClosed\)[\s\S]*return;[\s\S]*SettingsInteractionRoot\.IsEnabled = !busy' -or
     $settingsDialogActions -notmatch 'SettingsSessionResetFailedFormat') {
     throw 'Settings session clear async handler must guard reentry, catch failures, and report localized errors.'
 }

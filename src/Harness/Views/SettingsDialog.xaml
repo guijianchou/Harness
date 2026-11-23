@@ -12,645 +12,650 @@
     Title="{x:Bind helpers:StringResources.SettingsTitle}">
 
     <ContentControl x:Name="SettingsInteractionRoot" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-    <Grid x:Name="SettingsRoot"
-          SizeChanged="OnSettingsRootSizeChanged"
-          Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <Grid.Resources>
-            <x:Double x:Key="SettingsEditorWidth">160</x:Double>
-            <Style x:Key="SettingsChoiceStyle" TargetType="ComboBox">
-                <Setter Property="Width" Value="{StaticResource SettingsEditorWidth}" />
-                <Setter Property="HorizontalAlignment" Value="Right" />
-                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            </Style>
-            <Style x:Key="SettingsNumberStyle" TargetType="NumberBox">
-                <Setter Property="Width" Value="{StaticResource SettingsEditorWidth}" />
-                <Setter Property="HorizontalAlignment" Value="Right" />
-            </Style>
-            <Style x:Key="SettingsActionStyle" TargetType="Button">
-                <Setter Property="HorizontalAlignment" Value="Stretch" />
-                <Setter Property="HorizontalContentAlignment" Value="Left" />
-                <Setter Property="Padding" Value="16,12" />
-                <Setter Property="MinHeight" Value="48" />
-            </Style>
-        </Grid.Resources>
-        <Grid.RowDefinitions>
-            <!-- Main content -->
-            <RowDefinition Height="*" />
-            <!-- Bottom button bar -->
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
-        <!-- Main content: sidebar + panels -->
-        <Grid Grid.Row="0">
+        <Grid x:Name="SettingsRoot"
+            SizeChanged="OnSettingsRootSizeChanged"
+            Background="Transparent">
+            <Grid.Resources>
+                <x:Double x:Key="SettingsEditorWidth">160</x:Double>
+                <Style x:Key="SettingsChoiceStyle" TargetType="ComboBox">
+                    <Setter Property="Width" Value="{StaticResource SettingsEditorWidth}" />
+                    <Setter Property="HorizontalAlignment" Value="Right" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+                <Style x:Key="SettingsNumberStyle" TargetType="NumberBox">
+                    <Setter Property="Width" Value="{StaticResource SettingsEditorWidth}" />
+                    <Setter Property="HorizontalAlignment" Value="Right" />
+                </Style>
+            </Grid.Resources>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="48" />
+                <!-- Main content -->
                 <RowDefinition Height="*" />
+                <!-- Bottom button bar -->
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="SettingsNavigationColumn" Width="180" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
 
-            <ComboBox x:Name="CompactNavigation" Grid.ColumnSpan="2"
-                      Margin="12,12,12,0" HorizontalAlignment="Stretch" Visibility="Collapsed"
-                      AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsTitle}"
-                      SelectionChanged="OnCompactNavigationChanged">
-                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" />
-                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}" />
-                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavEnvironments}" />
-                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" />
-                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavSessions}" />
-                <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavDevTools}" />
-                <ComboBoxItem Content="{x:Bind helpers:StringResources.AboutTitle}" />
-            </ComboBox>
+            <Grid x:Name="SettingsTitleBar" Background="Transparent">
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="20,0,160,0" VerticalAlignment="Center">
+                    <Image Source="/Assets/apple-touch-icon.png" Width="20" Height="20" />
+                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsTitle}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
 
-            <!-- LEFT SIDEBAR -->
-            <Border x:Name="SettingsNavigationSidebar" Grid.Column="0" Grid.RowSpan="2"
-                    Background="{ThemeResource LayerFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                    BorderThickness="0,0,1,0">
-                <ListView x:Name="NavList"
-                          SelectionMode="Single"
-                          SelectionChanged="OnNavSelectionChanged"
-                          Padding="6,12">
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="MinHeight" Value="40" />
-                            <Setter Property="Padding" Value="12,8" />
-                            <Setter Property="Margin" Value="0,2" />
-                            <Setter Property="CornerRadius" Value="6" />
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListViewItem x:Name="NavLanguage" Tag="Language">
-                        <Grid ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="20" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE790;" FontSize="16" Width="20" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </Grid>
-                    </ListViewItem>
-                    <ListViewItem x:Name="NavShell" Tag="Shell">
-                        <Grid ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="20" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE8A7;" FontSize="16" Width="20" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </Grid>
-                    </ListViewItem>
-                    <ListViewItem x:Name="NavEnvironments" Tag="Environments">
-                        <Grid ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="20" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE909;" FontSize="16" Width="20" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavEnvironments}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </Grid>
-                    </ListViewItem>
-                    <ListViewItem x:Name="NavNotifications" Tag="Notifications">
-                        <Grid ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="20" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE7F4;" FontSize="16" Width="20" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </Grid>
-                    </ListViewItem>
-                    <ListViewItem x:Name="NavSessions" Tag="Sessions">
-                        <Grid ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="20" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE74D;" FontSize="16" Width="20" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavSessions}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </Grid>
-                    </ListViewItem>
-                    <ListViewItem x:Name="NavDevTools" Tag="DevTools">
-                        <Grid ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="20" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE9D9;" FontSize="16" Width="20" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavDevTools}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </Grid>
-                    </ListViewItem>
-                    <ListViewItem x:Name="NavAbout" Tag="About">
-                        <Grid ColumnSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="20" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE946;" FontSize="16" Width="20" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.AboutTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </Grid>
-                    </ListViewItem>
-                </ListView>
-            </Border>
+            <!-- Main content: sidebar + panels -->
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="SettingsNavigationColumn" Width="208" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-            <!-- RIGHT CONTENT -->
-            <ScrollViewer x:Name="SettingsContentScroll" Grid.Column="1" Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          Padding="24,20">
-                <Grid>
-                    <!-- Appearance -->
-                    <StackPanel x:Name="PanelLanguage" Spacing="12" Visibility="Visible">
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsAppearanceDescription}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsThemeTitle}"
-                                               Description="{x:Bind helpers:StringResources.SettingsThemeDescription}">
-                            <ComboBox x:Name="ThemeComboBox" Style="{StaticResource SettingsChoiceStyle}" ItemsSource="{x:Bind ViewModel.ThemeOptions}"
-                                      SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}"
-                                      AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsThemeTitle}" />
-                        </controls:SettingsCard>
-                        <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsZoomTitle}"
-                                               Description="{x:Bind helpers:StringResources.SettingsZoomDescription}">
-                            <NumberBox x:Name="ZoomNumberBox" Style="{StaticResource SettingsNumberStyle}" Minimum="50" Maximum="200" SmallChange="10" LargeChange="25"
-                                       SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.ZoomPercent, Mode=TwoWay}"
-                                       AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsZoomTitle}" />
-                        </controls:SettingsCard>
-                        <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsNavLanguage}"
-                                               Description="{x:Bind helpers:StringResources.SettingsLanguageRestartHint}">
-                            <ComboBox x:Name="LanguageComboBox" SelectionChanged="OnLanguageSelectionChanged" Style="{StaticResource SettingsChoiceStyle}"
-                                      AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsNavLanguage}" />
-                        </controls:SettingsCard>
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsApplyHint}" FontSize="12"
-                                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
+                <ComboBox x:Name="CompactNavigation" Grid.ColumnSpan="2"
+                    Margin="16,0,16,0" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                    AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsTitle}"
+                    SelectionChanged="OnCompactNavigationChanged">
+                    <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" />
+                    <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}" />
+                    <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavEnvironments}" />
+                    <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" />
+                    <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavSessions}" />
+                    <ComboBoxItem Content="{x:Bind helpers:StringResources.SettingsNavDevTools}" />
+                    <ComboBoxItem Content="{x:Bind helpers:StringResources.AboutTitle}" />
+                </ComboBox>
 
-                    <!-- ======= Panel: Shell ======= -->
-                    <StackPanel x:Name="PanelShell" Spacing="12" Visibility="Collapsed">
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}"
-                                    Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsShellDescription}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    FontSize="13"
-                                    TextWrapping="Wrap" />
+                <!-- LEFT SIDEBAR -->
+                <Border x:Name="SettingsNavigationSidebar" Grid.Column="0" Grid.RowSpan="2"
+                    Background="Transparent">
+                    <ListView x:Name="NavList"
+                        SelectionMode="Single"
+                        SelectionChanged="OnNavSelectionChanged"
+                        Padding="12,8">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="MinHeight" Value="44" />
+                                <Setter Property="Padding" Value="12,8" />
+                                <Setter Property="Margin" Value="0,2" />
+                                <Setter Property="CornerRadius" Value="6" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListViewItem x:Name="NavLanguage" Tag="Language">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE790;" FontSize="16" Width="20" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </Grid>
+                        </ListViewItem>
+                        <ListViewItem x:Name="NavShell" Tag="Shell">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE8A7;" FontSize="16" Width="20" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </Grid>
+                        </ListViewItem>
+                        <ListViewItem x:Name="NavEnvironments" Tag="Environments">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE909;" FontSize="16" Width="20" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavEnvironments}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </Grid>
+                        </ListViewItem>
+                        <ListViewItem x:Name="NavNotifications" Tag="Notifications">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE7F4;" FontSize="16" Width="20" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </Grid>
+                        </ListViewItem>
+                        <ListViewItem x:Name="NavSessions" Tag="Sessions">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE74D;" FontSize="16" Width="20" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavSessions}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </Grid>
+                        </ListViewItem>
+                        <ListViewItem x:Name="NavDevTools" Tag="DevTools">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE9D9;" FontSize="16" Width="20" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavDevTools}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </Grid>
+                        </ListViewItem>
+                        <ListViewItem x:Name="NavAbout" Tag="About">
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE946;" FontSize="16" Width="20" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.AboutTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </Grid>
+                        </ListViewItem>
+                    </ListView>
+                </Border>
 
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsStartupHeader}" FontWeight="SemiBold" Margin="0,8,0,0" />
-                        <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsLaunchAtStartup}"
-                                               Description="{x:Bind helpers:StringResources.SettingsLaunchAtStartupDescription}">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.LaunchAtStartup, Mode=TwoWay}" OnContent="" OffContent="" />
-                        </controls:SettingsCard>
-                        <TextBlock Text="{x:Bind ViewModel.StartupRegistrationStatus, Mode=OneWay}"
-                                   FontSize="12" Margin="4,0" TextWrapping="Wrap"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   AutomationProperties.LiveSetting="Polite" />
-                        <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsStartMinimized}"
-                                               Description="{x:Bind helpers:StringResources.SettingsStartMinimizedDescription}">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.StartMinimized, Mode=TwoWay}" OnContent="" OffContent="" />
-                        </controls:SettingsCard>
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsWindowHeader}" FontWeight="SemiBold" Margin="0,8,0,0" />
-                        <StackPanel x:Name="ShellSwitchRows" Spacing="12">
-                            <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsSystemTray}"
-                                                   Description="{x:Bind helpers:StringResources.SettingsSystemTrayDescription}">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.SystemTray, Mode=TwoWay}"
-                                              OnContent=""
-                                              OffContent="" />
+                <!-- RIGHT CONTENT -->
+                <ScrollViewer x:Name="SettingsContentScroll" Grid.Column="1" Grid.Row="1"
+                    VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled"
+                    Padding="24,16,24,24">
+                    <Grid MaxWidth="880" HorizontalAlignment="Stretch">
+                        <!-- Appearance -->
+                        <StackPanel x:Name="PanelLanguage" Spacing="12" Visibility="Visible">
+                            <StackPanel Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" Style="{StaticResource SettingsPageTitleStyle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsAppearanceDescription}" Style="{StaticResource SettingsDescriptionStyle}" />
+                            </StackPanel>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsThemeTitle}"
+                                Description="{x:Bind helpers:StringResources.SettingsThemeDescription}">
+                                <ComboBox x:Name="ThemeComboBox" Style="{StaticResource SettingsChoiceStyle}" ItemsSource="{x:Bind ViewModel.ThemeOptions}"
+                                    SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}"
+                                    AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsThemeTitle}" />
                             </controls:SettingsCard>
-
-                            <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsAutoRefresh}"
-                                                   Description="{x:Bind helpers:StringResources.SettingsAutoRefreshDescription}">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.AutoRefresh, Mode=TwoWay}"
-                                              OnContent=""
-                                              OffContent="" />
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsZoomTitle}"
+                                Description="{x:Bind helpers:StringResources.SettingsZoomDescription}">
+                                <NumberBox x:Name="ZoomNumberBox" Style="{StaticResource SettingsNumberStyle}" Minimum="50" Maximum="200" SmallChange="10" LargeChange="25"
+                                    SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.ZoomPercent, Mode=TwoWay}"
+                                    AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsZoomTitle}" />
                             </controls:SettingsCard>
-
-                            <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsAllowMultipleInstances}"
-                                                   Description="{x:Bind helpers:StringResources.SettingsAllowMultipleInstancesDescription}">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.AllowMultipleInstances, Mode=TwoWay}"
-                                              OnContent=""
-                                              OffContent="" />
-                            </controls:SettingsCard>
-
-                            <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsAlwaysOnTop}"
-                                                   Description="{x:Bind helpers:StringResources.SettingsAlwaysOnTopDescription}">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.AlwaysOnTop, Mode=TwoWay}"
-                                              OnContent=""
-                                              OffContent="" />
-                            </controls:SettingsCard>
-
-                            <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsEnableGlobalHotkey}"
-                                                   Description="{x:Bind helpers:StringResources.SettingsEnableGlobalHotkeyDescription}">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.EnableGlobalHotkey, Mode=TwoWay}"
-                                              OnContent=""
-                                              OffContent="" />
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsNavLanguage}"
+                                Description="{x:Bind helpers:StringResources.SettingsLanguageRestartHint}">
+                                <ComboBox x:Name="LanguageComboBox" SelectionChanged="OnLanguageSelectionChanged" Style="{StaticResource SettingsChoiceStyle}"
+                                    AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsNavLanguage}" />
                             </controls:SettingsCard>
                         </StackPanel>
-                        <Grid ColumnSpacing="8" Margin="0,4,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox Header="{x:Bind helpers:StringResources.SettingsGlobalHotkey}"
-                                     IsEnabled="{x:Bind ViewModel.EnableGlobalHotkey, Mode=OneWay}"
-                                     PlaceholderText="{x:Bind helpers:StringResources.SettingsGlobalHotkeyPlaceholder}"
-                                     Text="{x:Bind ViewModel.GlobalHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <Button Grid.Column="1" Content="{x:Bind helpers:StringResources.SettingsGlobalHotkeyReset}"
-                                    IsEnabled="{x:Bind ViewModel.EnableGlobalHotkey, Mode=OneWay}"
-                                    Click="OnResetHotkeyClick"
-                                    VerticalAlignment="Bottom" />
-                        </Grid>
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsGlobalHotkeyHint}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    FontSize="12"
-                                    TextWrapping="Wrap" />
 
-                    </StackPanel>
-
-                    <!-- ======= Panel: Environments ======= -->
-                    <StackPanel x:Name="PanelEnvironments" Spacing="12" Visibility="Collapsed">
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsEnvironmentsTitle}"
-                                    Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsEnvironmentsDescription}"
-                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                     FontSize="13" TextWrapping="Wrap" />
-
-                        <!-- Environment list -->
-                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                CornerRadius="4"
-                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                BorderThickness="1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <ListView x:Name="EnvironmentList"
-                                          Grid.Column="0"
-                                          MinHeight="48"
-                                          MaxHeight="150"
-                                          SelectionMode="Single"
-                                          SelectionChanged="OnEnvironmentSelectionChanged">
-                                    <ListView.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Spacing="3" Padding="0,4">
-                                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding GatewayUrl}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ListView.ItemTemplate>
-                                </ListView>
-
-                                <StackPanel Grid.Column="1" Orientation="Vertical"
-                                            Spacing="2" Padding="4"
-                                            VerticalAlignment="Top">
-                                    <Button Click="OnAddClick"
-                                            AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsAddTooltip}"
-                                            ToolTipService.ToolTip="{x:Bind helpers:StringResources.SettingsAddTooltip}" Padding="6">
-                                        <FontIcon Glyph="&#xE710;" FontSize="11" />
-                                    </Button>
-                                    <Button Click="OnRemoveClick"
-                                            AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsRemoveTooltip}"
-                                            ToolTipService.ToolTip="{x:Bind helpers:StringResources.SettingsRemoveTooltip}" Padding="6">
-                                        <FontIcon Glyph="&#xE738;" FontSize="11" />
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Edit form -->
-                        <TextBox x:Name="NameTextBox"
-                                 Header="{x:Bind helpers:StringResources.EnvironmentName}"
-                                 PlaceholderText="{x:Bind helpers:StringResources.SettingsEnvironmentPlaceholder}"
-                                 Text="{x:Bind ViewModel.EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <TextBox x:Name="UrlTextBox"
-                                 Header="{x:Bind helpers:StringResources.SettingsControlUiUrl}"
-                                 PlaceholderText="{x:Bind helpers:StringResources.SettingsControlUiUrlPlaceholder}"
-                                 Text="{x:Bind ViewModel.EditUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <ComboBox x:Name="BackendComboBox"
-                                  Header="{x:Bind helpers:StringResources.SettingsBackend}"
-                                  HorizontalAlignment="Stretch"
-                                  ItemsSource="{x:Bind ViewModel.BackendOptions}"
-                                  SelectedIndex="{x:Bind ViewModel.EditBackendIndex, Mode=TwoWay}" />
-
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsBackendHint}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   FontSize="12"
-                                   TextWrapping="Wrap" />
-
-                        <Expander Header="{x:Bind helpers:StringResources.SettingsGatewayAdvanced}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                            <StackPanel Spacing="8">
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint1}"
-                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                     FontSize="12"
-                                     TextWrapping="Wrap" />
-
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint2}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    FontSize="12"
-                                    TextWrapping="Wrap" />
-
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint3}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    FontSize="12"
-                                    TextWrapping="Wrap" />
-
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint4}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    FontSize="12"
-                                    TextWrapping="Wrap" />
+                        <!-- ======= Panel: Shell ======= -->
+                        <StackPanel x:Name="PanelShell" Spacing="12" Visibility="Collapsed">
+                            <StackPanel Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}"
+                                    Style="{StaticResource SettingsPageTitleStyle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsShellDescription}" Style="{StaticResource SettingsDescriptionStyle}" />
                             </StackPanel>
-                        </Expander>
 
-                        <Expander Header="{x:Bind helpers:StringResources.SettingsGatewayTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True" IsEnabled="{x:Bind ViewModel.IsOpenClawBackend, Mode=OneWay}">
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayDescription}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <ToggleSwitch Header="{x:Bind helpers:StringResources.SettingsGatewayEnabled}" IsOn="{x:Bind ViewModel.EditGatewayEnabled, Mode=TwoWay}" />
-                                <ContentControl IsEnabled="{x:Bind ViewModel.EditGatewayEnabled, Mode=OneWay}" HorizontalContentAlignment="Stretch">
-                                <StackPanel Spacing="12">
-                                    <TextBox Header="{x:Bind helpers:StringResources.SettingsGatewayWebSocketUrl}" PlaceholderText="{x:Bind helpers:StringResources.SettingsGatewayWebSocketPlaceholder}" Text="{x:Bind ViewModel.EditGatewayWebSocketUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayRouteHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <ComboBox Header="{x:Bind helpers:StringResources.SettingsGatewayAuthentication}" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.GatewayAuthOptions}" SelectedIndex="{x:Bind ViewModel.EditGatewayAuthModeIndex, Mode=TwoWay}" />
-                                    <PasswordBox Header="{x:Bind helpers:StringResources.SettingsGatewaySecret}" Password="{x:Bind ViewModel.EditGatewaySecret, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.UsesGatewaySecret, Mode=OneWay}" PasswordRevealMode="Peek" />
-                                    <TextBlock Text="{x:Bind ViewModel.GatewayCredentialStatus, Mode=OneWay}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewaySecretHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <Expander Header="{x:Bind helpers:StringResources.SettingsGatewayAccessTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                                        <StackPanel Spacing="10">
-                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayAccessHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                            <PasswordBox Header="{x:Bind helpers:StringResources.SettingsGatewayAccessToken}" Password="{x:Bind ViewModel.EditGatewayAccessToken, Mode=TwoWay}" PasswordRevealMode="Peek" />
-                                            <CheckBox Content="{x:Bind helpers:StringResources.SettingsGatewayAccessClear}" IsChecked="{x:Bind ViewModel.EditGatewayClearAccessToken, Mode=TwoWay}" />
-                                        </StackPanel>
-                                    </Expander>
-                                </StackPanel>
-                                </ContentControl>
+                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsStartupHeader}" Style="{StaticResource SettingsSectionStyle}" />
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsLaunchAtStartup}"
+                                Description="{x:Bind helpers:StringResources.SettingsLaunchAtStartupDescription}">
+                                <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsLaunchAtStartup}" IsOn="{x:Bind ViewModel.LaunchAtStartup, Mode=TwoWay}" OnContent="" OffContent="" />
+                            </controls:SettingsCard>
+                            <TextBlock Text="{x:Bind ViewModel.StartupRegistrationStatus, Mode=OneWay}"
+                                FontSize="12" Margin="4,0" TextWrapping="Wrap"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                AutomationProperties.LiveSetting="Polite" />
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsStartMinimized}"
+                                Description="{x:Bind helpers:StringResources.SettingsStartMinimizedDescription}">
+                                <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsStartMinimized}" IsOn="{x:Bind ViewModel.StartMinimized, Mode=TwoWay}" OnContent="" OffContent="" />
+                            </controls:SettingsCard>
+                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsWindowHeader}" Style="{StaticResource SettingsSectionStyle}" />
+                            <StackPanel x:Name="ShellSwitchRows" Spacing="12">
+                                <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsSystemTray}"
+                                    Description="{x:Bind helpers:StringResources.SettingsSystemTrayDescription}">
+                                    <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsSystemTray}" IsOn="{x:Bind ViewModel.SystemTray, Mode=TwoWay}"
+                                        OnContent=""
+                                        OffContent="" />
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsAutoRefresh}"
+                                    Description="{x:Bind helpers:StringResources.SettingsAutoRefreshDescription}">
+                                    <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsAutoRefresh}" IsOn="{x:Bind ViewModel.AutoRefresh, Mode=TwoWay}"
+                                        OnContent=""
+                                        OffContent="" />
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsAllowMultipleInstances}"
+                                    Description="{x:Bind helpers:StringResources.SettingsAllowMultipleInstancesDescription}">
+                                    <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsAllowMultipleInstances}" IsOn="{x:Bind ViewModel.AllowMultipleInstances, Mode=TwoWay}"
+                                        OnContent=""
+                                        OffContent="" />
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsAlwaysOnTop}"
+                                    Description="{x:Bind helpers:StringResources.SettingsAlwaysOnTopDescription}">
+                                    <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsAlwaysOnTop}" IsOn="{x:Bind ViewModel.AlwaysOnTop, Mode=TwoWay}"
+                                        OnContent=""
+                                        OffContent="" />
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsEnableGlobalHotkey}"
+                                    Description="{x:Bind helpers:StringResources.SettingsEnableGlobalHotkeyDescription}">
+                                    <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsEnableGlobalHotkey}" IsOn="{x:Bind ViewModel.EnableGlobalHotkey, Mode=TwoWay}"
+                                        OnContent=""
+                                        OffContent="" />
+                                </controls:SettingsCard>
                             </StackPanel>
-                        </Expander>
-
-                        <Border x:Name="EnvironmentActionsBar"
-                                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                Padding="12,8"
-                                Margin="0,4,0,0">
-                            <Grid x:Name="EnvironmentActionsLayout" ColumnSpacing="16" RowSpacing="8" MinHeight="36">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <Grid x:Name="DefaultEnvironmentRow"
-                                      ColumnSpacing="10"
-                                      VerticalAlignment="Center">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock Text="{x:Bind helpers:StringResources.SetAsDefault}"
-                                               TextWrapping="Wrap"
-                                               FontSize="13"
-                                               VerticalAlignment="Center" />
-                                    <ToggleSwitch Grid.Column="1"
-                                                  IsOn="{x:Bind ViewModel.EditIsDefault, Mode=TwoWay}"
-                                                  AutomationProperties.Name="{x:Bind helpers:StringResources.SetAsDefault}"
-                                                  VerticalAlignment="Center"
-                                                  OnContent=""
-                                                  OffContent="" />
-                                </Grid>
-
-                                <Button x:Name="ApplyEnvironmentDraft" Grid.Column="1"
-                                        Content="{x:Bind helpers:StringResources.SettingsApply}"
-                                        Click="OnApplyClick"
-                                        Style="{StaticResource AccentButtonStyle}"
-                                        MinWidth="88"
-                                        VerticalAlignment="Center" />
-                            </Grid>
-                        </Border>
-
-                    </StackPanel>
-
-                    <!-- ======= Panel: Sessions ======= -->
-                    <StackPanel x:Name="PanelSessions" Spacing="12" Visibility="Collapsed">
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsSessionsTitle}"
-                                    Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsSessionsDescription}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    FontSize="13"
-                                    TextWrapping="Wrap" />
-
-                        <InfoBar x:Name="SessionInfoBar"
-                                  IsOpen="False"
-                                  Severity="Informational"
-                                  Title="{x:Bind helpers:StringResources.SettingsSessionReset}" />
-
-                        <ListView x:Name="SessionEnvironmentList"
-                                  ItemsSource="{x:Bind SavedSessionEnvironments}"
-                                  SelectionMode="None">
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                    <Setter Property="Padding" Value="16,8" />
-                                </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="models:EnvironmentConfig">
-                                    <Grid Padding="0,8">
+                            <Border Style="{StaticResource SettingsSurfaceStyle}">
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnSpacing="8" Margin="0,4,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-
-                                        <StackPanel Spacing="2">
-                                            <TextBlock Text="{x:Bind Name}"
-                                                       FontSize="13"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTipService.ToolTip="{x:Bind Name}"
-                                                       FontWeight="SemiBold" />
-                                            <TextBlock Text="{x:Bind GatewayUrl}"
-                                                       FontSize="12"
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-
-                                        <Button Grid.Column="1"
-                                                Content="{x:Bind helpers:StringResources.SettingsClearSessionAction}"
-                                                Tag="{x:Bind Id}"
-                                                Click="OnClearEnvironmentSessionClick"
-                                                Margin="12,0,0,0" />
+                                        <TextBox Header="{x:Bind helpers:StringResources.SettingsGlobalHotkey}"
+                                            IsEnabled="{x:Bind ViewModel.EnableGlobalHotkey, Mode=OneWay}"
+                                            PlaceholderText="{x:Bind helpers:StringResources.SettingsGlobalHotkeyPlaceholder}"
+                                            Text="{x:Bind ViewModel.GlobalHotkey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <Button Grid.Column="1" Content="{x:Bind helpers:StringResources.SettingsGlobalHotkeyReset}"
+                                            IsEnabled="{x:Bind ViewModel.EnableGlobalHotkey, Mode=OneWay}"
+                                            Click="OnResetHotkeyClick"
+                                            VerticalAlignment="Bottom" />
                                     </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                    </StackPanel>
+                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGlobalHotkeyHint}"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        FontSize="12"
+                                        TextWrapping="Wrap" />
 
-                    <!-- ======= Panel: Developer Tools ======= -->
-                    <StackPanel x:Name="PanelDevTools" Spacing="12" Visibility="Collapsed">
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsDevToolsTitle}"
-                                    Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsDevToolsDescription}"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    FontSize="13" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
-                        <StackPanel x:Name="DevToolsSwitchRows" Spacing="8">
-                            <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsEnableDevLog}"
-                                                   Description="{x:Bind helpers:StringResources.SettingsEnableDevLogDescription}">
-                                <ToggleSwitch IsOn="{x:Bind ViewModel.EnableDevLog, Mode=TwoWay}"
-                                              OnContent=""
-                                              OffContent="" />
+                        <!-- ======= Panel: Environments ======= -->
+                        <StackPanel x:Name="PanelEnvironments" Spacing="12" Visibility="Collapsed">
+                            <StackPanel Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsEnvironmentsTitle}"
+                                    Style="{StaticResource SettingsPageTitleStyle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsEnvironmentsDescription}" Style="{StaticResource SettingsDescriptionStyle}" />
+                            </StackPanel>
+
+                            <Border Style="{StaticResource SettingsSurfaceStyle}">
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <Button Click="OnAddClick" HorizontalAlignment="Left">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <FontIcon Glyph="&#xE710;" FontSize="12" />
+                                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsAddTooltip}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="1" Click="OnRemoveClick" IsEnabled="{x:Bind ViewModel.IsEditing, Mode=OneWay}"
+                                            Content="{x:Bind helpers:StringResources.SettingsRemoveTooltip}" />
+                                    </Grid>
+                                    <ListView x:Name="EnvironmentList" MinHeight="48" MaxHeight="168"
+                                        ItemContainerStyle="{StaticResource SettingsListItemStyle}"
+                                        AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsNavEnvironments}"
+                                        SelectionMode="Single" SelectionChanged="OnEnvironmentSelectionChanged">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding GatewayUrl}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsEnvironmentSelectionHint}" Style="{StaticResource SettingsDescriptionStyle}" FontSize="12" />
+                                </StackPanel>
+                            </Border>
+
+                            <ContentControl IsEnabled="{x:Bind ViewModel.IsEditing, Mode=OneWay}" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="12">
+                                    <Border Style="{StaticResource SettingsSurfaceStyle}">
+                                        <StackPanel Spacing="12">
+                                            <!-- Edit form -->
+                                            <TextBox x:Name="NameTextBox"
+                                                Header="{x:Bind helpers:StringResources.EnvironmentName}"
+                                                PlaceholderText="{x:Bind helpers:StringResources.SettingsEnvironmentPlaceholder}"
+                                                Text="{x:Bind ViewModel.EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                            <TextBox x:Name="UrlTextBox"
+                                                Header="{x:Bind helpers:StringResources.SettingsControlUiUrl}"
+                                                PlaceholderText="{x:Bind helpers:StringResources.SettingsControlUiUrlPlaceholder}"
+                                                Text="{x:Bind ViewModel.EditUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                            <ComboBox x:Name="BackendComboBox"
+                                                Header="{x:Bind helpers:StringResources.SettingsBackend}"
+                                                HorizontalAlignment="Stretch"
+                                                ItemsSource="{x:Bind ViewModel.BackendOptions}"
+                                                SelectedIndex="{x:Bind ViewModel.EditBackendIndex, Mode=TwoWay}" />
+
+                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsBackendHint}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                FontSize="12"
+                                                TextWrapping="Wrap" />
+
+                                        </StackPanel>
+                                    </Border>
+                                    <Expander Style="{StaticResource SettingsExpanderStyle}" Header="{x:Bind helpers:StringResources.SettingsGatewayAdvanced}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint1}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                FontSize="12"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint2}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                FontSize="12"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint3}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                FontSize="12"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint4}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                FontSize="12"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Expander>
+
+                                    <Expander Style="{StaticResource SettingsExpanderStyle}" Header="{x:Bind helpers:StringResources.SettingsGatewayTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True" IsEnabled="{x:Bind ViewModel.IsOpenClawBackend, Mode=OneWay}">
+                                        <StackPanel Spacing="12">
+                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayDescription}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <ToggleSwitch Header="{x:Bind helpers:StringResources.SettingsGatewayEnabled}" IsOn="{x:Bind ViewModel.EditGatewayEnabled, Mode=TwoWay}" />
+                                            <ContentControl IsEnabled="{x:Bind ViewModel.EditGatewayEnabled, Mode=OneWay}" HorizontalContentAlignment="Stretch">
+                                                <StackPanel Spacing="12">
+                                                    <TextBox Header="{x:Bind helpers:StringResources.SettingsGatewayWebSocketUrl}" PlaceholderText="{x:Bind helpers:StringResources.SettingsGatewayWebSocketPlaceholder}" Text="{x:Bind ViewModel.EditGatewayWebSocketUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayRouteHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <ComboBox Header="{x:Bind helpers:StringResources.SettingsGatewayAuthentication}" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.GatewayAuthOptions}" SelectedIndex="{x:Bind ViewModel.EditGatewayAuthModeIndex, Mode=TwoWay}" />
+                                                    <PasswordBox Header="{x:Bind helpers:StringResources.SettingsGatewaySecret}" Password="{x:Bind ViewModel.EditGatewaySecret, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.UsesGatewaySecret, Mode=OneWay}" PasswordRevealMode="Peek" />
+                                                    <TextBlock Text="{x:Bind ViewModel.GatewayCredentialStatus, Mode=OneWay}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewaySecretHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <Expander Style="{StaticResource SettingsExpanderStyle}" Header="{x:Bind helpers:StringResources.SettingsGatewayAccessTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                                        <StackPanel Spacing="10">
+                                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayAccessHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                            <PasswordBox Header="{x:Bind helpers:StringResources.SettingsGatewayAccessToken}" Password="{x:Bind ViewModel.EditGatewayAccessToken, Mode=TwoWay}" PasswordRevealMode="Peek" />
+                                                            <CheckBox Content="{x:Bind helpers:StringResources.SettingsGatewayAccessClear}" IsChecked="{x:Bind ViewModel.EditGatewayClearAccessToken, Mode=TwoWay}" />
+                                                        </StackPanel>
+                                                    </Expander>
+                                                </StackPanel>
+                                            </ContentControl>
+                                        </StackPanel>
+                                    </Expander>
+
+                                    <Border x:Name="EnvironmentActionsBar" Style="{StaticResource SettingsSurfaceStyle}">
+                                        <Grid x:Name="EnvironmentActionsLayout" SizeChanged="OnEnvironmentActionsSizeChanged" ColumnSpacing="16" RowSpacing="8" MinHeight="36">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid x:Name="DefaultEnvironmentRow"
+                                                ColumnSpacing="10"
+                                                VerticalAlignment="Center">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Text="{x:Bind helpers:StringResources.SetAsDefault}"
+                                                    TextWrapping="Wrap"
+                                                    FontSize="13"
+                                                    VerticalAlignment="Center" />
+                                                <ToggleSwitch Grid.Column="1"
+                                                    IsOn="{x:Bind ViewModel.EditIsDefault, Mode=TwoWay}"
+                                                    AutomationProperties.Name="{x:Bind helpers:StringResources.SetAsDefault}"
+                                                    VerticalAlignment="Center"
+                                                    OnContent=""
+                                                    OffContent="" />
+                                            </Grid>
+
+                                            <Button x:Name="ApplyEnvironmentDraft" Grid.Column="1"
+                                                Content="{x:Bind helpers:StringResources.SettingsApply}"
+                                                Click="OnApplyClick"
+                                                MinWidth="120"
+                                                VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+
+                                </StackPanel>
+                            </ContentControl>
+                        </StackPanel>
+
+                        <!-- ======= Panel: Sessions ======= -->
+                        <StackPanel x:Name="PanelSessions" Spacing="12" Visibility="Collapsed">
+                            <StackPanel Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsSessionsTitle}"
+                                    Style="{StaticResource SettingsPageTitleStyle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsSessionsDescription}" Style="{StaticResource SettingsDescriptionStyle}" />
+                            </StackPanel>
+
+                            <InfoBar x:Name="SessionInfoBar"
+                                IsOpen="False"
+                                Severity="Informational"
+                                Title="{x:Bind helpers:StringResources.SettingsSessionReset}" />
+
+                            <ListView x:Name="SessionEnvironmentList"
+                                ItemsSource="{x:Bind SavedSessionEnvironments}"
+                                SelectionMode="None">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Margin" Value="0,0,0,8" />
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:EnvironmentConfig">
+                                        <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged"
+                                            Header="{x:Bind Name}" Description="{x:Bind GatewayUrl}">
+                                            <Button Content="{x:Bind helpers:StringResources.SettingsClearSessionAction}"
+                                                Tag="{x:Bind Id}" Click="OnClearEnvironmentSessionClick" />
+                                        </controls:SettingsCard>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+
+                        <!-- ======= Panel: Developer Tools ======= -->
+                        <StackPanel x:Name="PanelDevTools" Spacing="12" Visibility="Collapsed">
+                            <StackPanel Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsDevToolsTitle}" Style="{StaticResource SettingsPageTitleStyle}" />
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsDevToolsDescription}" Style="{StaticResource SettingsDescriptionStyle}" />
+                            </StackPanel>
+
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged"
+                                Header="{x:Bind helpers:StringResources.SettingsEnableDevLog}"
+                                Description="{x:Bind helpers:StringResources.SettingsEnableDevLogDescription}">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE9D9;" />
+                                </controls:SettingsCard.HeaderIcon>
+                                <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsEnableDevLog}"
+                                    IsOn="{x:Bind ViewModel.EnableDevLog, Mode=TwoWay}" OnContent="" OffContent="" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" IsClickEnabled="True"
+                                Header="{x:Bind helpers:StringResources.SettingsRunDiagnostics}"
+                                Description="{x:Bind helpers:StringResources.SettingsRunDiagnosticsDescription}"
+                                Click="OnRunDiagnosticsClick">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE9CE;" />
+                                </controls:SettingsCard.HeaderIcon>
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" IsClickEnabled="True"
+                                Header="{x:Bind helpers:StringResources.SettingsViewLogs}"
+                                Description="{x:Bind helpers:StringResources.SettingsViewLogsDescription}"
+                                Click="OnViewLogsClick">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE7BA;" />
+                                </controls:SettingsCard.HeaderIcon>
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" IsClickEnabled="True"
+                                Header="{x:Bind helpers:StringResources.SettingsOpenDevTools}"
+                                Description="{x:Bind helpers:StringResources.SettingsOpenDevToolsDescription}"
+                                Click="OnDevToolsClick">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xEC7A;" />
+                                </controls:SettingsCard.HeaderIcon>
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" IsClickEnabled="True"
+                                Header="{x:Bind helpers:StringResources.SettingsExportDiagnosticBundle}"
+                                Description="{x:Bind helpers:StringResources.SettingsExportDiagnosticBundleDescription}"
+                                Click="OnExportDiagnosticBundleClick">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE896;" />
+                                </controls:SettingsCard.HeaderIcon>
                             </controls:SettingsCard>
                         </StackPanel>
 
-                        <StackPanel Spacing="8" Margin="0,8,0,0">
-                            <Button Style="{StaticResource SettingsActionStyle}" Click="OnRunDiagnosticsClick">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <FontIcon Glyph="&#xE9D9;" FontSize="14" />
-                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsRunDiagnostics}" />
-                                </StackPanel>
-                            </Button>
-                            <Button Style="{StaticResource SettingsActionStyle}" Click="OnViewLogsClick">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <FontIcon Glyph="&#xE7BA;" FontSize="14" />
-                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsViewLogs}" />
-                                </StackPanel>
-                            </Button>
-                            <Button Style="{StaticResource SettingsActionStyle}" Click="OnDevToolsClick">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <FontIcon Glyph="&#xEC7A;" FontSize="14" />
-                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsOpenDevTools}" />
-                                </StackPanel>
-                            </Button>
-                            <Button Style="{StaticResource SettingsActionStyle}" Click="OnExportDiagnosticBundleClick">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <FontIcon Glyph="&#xE896;" FontSize="14" />
-                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsExportDiagnosticBundle}" />
-                                </StackPanel>
-                            </Button>
+                        <StackPanel x:Name="PanelNotifications" Spacing="12" Visibility="Collapsed">
+                            <StackPanel Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" Style="{StaticResource SettingsPageTitleStyle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsNotificationsHint}" Style="{StaticResource SettingsDescriptionStyle}" />
+                            </StackPanel>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsNotifyOnRunCompleted}"
+                                Description="{x:Bind helpers:StringResources.SettingsNotifyOnRunCompletedDescription}">
+                                <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsNotifyOnRunCompleted}" IsOn="{x:Bind ViewModel.NotifyOnRunCompleted, Mode=TwoWay}" OnContent="" OffContent="" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsNotifyOnlyWhenUnfocused}"
+                                Description="{x:Bind helpers:StringResources.SettingsNotifyOnlyWhenUnfocusedDescription}">
+                                <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsNotifyOnlyWhenUnfocused}" IsOn="{x:Bind ViewModel.NotifyOnlyWhenUnfocused, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.NotifyOnRunCompleted, Mode=OneWay}" OnContent="" OffContent="" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsForwardPageNotifications}"
+                                Description="{x:Bind helpers:StringResources.SettingsForwardPageNotificationsDescription}">
+                                <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsForwardPageNotifications}" IsOn="{x:Bind ViewModel.ForwardPageNotifications, Mode=TwoWay}" OnContent="" OffContent="" />
+                            </controls:SettingsCard>
                         </StackPanel>
-                    </StackPanel>
 
-                    <StackPanel x:Name="PanelNotifications" Spacing="12" Visibility="Collapsed">
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-                        <TextBlock Text="{x:Bind helpers:StringResources.SettingsNotificationsHint}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsNotifyOnRunCompleted}"
-                                               Description="{x:Bind helpers:StringResources.SettingsNotifyOnRunCompletedDescription}">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.NotifyOnRunCompleted, Mode=TwoWay}" OnContent="" OffContent="" />
-                        </controls:SettingsCard>
-                        <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsNotifyOnlyWhenUnfocused}"
-                                               Description="{x:Bind helpers:StringResources.SettingsNotifyOnlyWhenUnfocusedDescription}">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.NotifyOnlyWhenUnfocused, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.NotifyOnRunCompleted, Mode=OneWay}" OnContent="" OffContent="" />
-                        </controls:SettingsCard>
-                        <controls:SettingsCard Header="{x:Bind helpers:StringResources.SettingsForwardPageNotifications}"
-                                               Description="{x:Bind helpers:StringResources.SettingsForwardPageNotificationsDescription}">
-                            <ToggleSwitch IsOn="{x:Bind ViewModel.ForwardPageNotifications, Mode=TwoWay}" OnContent="" OffContent="" />
-                        </controls:SettingsCard>
-                    </StackPanel>
+                        <!-- ======= Panel: About ======= -->
+                        <StackPanel x:Name="PanelAbout" Spacing="12" Visibility="Collapsed">
+                            <StackPanel Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="{x:Bind helpers:StringResources.AboutTitle}" Style="{StaticResource SettingsPageTitleStyle}" />
+                                <TextBlock Text="{x:Bind helpers:StringResources.SettingsAboutDescription}" Style="{StaticResource SettingsDescriptionStyle}" />
+                            </StackPanel>
 
-                    <!-- ======= Panel: About ======= -->
-                    <StackPanel x:Name="PanelAbout" Spacing="12" Visibility="Collapsed">
-                        <TextBlock Text="{x:Bind helpers:StringResources.AboutTitle}"
-                                   Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-
-                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                BorderThickness="1" CornerRadius="4" Padding="16">
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="{x:Bind helpers:UpdateLocalization.Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                <TextBlock Text="{x:Bind Updates.Status, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-                                <ProgressBar Value="{x:Bind Updates.Progress, Mode=OneWay}" IsIndeterminate="{x:Bind Updates.IsIndeterminate, Mode=OneWay}"
-                                             Visibility="{x:Bind Updates.BusyVisibility, Mode=OneWay}" AutomationProperties.Name="{x:Bind helpers:UpdateLocalization.Downloading}" />
-                                <TextBlock Text="{x:Bind helpers:UpdateLocalization.Manual}" TextWrapping="Wrap" FontSize="12"
-                                           Visibility="{x:Bind Updates.ManualVisibility}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Border Style="{StaticResource SettingsSurfaceStyle}">
+                                <StackPanel Spacing="12">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Image Source="/Assets/apple-touch-icon.png" Width="56" Height="56" />
+                                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="Harness" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock x:Name="AboutVersionText" Style="{StaticResource SettingsDescriptionStyle}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock Text="{x:Bind helpers:StringResources.AboutDescription}" Style="{StaticResource SettingsDescriptionStyle}" />
+                                </StackPanel>
+                            </Border>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged"
+                                Header="{x:Bind helpers:UpdateLocalization.Title}">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE895;" />
+                                </controls:SettingsCard.HeaderIcon>
+                                <controls:SettingsCard.Description>
+                                    <StackPanel Spacing="6" Visibility="{x:Bind Updates.DescriptionVisibility, Mode=OneWay}">
+                                        <TextBlock Text="{x:Bind Updates.Status, Mode=OneWay}" Style="{StaticResource SettingsDescriptionStyle}"
+                                            Visibility="{x:Bind Updates.StatusVisibility, Mode=OneWay}"
+                                            AutomationProperties.LiveSetting="Polite" />
+                                        <TextBlock Text="{x:Bind helpers:UpdateLocalization.Manual}" Style="{StaticResource SettingsDescriptionStyle}"
+                                            FontSize="12" Visibility="{x:Bind Updates.ManualVisibility}" />
+                                    </StackPanel>
+                                </controls:SettingsCard.Description>
                                 <Button Content="{x:Bind helpers:UpdateLocalization.Check}" Command="{x:Bind Updates.CheckCommand}"
-                                        IsEnabled="{x:Bind Updates.CanCheck, Mode=OneWay}" HorizontalAlignment="Stretch" />
+                                    IsEnabled="{x:Bind Updates.CanCheck, Mode=OneWay}" />
+                            </controls:SettingsCard>
+                            <Border Style="{StaticResource SettingsSurfaceStyle}" Visibility="{x:Bind Updates.BusyVisibility, Mode=OneWay}">
+                                <StackPanel Spacing="12">
+                                    <ProgressBar Value="{x:Bind Updates.Progress, Mode=OneWay}" IsIndeterminate="{x:Bind Updates.IsIndeterminate, Mode=OneWay}"
+                                        AutomationProperties.Name="{x:Bind helpers:UpdateLocalization.Downloading}" />
+                                    <Button Command="{x:Bind Updates.CancelCommand}" Content="{x:Bind helpers:StringResources.Cancel}"
+                                        HorizontalAlignment="Right" />
+                                </StackPanel>
+                            </Border>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged"
+                                Header="{x:Bind helpers:UpdateLocalization.Download}"
+                                Description="{x:Bind helpers:StringResources.SettingsUpdateDownloadDescription}"
+                                Visibility="{x:Bind Updates.DownloadVisibility, Mode=OneWay}">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE896;" />
+                                </controls:SettingsCard.HeaderIcon>
                                 <Button Content="{x:Bind helpers:UpdateLocalization.Download}" Command="{x:Bind Updates.DownloadCommand}"
-                                        Visibility="{x:Bind Updates.DownloadVisibility, Mode=OneWay}" IsEnabled="{x:Bind Updates.CanDownload, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                <Button Command="{x:Bind Updates.CancelCommand}" Content="{x:Bind helpers:StringResources.Cancel}"
-                                        Visibility="{x:Bind Updates.BusyVisibility, Mode=OneWay}" HorizontalAlignment="Stretch" />
-                                <Button Click="OnRestartUpdateClick" Visibility="{x:Bind Updates.RestartVisibility, Mode=OneWay}"
-                                        IsEnabled="{x:Bind Updates.CanRestart, Mode=OneWay}" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Stretch">
+                                    IsEnabled="{x:Bind Updates.CanDownload, Mode=OneWay}" Style="{StaticResource AccentButtonStyle}" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged"
+                                Header="{x:Bind helpers:UpdateLocalization.Restart}" Description="{x:Bind helpers:UpdateLocalization.RestartHint}"
+                                Visibility="{x:Bind Updates.RestartVisibility, Mode=OneWay}">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE777;" />
+                                </controls:SettingsCard.HeaderIcon>
+                                <Button Click="OnRestartUpdateClick" IsEnabled="{x:Bind Updates.CanRestart, Mode=OneWay}"
+                                    Style="{StaticResource AccentButtonStyle}">
                                     <TextBlock Text="{x:Bind helpers:UpdateLocalization.Restart}" TextWrapping="Wrap" />
                                 </Button>
-                                <TextBlock Text="{x:Bind helpers:UpdateLocalization.RestartHint}" Visibility="{x:Bind Updates.RestartVisibility, Mode=OneWay}"
-                                           TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <HyperlinkButton Content="{x:Bind helpers:UpdateLocalization.ReleaseNotes}" NavigateUri="{x:Bind Updates.ReleasePage, Mode=OneWay}"
-                                                 HorizontalAlignment="Left" Padding="0" />
-                            </StackPanel>
-                        </Border>
-
-                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                                BorderThickness="1" CornerRadius="4" Padding="16">
-                            <StackPanel Spacing="16">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <Image Source="/Assets/apple-touch-icon.png" Width="48" Height="48" />
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Harness"
-                                                   Style="{StaticResource SubtitleTextBlockStyle}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock x:Name="AboutVersionText"
-                                                   FontSize="13"
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    </StackPanel>
-                                </StackPanel>
-
-                                <Border Height="1"
-                                        Margin="0,4"
-                                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-
-                                <TextBlock Text="{x:Bind helpers:StringResources.AboutDescription}"
-                                           FontSize="13"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           TextWrapping="Wrap" />
-
-                                <HyperlinkButton Content="{x:Bind helpers:StringResources.AboutGitHubProfile}"
-                                                 HorizontalAlignment="Left" Padding="0"
-                                                 NavigateUri="https://github.com/Guijianchou/Harness" />
-
-                                <TextBlock TextWrapping="Wrap"
-                                           FontSize="12"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" IsClickEnabled="True" Click="OnAboutProjectClick"
+                                Header="{x:Bind helpers:StringResources.AboutGitHubProfile}"
+                                Description="{x:Bind helpers:StringResources.SettingsProjectLinkDescription}">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE943;" />
+                                </controls:SettingsCard.HeaderIcon>
+                                <controls:SettingsCard.ActionIcon>
+                                    <FontIcon Glyph="&#xE8A7;" FontSize="16" />
+                                </controls:SettingsCard.ActionIcon>
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" IsClickEnabled="True" Click="OnAboutReleaseNotesClick"
+                                Header="{x:Bind helpers:UpdateLocalization.ReleaseNotes}"
+                                Description="{x:Bind helpers:StringResources.SettingsReleaseNotesDescription}">
+                                <controls:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8A5;" />
+                                </controls:SettingsCard.HeaderIcon>
+                                <controls:SettingsCard.ActionIcon>
+                                    <FontIcon Glyph="&#xE8A7;" FontSize="16" />
+                                </controls:SettingsCard.ActionIcon>
+                            </controls:SettingsCard>
+                            <StackPanel Spacing="6" Margin="4,4,4,0">
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
                                     <Run Text="{x:Bind helpers:StringResources.AboutDevelopedBy}" />
                                     <Hyperlink NavigateUri="https://github.com/Guijianchou">@Guijianchou</Hyperlink>
                                 </TextBlock>
-
-                                <TextBlock Text="{x:Bind helpers:StringResources.AboutCopyright}"
-                                           FontSize="12"
-                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind helpers:StringResources.AboutCopyright}" TextWrapping="Wrap"
+                                    FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                             </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </Grid>
-            </ScrollViewer>
-        </Grid>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
 
-        <!-- Bottom button bar -->
-        <Border Grid.Row="1"
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                BorderThickness="0,1,0,0"
-                Padding="24,12">
-            <StackPanel Spacing="8">
-                <InfoBar x:Name="ValidationInfoBar" IsOpen="False" Severity="Error" Title="{x:Bind helpers:StringResources.SettingsValidationError}" Message="{x:Bind ViewModel.ValidationMessage, Mode=OneWay}" />
-                <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        Spacing="8">
-                <Button Content="{x:Bind helpers:StringResources.SettingsGatewaySaveClose}"
-                        Click="OnSaveClick"
-                        Style="{StaticResource AccentButtonStyle}"
-                        MinWidth="80" />
-                <Button Content="{x:Bind helpers:StringResources.Cancel}"
-                        Click="OnCancelClick"
-                        MinWidth="80" />
+            <!-- Persistent feedback and actions stay reachable on every page. -->
+            <Border x:Name="SettingsFooter" Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0" Padding="24,16" Background="Transparent">
+                <StackPanel Spacing="12">
+                    <InfoBar x:Name="ValidationInfoBar" IsOpen="False" Severity="Error"
+                        Title="{x:Bind helpers:StringResources.SettingsValidationError}"
+                        Message="{x:Bind ViewModel.ValidationMessage, Mode=OneWay}" />
+                    <Grid x:Name="SettingsFooterLayout" ColumnSpacing="20" RowSpacing="12">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <Grid x:Name="SettingsStatus" ColumnSpacing="10" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ProgressRing x:Name="SettingsOperationProgress" Width="20" Height="20" IsActive="False" Visibility="Collapsed" />
+                            <TextBlock x:Name="SettingsStatusText" Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsApplyHint}"
+                                Style="{StaticResource SettingsDescriptionStyle}" FontSize="12" AutomationProperties.LiveSetting="Polite" />
+                        </Grid>
+                        <StackPanel x:Name="SettingsFooterButtons" Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                            <Button Content="{x:Bind helpers:StringResources.Cancel}" Click="OnCancelClick" MinWidth="96" />
+                            <Button Content="{x:Bind helpers:StringResources.SettingsGatewaySaveClose}" Click="OnSaveClick"
+                                Style="{StaticResource AccentButtonStyle}" MinWidth="120" />
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
-            </StackPanel>
-        </Border>
-    </Grid>
+            </Border>
+        </Grid>
     </ContentControl>
 </Window>

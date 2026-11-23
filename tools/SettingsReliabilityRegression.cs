@@ -311,6 +311,8 @@ public static class SettingsReliabilityRegression
         dialog.SettingsSaved += _ => notifications++;
         dialog.ClickSave();
         Check(dialog.IsSavingSettings && !dialog.InteractionEnabled, "pending save disables editing");
+        Check(dialog.OperationProgressVisible && dialog.OperationStatus == StringResources.SettingsSaving,
+            "pending save explains the disabled controls with visible progress and a saving message");
         Check(!dialog.TryNativeClose(), "native close is deferred while the save transaction is pending");
         dialog.ClickCancel();
         dialog.ClickSave();
@@ -318,6 +320,8 @@ public static class SettingsReliabilityRegression
         writesFail = failWrite;
         gate.SetResult(new StartupRegistrationChange(_ => { rollbacks++; return Task.FromResult(true); }));
         await dialog.WaitForPendingSaveAsync();
+        Check(!dialog.OperationProgressVisible && dialog.OperationStatus == StringResources.SettingsApplyHint,
+            "completed or failed save clears busy progress and restores the footer hint");
         if (failWrite)
         {
             Check(dialog.CloseCount == 0 && !dialog.IsSavingSettings && dialog.InteractionEnabled && notifications == 0 && rollbacks == 1,
@@ -344,6 +348,8 @@ public static class SettingsReliabilityRegression
         Check(configuration.Settings.AppTheme == "Dark" && dialog.CloseCount == 0 && dialog.InteractionEnabled &&
             dialog.LastMessage == StringResources.SettingsApplyFailed,
             "runtime apply failure is distinguished from persistence failure after settings have committed");
+        Check(!dialog.OperationProgressVisible && dialog.OperationStatus == StringResources.SettingsApplyHint,
+            "runtime apply failure does not leave the footer in a saving state");
     }
 
     private static async Task VerifyClosedContinuationAsync(string folder)
@@ -505,6 +511,8 @@ public static class SettingsReliabilityRegression
         var pending = dialog.ClearSessionForTest(button);
         Check(!dialog.InteractionEnabled && main.ClearSessionCount == 1 && main.LastClearedEnvironment == targetId,
             "session reset uses the saved environment ID and disables conflicting Settings actions");
+        Check(dialog.OperationProgressVisible && dialog.OperationStatus == StringResources.SettingsClearingSession,
+            "pending browser data reset explains its progress in the shared footer");
         await dialog.ClearSessionForTest(button);
         dialog.ClickSave();
         Check(main.ClearSessionCount == 1 && !dialog.IsSavingSettings,
@@ -513,6 +521,20 @@ public static class SettingsReliabilityRegression
         await pending;
         Check(dialog.InteractionEnabled && dialog.LastMessage == StringResources.SettingsSessionResetCompleted,
             "successful session reset restores editing and reports completion");
+        Check(!dialog.OperationProgressVisible && dialog.OperationStatus == StringResources.SettingsApplyHint,
+            "successful browser data reset clears the busy footer");
+
+        main.ClearSession = _ => Task.FromException(new IOException("Synthetic browser data reset failure"));
+        try
+        {
+            await dialog.ClearSessionForTest(button);
+            throw new InvalidOperationException("Expected browser data reset to fail.");
+        }
+        catch (IOException)
+        {
+            Check(dialog.InteractionEnabled && !dialog.OperationProgressVisible && dialog.OperationStatus == StringResources.SettingsApplyHint,
+                "failed browser data reset restores editing and clears busy progress");
+        }
 
         configuration.Settings.Environments[0].Name = "Renamed after opening Settings";
         main.ClearSession = _ => Task.CompletedTask;
@@ -662,6 +684,7 @@ namespace Harness.Services
 namespace Microsoft.UI.Xaml
 {
     public sealed class RoutedEventArgs : EventArgs { }
+    public enum Visibility { Visible, Collapsed }
 }
 
 namespace Microsoft.UI.Xaml.Controls
@@ -688,6 +711,8 @@ namespace Harness.Views
         private readonly StartupRegistrationService _startupRegistration;
         private readonly SettingsPersistenceAdapter _settingsPersistence;
         private readonly InteractionControl SettingsInteractionRoot = new();
+        private readonly ProgressControl SettingsOperationProgress = new();
+        private readonly StatusControl SettingsStatusText = new();
         public SettingsViewModel ViewModel { get; }
         public MainViewModel? MainViewModel { get; set; }
         public event Action<SettingsSaveResult>? SettingsSaved;
@@ -695,6 +720,9 @@ namespace Harness.Views
         public string? LastMessage { get; private set; }
         public bool IsSavingSettings => _isSaving;
         public bool InteractionEnabled => SettingsInteractionRoot.IsEnabled;
+        public bool OperationProgressVisible => SettingsOperationProgress.IsActive &&
+            SettingsOperationProgress.Visibility == Microsoft.UI.Xaml.Visibility.Visible;
+        public string? OperationStatus => SettingsStatusText.Text;
         private readonly ValidationControl ValidationInfoBar = new();
         public bool ValidationIsOpen => ValidationInfoBar.IsOpen;
         public bool ApplyDraftForTest() => TryApplyEdit();
@@ -768,6 +796,12 @@ namespace Harness.Views
         }
         private sealed class ValidationControl { public bool IsOpen { get; set; } }
         private sealed class NavigationControl { public object? SelectedItem { get; set; } }
+        private sealed class ProgressControl
+        {
+            public bool IsActive { get; set; }
+            public Microsoft.UI.Xaml.Visibility Visibility { get; set; }
+        }
+        private sealed class StatusControl { public string? Text { get; set; } }
     }
 }
 
