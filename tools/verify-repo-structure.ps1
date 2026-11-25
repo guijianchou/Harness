@@ -104,7 +104,7 @@ foreach ($linkedCompileItem in $linkedCompileItems) {
     }
 }
 
-$currentVersion = '5.3.10'
+$currentVersion = '5.3.11'
 $currentFileVersion = "$currentVersion.0"
 if ($project -notmatch [regex]::Escape("<Version>$currentVersion</Version>") -or
     $project -notmatch [regex]::Escape("<AssemblyVersion>$currentFileVersion</AssemblyVersion>") -or

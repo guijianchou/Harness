@@ -8,6 +8,16 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 
 ## English
 
+### v5.3.11 (2026-11-25)
+
+- Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.11`; aligned the Core library, updater, and Gateway client version.
+- Protected OpenClaw model and thinking overrides when the current model is unavailable or unchanged. Unavailable models are read-only, Apply requires valid pending edits, and explicitly choosing Default still clears overrides.
+- Fixed session subscription races during page changes by tracking subscription ownership on the connection, reconciling late acknowledgements, and rebuilding the connection after uncertain subscription timeouts or cancellation.
+- Consolidated About update feedback into one responsive card with check/download/restart actions, inline retry/cancel, and phase-appropriate progress. Nonportable and Debug builds can still check and open the release page.
+- Added GitHub rate-limit deadlines and local retry-time feedback, separate access-denied handling, shared concurrent checks, and a five-minute cache for successful results, including no-update results.
+- Required successful tray registration before hiding the main window; failures keep or reopen the window with a warning. Added explicit browser-profile access-denied errors, diagnostics, and manual recovery guidance for Low integrity build outputs.
+- Expanded OpenClaw, rate-limit/cache, tray, and WebView regressions, and added update ViewModel presentation regression to CI and Release workflows. Real deployed Gateway and Cloudflare end-to-end validation remains separate.
+
 ### v5.3.10 (2026-11-23)
 
 - Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.10`; aligned the Core library, updater, and Gateway client version.
@@ -408,6 +418,16 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 ---
 
 ## 简体中文
+
+### v5.3.11 (2026-11-25)
+
+- 将应用、程序集、文件、包清单、应用清单、README、中英文说明和更新日志版本统一到 `5.3.11`，并同步 Core、更新器及 Gateway 客户端版本。
+- 保护当前模型不可用或未修改时的 OpenClaw 模型与推理强度覆盖。不可用模型只读展示，“应用”要求有效未提交修改，主动选择“默认”仍会清除覆盖。
+- 按连接维护会话订阅归属，处理页面切换期间的迟到回执；订阅请求超时或取消、服务器状态无法确认时重建连接，修复会话订阅竞态。
+- 关于页统一为自适应更新卡片，包含检查/下载/重启操作、行内重试/取消和对应阶段的进度。非便携版与 Debug 仍可检查并打开发布页。
+- 增加 GitHub 限流截止时间与本地重试时间提示，区分访问拒绝，合并并发检查，并缓存五分钟内的成功结果，包括没有更新的结果。
+- 隐藏主窗口前确认托盘注册成功，失败时保留或重新打开窗口并提示。浏览器配置目录访问被拒绝时提供明确错误和诊断，补充 Low 完整性构建产物的手动恢复说明。
+- 扩展 OpenClaw、限流/缓存、托盘和 WebView 回归，并将实际更新 ViewModel 的展示回归接入 CI 与 Release。真实部署的 Gateway 和 Cloudflare 端到端验证仍需单独完成。
 
 ### v5.3.10 (2026-11-23)
 

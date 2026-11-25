@@ -2,7 +2,7 @@
 
 **Language:** English | [简体中文](readme_zh.md)
 
-**Current version:** 5.3.10
+**Current version:** 5.3.11
 
 Lightweight Windows-native shell for hosted agent Control UIs, built with WinUI 3 and WebView2.
 
@@ -70,18 +70,19 @@ It is best suited for users who:
 - access it through Cloudflare Tunnel or a reverse proxy
 - want a lightweight Windows-native client instead of keeping a browser tab open
 
-## Current 5.3.10 Notes
+## Current 5.3.11 Notes
 
-Release date: **2026-11-23**. This release refines the entire Settings experience with Mica, consistent cards, clearer actions, and a compact About page. See the [5.3.10 release notes](docs/releases/5.3.10.md).
+Release date: **2026-11-25**. This release protects OpenClaw session settings and subscriptions, improves update feedback and GitHub rate-limit handling, and makes tray and browser-profile failures recoverable. See the [5.3.11 release notes](docs/releases/5.3.11.md).
 
-- Use a Mica window with transparent title bar, sidebar, and footer, plus consistent headings and cards across all seven Settings pages.
-- Keep controls readable as the window narrows, with responsive navigation, editors, environment actions, and persistent save/cancel controls.
-- Show progress while saving settings or clearing browser data, and keep environment draft feedback visible.
-- Present Developer Tools as descriptive action cards. About groups the app name and version, simplifies update guidance, and makes project/release cards clickable; no idle update prompt appears before checking.
-- Fix Settings initialization with a system color-change subscription compatible with the unpackaged app, while retaining theme and high-contrast handling.
+- Show unavailable OpenClaw models as read-only information and enable Apply only for valid pending edits. An unchanged selection cannot silently clear model or thinking overrides; explicitly choosing Default still clears them.
+- Keep Gateway session subscriptions tied to their connection during page changes. Late acknowledgements reconcile the active target, and uncertain subscription timeouts or cancellation retire the connection before rebuilding its subscriptions.
+- Keep update checking, download, verification, and restart feedback in one responsive About card, with inline retry/cancel actions and a download bar only while downloading.
+- Respect GitHub rate-limit retry times, distinguish access denial from rate limiting, merge concurrent checks, and reuse successful check results for five minutes while Harness is running.
+- Confirm tray registration before hiding the window; keep Harness accessible and show a warning when registration fails. Browser-profile access denial now has an explicit error and diagnostics, with manual retry available. See the local-build guidance below for Low integrity workspace outputs.
 
 ### Earlier changes
 
+- `5.3.10` refined Settings with Mica, consistent cards, responsive controls, save progress, and a compact About page.
 - `5.3.9` introduced verified portable updates, save-and-restart installation, startup-failure rollback, and startup/Settings reliability fixes. It is the first release containing the updater.
 
 The `5.3.8` release added the following:
@@ -290,7 +291,7 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
-The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.10\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
+The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.11\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
 
 If the workspace has a Windows Low integrity label, its build outputs can inherit that label. Even launching the EXE from Explorer then runs Harness at Low integrity, which prevents writing its normal browser data and logs and can prevent tray registration. Package the entire build output as a ZIP and extract it into a normal user test directory outside that workspace before running it. Keep the workspace permissions and existing browser profiles intact. Use `icacls <path>` to inspect labels when diagnosing this combination of failures.
 
@@ -374,11 +375,11 @@ dotnet restore Harness.sln --locked-mode
 pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
 ```
 
-The script creates a new version directory such as `artifacts/release/5.3.10`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
+The script creates a new version directory such as `artifacts/release/5.3.11`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
 
 Portable builds from this source include **Settings > About > Check for updates**, verified downloads, and **Save settings and restart to update**. The updater keeps the installation path and AppData, preserves extra user files, and rolls back if the new app fails startup. Existing published 5.3.8 packages require one manual upgrade to 5.3.9, which includes the updater. See [portable updates and recovery](docs/portable-updates.md).
 
-Pushing a numeric version tag such as `5.3.10` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
+Pushing a numeric version tag such as `5.3.11` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
 
 ### First Launch
 
