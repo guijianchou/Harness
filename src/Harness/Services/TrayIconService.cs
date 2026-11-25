@@ -32,6 +32,7 @@ internal sealed class TrayIconService : IDisposable
     private IntPtr _iconHandle;
     private bool _isDisposed;
     private bool _isIconAdded;
+    private bool _isEnsuringAvailability;
     private uint _taskbarCreatedMessage;
     private string _statusText = "WAIT";
 
@@ -67,6 +68,46 @@ internal sealed class TrayIconService : IDisposable
 
     public bool IsAvailable => _isIconAdded;
 
+    public bool EnsureAvailable()
+    {
+        if (_isDisposed)
+        {
+            return false;
+        }
+        if (_isEnsuringAvailability)
+        {
+            return _isIconAdded;
+        }
+
+        _isEnsuringAvailability = true;
+        try
+        {
+            if (_isIconAdded)
+            {
+                var data = CreateNotifyIconData(NotifyIconFlags.Message | NotifyIconFlags.Icon | NotifyIconFlags.Tip);
+                if (ShellNotifyIcon(NotifyIconMessage.Modify, ref data))
+                {
+                    return true;
+                }
+
+                _logger.Warning($"Tray icon registration was lost: {Marshal.GetLastWin32Error()}");
+                _isIconAdded = false;
+            }
+
+            if (TryAddIcon())
+            {
+                return true;
+            }
+
+            AvailabilityLost?.Invoke();
+            return false;
+        }
+        finally
+        {
+            _isEnsuringAvailability = false;
+        }
+    }
+
     public void UpdateStatus(string statusText)
     {
         if (_isDisposed)
@@ -75,13 +116,7 @@ internal sealed class TrayIconService : IDisposable
         }
 
         _statusText = string.IsNullOrWhiteSpace(statusText) ? "WAIT" : statusText.Trim();
-        if (!IsAvailable)
-        {
-            return;
-        }
-
-        var data = CreateNotifyIconData(NotifyIconFlags.Tip);
-        ShellNotifyIcon(NotifyIconMessage.Modify, ref data);
+        EnsureAvailable();
     }
 
     /// <summary>
@@ -91,7 +126,7 @@ internal sealed class TrayIconService : IDisposable
     /// </summary>
     public bool ShowBalloon(string title, string body)
     {
-        if (_isDisposed || !IsAvailable)
+        if (!EnsureAvailable())
         {
             return false;
         }
@@ -107,6 +142,7 @@ internal sealed class TrayIconService : IDisposable
         }
 
         _logger.Warning($"Failed to show tray balloon: {Marshal.GetLastWin32Error()}");
+        EnsureAvailable();
         return false;
     }
 
@@ -215,6 +251,7 @@ internal sealed class TrayIconService : IDisposable
 
     private bool TryAddIcon()
     {
+        _isIconAdded = false;
         if (_isDisposed || _messageWindowHandle == IntPtr.Zero || _iconHandle == IntPtr.Zero)
         {
             return false;

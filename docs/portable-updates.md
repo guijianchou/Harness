@@ -6,6 +6,18 @@ system prerequisite. Update checks happen only when requested in Settings > Abou
 
 ## User flow
 
+Settings > About keeps update status and actions in one card. Checking and package
+verification use a small activity indicator in that card; the download track is shown
+only while receiving the package. The same primary button changes from checking to
+download, retry, or restart as needed. Release notes and cancellation stay alongside
+the action, and narrow windows stack the primary action below the status.
+
+Successful checks are reused for five minutes within the running app, including when
+Settings is reopened. When GitHub reports a rate limit, the card shows the local retry
+time and pauses retry until then; the release-page link remains available. The client
+honors `Retry-After` and `X-RateLimit-Reset`, using a one-minute wait when a confirmed
+limit has no usable deadline. Other access-denied responses are reported separately.
+
 1. Choose **Check for updates**. Harness reads the latest stable GitHub Release from
    `guijianchou/Harness`, compares numeric versions, and checks that the matching x64
    ZIP and checksum are present. Drafts, previews, older versions, and incompatible

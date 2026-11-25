@@ -112,6 +112,8 @@ public partial class MainViewModel
         TryGetGatewayAgentId(SelectedGatewaySession?.Key, out _) && !string.IsNullOrEmpty(_gatewayHistory?.SessionId) &&
         OpenClawSessionIdentity.Matches(_gatewayPage?.SessionKey ?? "", _gatewayHistory);
     public bool CanModifyGatewaySession => CanTargetGatewaySession && IsGatewayModelCatalogFresh;
+    public bool CanApplyGatewayModel => CanModifyGatewaySession && HasGatewayModelChanges &&
+        IsGatewayModelChoiceAllowed(SelectedGatewayModel, SelectedGatewayThinkingLevel);
     public bool CanEditGatewayLabel => CanTargetGatewaySession;
     public bool CanStopGatewayRun => CanTargetGatewaySession && GetExactGatewayRunId() is not null;
     public string GatewaySearchText
@@ -158,14 +160,15 @@ public partial class MainViewModel
             {
                 if (changedId && !_gatewayProjectingModel)
                 {
-                    _gatewayModelEdited = true;
+                    _gatewayModelEdited = value?.Id != _gatewayServerModelId;
                 }
                 var priorThinking = _selectedGatewayThinkingLevel?.Id;
                 ProjectGatewayThinkingOptions();
                 if (!_gatewayProjectingModel && priorThinking != _selectedGatewayThinkingLevel?.Id)
                 {
-                    _gatewayThinkingEdited = true;
+                    _gatewayThinkingEdited = _selectedGatewayThinkingLevel?.Id != _gatewayServerThinkingId;
                 }
+                OnPropertyChanged(nameof(CanApplyGatewayModel));
             }
         }
     }
@@ -207,6 +210,7 @@ public partial class MainViewModel
     {
         OnPropertyChanged(nameof(CanCreateGatewaySession));
         OnPropertyChanged(nameof(CanModifyGatewaySession));
+        OnPropertyChanged(nameof(CanApplyGatewayModel));
         OnPropertyChanged(nameof(CanEditGatewayLabel));
         OnPropertyChanged(nameof(CanSelectGatewaySession));
         OnPropertyChanged(nameof(CanStopGatewayRun));

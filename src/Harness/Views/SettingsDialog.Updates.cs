@@ -11,6 +11,26 @@ public sealed partial class SettingsDialog
     public UpdateViewModel Updates { get; } = new(App.Logger);
     private Task _updateCleanupTask = Task.CompletedTask;
 
+    private async void OnUpdatePrimaryClick(object sender, RoutedEventArgs args)
+    {
+        if (_isClosed || _isSaving || _isClearingSession || !Updates.CanExecutePrimaryAction) { return; }
+        switch (Updates.PrimaryAction)
+        {
+            case UpdatePrimaryAction.Check:
+                Updates.CheckCommand.Execute(null);
+                break;
+            case UpdatePrimaryAction.Download:
+                Updates.DownloadCommand.Execute(null);
+                break;
+            case UpdatePrimaryAction.Restart:
+                OnRestartUpdateClick(sender, args);
+                break;
+            case UpdatePrimaryAction.OpenReleasePage:
+                await OpenAboutLinkAsync(Updates.ReleasePage);
+                break;
+        }
+    }
+
     private void OnRestartUpdateClick(object sender, RoutedEventArgs args)
     {
         if (_isClosed || _isSaving || _isClearingSession || !Updates.CanRestart || (ViewModel.IsEditing && !TryApplyEdit())) { return; }

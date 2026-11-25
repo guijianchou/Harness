@@ -11,7 +11,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Harness.Core.Tests;
 
 [TestClass]
-public sealed class PortableUpdateTests
+public sealed partial class PortableUpdateTests
 {
     [TestMethod]
     public async Task ReleaseSelectionUsesNumericVersionsAndExactAssets()
@@ -46,11 +46,15 @@ public sealed class PortableUpdateTests
     }
 
     [TestMethod]
-    public async Task RateLimitsRemainAnErrorInsteadOfUpToDate()
+    public async Task OrdinaryForbiddenIsNotMisreportedAsRateLimited()
     {
-        using var http = Http(_ => new HttpResponseMessage(HttpStatusCode.Forbidden));
+        using var http = Http(_ => new HttpResponseMessage(HttpStatusCode.Forbidden)
+        {
+            Headers = { { "X-RateLimit-Remaining", "42" } },
+        });
         var error = await Assert.ThrowsExactlyAsync<PortableUpdateException>(() => new GitHubReleaseClient(http).CheckAsync("5.3.8", default));
-        Assert.AreEqual("RateLimited", error.Code);
+        Assert.AreEqual("ReleaseAccessDenied", error.Code);
+        Assert.IsNull(error.RetryAfter);
     }
 
     [TestMethod]

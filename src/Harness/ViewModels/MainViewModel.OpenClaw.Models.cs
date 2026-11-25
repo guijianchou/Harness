@@ -19,6 +19,32 @@ public partial class MainViewModel
     private DateTimeOffset _gatewayModelRecoveryNotBefore;
     private bool _gatewayModelRetryable;
     private string? _gatewayModelErrorText;
+    private string _gatewayServerModelId = "";
+    private string _gatewayServerThinkingId = "";
+    private string _gatewayCurrentModelNotice = "";
+
+    public string GatewayCurrentModelNotice
+    {
+        get => _gatewayCurrentModelNotice;
+        private set
+        {
+            if (SetProperty(ref _gatewayCurrentModelNotice, value))
+            {
+                OnPropertyChanged(nameof(HasGatewayCurrentModelNotice));
+            }
+        }
+    }
+    public bool HasGatewayCurrentModelNotice => !string.IsNullOrEmpty(GatewayCurrentModelNotice);
+
+    private bool HasGatewayModelChanges =>
+        (_gatewayModelEdited && SelectedGatewayModel?.Id != _gatewayServerModelId) ||
+        (_gatewayThinkingEdited && SelectedGatewayThinkingLevel?.Id != _gatewayServerThinkingId);
+
+    private bool IsGatewayModelChoiceAllowed(OpenClawModelItem? model, OpenClawThinkingItem? thinking) =>
+        model is not null && GatewayModels.Contains(model) &&
+        (model.Id.Length == 0 || model.Model is { ManualSelectionAllowed: true, Available: not false }) &&
+        thinking is not null && GatewayThinkingLevels.Contains(thinking) &&
+        (thinking.Id.Length == 0 || OpenClawModelSelection.ThinkingOptions(model.Model).Any(option => option.Id == thinking.Id));
 
     private bool IsGatewayModelCatalogFresh => _gatewayModelCatalog is not null &&
         DateTimeOffset.UtcNow < _gatewayModelsExpireAt &&
@@ -45,6 +71,7 @@ public partial class MainViewModel
             GatewayModels.Clear();
             _selectedGatewayModel = null;
             _gatewayModelErrorText = null;
+            GatewayCurrentModelNotice = "";
         }
         NotifyGatewayCapabilities();
     }
@@ -140,17 +167,26 @@ public partial class MainViewModel
                 }
             }
             _gatewayProjectedModelCatalog = models;
-            SelectedGatewayModel = GatewayModels.FirstOrDefault(model => model.Id == priorSelection) ??
-                GatewayModels.FirstOrDefault(model => model.Id == effective) ?? GatewayModels.FirstOrDefault();
-            var retainsModelDraft = priorSelection is not null && priorSelection == SelectedGatewayModel?.Id;
+            _gatewayServerModelId = effective;
+            _gatewayServerThinkingId = thinkingLevel ?? "";
+            var currentModel = GatewayModels.FirstOrDefault(model => model.Id == effective);
+            var draftModel = priorSelection is null ? null : GatewayModels.FirstOrDefault(model => model.Id == priorSelection);
+            GatewayCurrentModelNotice = currentModel is null && effective.Length > 0 ?
+                GatewayStrings.Format("CurrentModelUnavailable", effective) : "";
+            // A missing or restricted current model is read-only context, never an implicit reset to default.
+            SelectedGatewayModel = draftModel ?? currentModel;
+            var retainsModelDraft = draftModel is not null && priorSelection != effective;
             _gatewayModelEdited = retainsModelDraft;
-            var thinking = priorThinking ?? (retainsModelDraft && priorSelection != effective ? "" : thinkingLevel ?? "");
+            var retainedThinking = priorSelection is null || draftModel is not null ? priorThinking : null;
+            var thinking = retainedThinking ?? (retainsModelDraft ? "" : _gatewayServerThinkingId);
             ProjectGatewayThinkingOptions(thinking);
-            _gatewayThinkingEdited = priorThinking is not null && priorThinking == SelectedGatewayThinkingLevel?.Id;
+            _gatewayThinkingEdited = SelectedGatewayModel is not null && retainedThinking is not null &&
+                retainedThinking == SelectedGatewayThinkingLevel?.Id && retainedThinking != _gatewayServerThinkingId;
         }
         finally
         {
             _gatewayProjectingModel = false;
         }
+        OnPropertyChanged(nameof(CanApplyGatewayModel));
     }
 }

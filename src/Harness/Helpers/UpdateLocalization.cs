@@ -7,6 +7,27 @@ namespace Harness.Helpers;
 public static class UpdateLocalization
 {
     public static string Title => StringResources.Get("UpdateTitle");
+    public static string InstalledVersion => StringResources.Get("UpdateInstalledVersion");
+    public static string IdleTitle => StringResources.Get("UpdateIdleTitle");
+    public static string IdleDescription => StringResources.Get("UpdateIdleDescription");
+    public static string ManualCheckDescription => StringResources.Get("UpdateManualCheckDescription");
+    public static string CheckingDescription => StringResources.Get("UpdateCheckingDescription");
+    public static string UpToDateTitle => StringResources.Get("UpdateUpToDateTitle");
+    public static string AvailableTitle => StringResources.Get("UpdateAvailableTitle");
+    public static string ManualAvailableDescription => StringResources.Get("UpdateManualAvailableDescription");
+    public static string DownloadHint => StringResources.Get("UpdateDownloadHint");
+    public static string VerifyingTitle => StringResources.Get("UpdateVerifyingTitle");
+    public static string VerifyingDescription => StringResources.Get("UpdateVerifyingDescription");
+    public static string ReadyTitle => StringResources.Get("UpdateReadyTitle");
+    public static string RestartAction => StringResources.Get("UpdateRestartAction");
+    public static string RestartingDescription => StringResources.Get("UpdateRestartingDescription");
+    public static string CancelledTitle => StringResources.Get("UpdateCancelledTitle");
+    public static string FailedTitle => StringResources.Get("UpdateFailedTitle");
+    public static string CheckFailedTitle => StringResources.Get("UpdateCheckFailedTitle");
+    public static string RateLimitedTitle => StringResources.Get("UpdateRateLimitedTitle");
+    public static string RetryAvailable => StringResources.Get("UpdateRetryAvailable");
+    public static string Retry => StringResources.Get("UpdateRetry");
+    public static string OpenReleasePage => StringResources.Get("UpdateOpenReleasePage");
     public static string Check => StringResources.Get("UpdateCheck");
     public static string Checking => StringResources.Get("UpdateChecking");
     public static string UpToDate => StringResources.Get("UpdateUpToDate");
@@ -14,6 +35,7 @@ public static class UpdateLocalization
     public static string Download => StringResources.Get("UpdateDownload");
     public static string Downloading => StringResources.Get("UpdateDownloading");
     public static string DownloadProgress => StringResources.Get("UpdateDownloadProgress");
+    public static string DownloadReceived => StringResources.Get("UpdateDownloadReceived");
     public static string Verifying => StringResources.Get("UpdateVerifying");
     public static string Ready => StringResources.Get("UpdateReady");
     public static string Restart => StringResources.Get("UpdateRestart");
@@ -40,7 +62,10 @@ public static class UpdateLocalization
         PortableUpdateException { Code: "InvalidRelease" } => InvalidRelease,
         PortableUpdateException { Code: "InvalidPackage" } => InvalidPackage,
         PortableUpdateException { Code: "ChecksumMismatch" } => ChecksumMismatch,
+        PortableUpdateException { Code: "RateLimited", RetryAfter: { } retryAfter } =>
+            string.Format(StringResources.Get("UpdateRateLimitedUntil"), retryAfter.ToLocalTime()),
         PortableUpdateException { Code: "RateLimited" } => RateLimited,
+        PortableUpdateException { Code: "ReleaseAccessDenied" } => StringResources.Get("UpdateReleaseAccessDenied"),
         PortableUpdateException { Code: "UnsafeLocation" } => UnsafeLocation,
         PortableUpdateException { Code: "InstallationChanged" } => InstallationChanged,
         PortableUpdateException { Code: "HelperFailed" } => HelperFailed,

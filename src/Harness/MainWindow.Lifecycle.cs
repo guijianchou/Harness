@@ -165,8 +165,7 @@ public sealed partial class MainWindow
 
     private void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
     {
-        if (_trayClosePolicy.GetCloseDisposition(App.Configuration.Settings.SystemTray) != TrayCloseDisposition.HideToTray ||
-            _trayIconService?.IsAvailable != true)
+        if (_trayClosePolicy.GetCloseDisposition(App.Configuration.Settings.SystemTray) != TrayCloseDisposition.HideToTray)
         {
             args.Cancel = DeferExitUntilSettingsSaved();
             return;

@@ -37,7 +37,26 @@ public partial class WebViewService
 
         try
         {
-            var userDataFolder = await Task.Run(() => PrepareUserDataFolderForEnvironment(environmentId), initializationToken);
+            string userDataFolder;
+            try
+            {
+                userDataFolder = await Task.Run(() => PrepareUserDataFolderForEnvironment(environmentId), initializationToken);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                if (!IsCurrentInitialization(webView, initializationGeneration))
+                {
+                    return;
+                }
+
+                var message = ReportProfileAccessDenied(ex);
+                DetachCurrentWebView();
+                _requiresHostRecreation = true;
+                _statusInspector.SetUnavailableSnapshot(message);
+                SetState(ConnectionState.Error);
+                NavigationErrorOccurred?.Invoke(message);
+                return;
+            }
             initializationToken.ThrowIfCancellationRequested();
             if (!IsCurrentInitialization(webView, initializationGeneration))
             {

@@ -19,7 +19,8 @@ $sourceFiles += @(
     'src/Harness/Helpers/GatewayStrings.cs',
     'src/Harness/Helpers/SimpleCommand.cs',
     'src/Harness.Core/Services/NativeNotificationRequest.cs',
-    'tools/OpenClawWorkspaceRegression.cs'
+    'tools/OpenClawWorkspaceRegression.cs',
+    'tools/OpenClawWorkspaceRegression.SessionSafety.cs'
 ) | ForEach-Object { Join-Path $repoRoot $_ }
 foreach ($path in $sourceFiles) {
     $source = Get-Content -LiteralPath $path -Raw

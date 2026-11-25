@@ -74,6 +74,10 @@ jobs:
         shell: pwsh
         run: '& "${{ runner.temp }}/harness-pwsh/pwsh.exe" -NoProfile -File tools/verify-settings-reliability.ps1'
 
+      - name: Verify update presentation
+        shell: pwsh
+        run: '& "${{ runner.temp }}/harness-pwsh/pwsh.exe" -NoProfile -File tools/verify-update-presentation.ps1'
+
       - name: Verify WebView lifecycle
         shell: pwsh
         run: '& "${{ runner.temp }}/harness-pwsh/pwsh.exe" -NoProfile -File tools/verify-webview-lifecycle.ps1'

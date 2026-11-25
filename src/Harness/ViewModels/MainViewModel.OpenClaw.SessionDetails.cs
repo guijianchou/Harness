@@ -22,7 +22,7 @@ public partial class MainViewModel
     public ObservableCollection<OpenClawThinkingItem> GatewayThinkingLevels { get; } = [];
     public ICommand ApplyGatewayLabelCommand { get; private set; } = null!;
     public bool CanApplyGatewayLabel => CanEditGatewayLabel && _gatewayLabelEdited;
-    public bool CanSelectGatewayThinkingLevel => CanModifyGatewaySession && GatewayThinkingLevels.Count > 1;
+    public bool CanSelectGatewayThinkingLevel => CanModifyGatewaySession && SelectedGatewayModel is not null && GatewayThinkingLevels.Count > 1;
     public string GatewayRunIdText => GetExactGatewayRunId() ?? "";
     public string GatewaySessionLabel
     {
@@ -44,7 +44,8 @@ public partial class MainViewModel
             var changedId = value?.Id != _selectedGatewayThinkingLevel?.Id;
             if (SetProperty(ref _selectedGatewayThinkingLevel, value) && changedId && !_gatewayProjectingModel)
             {
-                _gatewayThinkingEdited = true;
+                _gatewayThinkingEdited = value?.Id != _gatewayServerThinkingId;
+                OnPropertyChanged(nameof(CanApplyGatewayModel));
             }
         }
     }
@@ -90,6 +91,7 @@ public partial class MainViewModel
             _gatewayProjectingModel = projecting;
         }
         OnPropertyChanged(nameof(CanSelectGatewayThinkingLevel));
+        OnPropertyChanged(nameof(CanApplyGatewayModel));
     }
 
     private void SynchronizeGatewaySessionDetails()
@@ -122,10 +124,14 @@ public partial class MainViewModel
     {
         _gatewayModelEdited = false;
         _gatewayThinkingEdited = false;
+        _gatewayServerModelId = "";
+        _gatewayServerThinkingId = "";
+        GatewayCurrentModelNotice = "";
         _selectedGatewayModel = null;
         _selectedGatewayThinkingLevel = null;
         OnPropertyChanged(nameof(SelectedGatewayModel));
         OnPropertyChanged(nameof(SelectedGatewayThinkingLevel));
+        OnPropertyChanged(nameof(CanApplyGatewayModel));
     }
 
     private async Task ApplyGatewayLabelAsync()

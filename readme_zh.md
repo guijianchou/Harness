@@ -297,6 +297,8 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 
 应用项目会按所选平台设置 Windows 运行时，并在构建后检查原生依赖。本机 x64 测试请运行 `bin\Debug\5.3.10\net10.0-windows10.0.26100.0\win-x64\Harness.exe`；旧的不含 `win-x64` 子目录的产物依赖不完整，请勿使用。Debug 版本需要本机安装 .NET 10 和 WebView2 运行时。
 
+如果工作区带有 Windows Low 完整性标签，构建产物也可能继承该标签，即使从资源管理器双击 EXE，Harness 仍会以 Low 完整性运行，无法写入正常的浏览器数据和日志目录，托盘注册也可能失败。此时应将完整构建输出打包为 ZIP，解压到工作区外的普通用户测试目录后运行，保留工作区权限和现有浏览器资料。排查这组故障时，可用 `icacls <路径>` 检查完整性标签。
+
 ### 代码规范
 
 - `.editorconfig` 是仓库根级代码风格契约：LF 换行、文件末尾换行、清理行尾空白、C#/XAML 四空格缩进、控制流必须加花括号，并通过 SDK 执行格式诊断。

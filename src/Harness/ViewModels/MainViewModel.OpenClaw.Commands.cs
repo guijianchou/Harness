@@ -204,7 +204,7 @@ public partial class MainViewModel
         var model = SelectedGatewayModel;
         var thinking = SelectedGatewayThinkingLevel;
         var sessionId = _gatewayHistory?.SessionId;
-        if (runtime is null || client is null || selection is null || model is null || !CanModifyGatewaySession ||
+        if (runtime is null || client is null || selection is null || model is null || !CanApplyGatewayModel ||
             !TryGetGatewayAgentId(selection.Key, out var agentId))
         {
             return;
@@ -216,7 +216,9 @@ public partial class MainViewModel
         try
         {
             if (!await ConfirmGatewayTargetAsync(runtime, client, selection.Key, sessionId, token) ||
-                !ReferenceEquals(client, runtime.Client) || !client.IsConnected || version != _gatewayTargetVersion || !IsGatewayModelCatalogFresh)
+                !ReferenceEquals(client, runtime.Client) || !client.IsConnected || version != _gatewayTargetVersion || !IsGatewayModelCatalogFresh ||
+                !HasGatewayModelChanges || !IsGatewayModelChoiceAllowed(model, thinking) ||
+                model.Id != SelectedGatewayModel?.Id || thinking?.Id != SelectedGatewayThinkingLevel?.Id)
             {
                 return;
             }

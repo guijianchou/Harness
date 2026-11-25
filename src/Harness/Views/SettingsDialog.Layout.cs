@@ -44,6 +44,18 @@ public sealed partial class SettingsDialog
         }
     }
 
+    private void OnUpdateCardSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (UpdatePrimaryButton is null || e.NewSize.Width <= 0) { return; }
+        var stacked = e.NewSize.Width < 520;
+        Grid.SetColumn(UpdatePrimaryButton, stacked ? 0 : 1);
+        Grid.SetRow(UpdatePrimaryButton, stacked ? 1 : 0);
+        Grid.SetColumnSpan(UpdatePrimaryButton, stacked ? 2 : 1);
+        UpdatePrimaryButton.MinWidth = stacked ? 0 : 160;
+        UpdatePrimaryButton.MaxWidth = stacked ? double.PositiveInfinity : 280;
+        UpdatePrimaryButton.HorizontalAlignment = stacked ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
+    }
+
     private void OnEnvironmentActionsSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (ApplyEnvironmentDraft is null)

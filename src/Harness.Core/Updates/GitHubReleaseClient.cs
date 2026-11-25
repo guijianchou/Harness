@@ -1,5 +1,6 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -8,11 +9,15 @@ using System.Text.Json;
 
 namespace Harness.Updates;
 
-public sealed class GitHubReleaseClient(HttpClient http)
+public sealed class GitHubReleaseClient(HttpClient http, TimeProvider? timeProvider = null)
 {
     public const long MaximumDownloadSize = 512L * 1024 * 1024;
     private const string Repository = "guijianchou/Harness";
     private static readonly Uri LatestRelease = new($"https://api.github.com/repos/{Repository}/releases/latest");
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly SemaphoreSlim _checkGate = new(1, 1);
+    private readonly Dictionary<Version, (DateTimeOffset ExpiresAt, PortableRelease? Release)> _checkCache = [];
+    private DateTimeOffset? _checkRetryAfter;
 
     public static HttpClient CreateHttpClient() => new(new HttpClientHandler { AllowAutoRedirect = false })
     {
@@ -22,6 +27,36 @@ public sealed class GitHubReleaseClient(HttpClient http)
     public async Task<PortableRelease?> CheckAsync(string currentVersion, CancellationToken token)
     {
         var current = PortableReleaseVersion.Parse(currentVersion);
+        await _checkGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            var now = _timeProvider.GetUtcNow();
+            if (_checkRetryAfter is { } retryAfter && now < retryAfter)
+            {
+                throw new PortableUpdateException("RateLimited", retryAfter: retryAfter);
+            }
+            _checkRetryAfter = null;
+            foreach (var expired in _checkCache.Where(entry => entry.Value.ExpiresAt <= now).Select(entry => entry.Key).ToArray())
+            {
+                _checkCache.Remove(expired);
+            }
+            if (_checkCache.TryGetValue(current, out var cached)) { return cached.Release; }
+
+            var release = await FetchLatestAsync(current, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            _checkCache[current] = (_timeProvider.GetUtcNow().AddMinutes(5), release);
+            return release;
+        }
+        catch (PortableUpdateException error) when (error is { Code: "RateLimited", RetryAfter: not null })
+        {
+            _checkRetryAfter = error.RetryAfter;
+            throw;
+        }
+        finally { _checkGate.Release(); }
+    }
+
+    private async Task<PortableRelease?> FetchLatestAsync(Version current, CancellationToken token)
+    {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromSeconds(30));
         using var response = await SendAsync(LatestRelease, false, timeout.Token).ConfigureAwait(false);
@@ -156,11 +191,39 @@ public sealed class GitHubReleaseClient(HttpClient http)
         uri.UserInfo.Length == 0 && uri.Query.Length == 0 && uri.Fragment.Length == 0 &&
         uri.AbsolutePath.Equals($"/{Repository}/{suffix}", StringComparison.OrdinalIgnoreCase);
 
-    private static void EnsureSuccess(HttpResponseMessage response)
+    private void EnsureSuccess(HttpResponseMessage response)
     {
-        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests) { throw new PortableUpdateException("RateLimited"); }
+        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
+        {
+            var now = _timeProvider.GetUtcNow();
+            var retryAfter = ReadRetryAfter(response, now);
+            var exhausted = long.TryParse(ReadHeader(response, "X-RateLimit-Remaining"), NumberStyles.Integer,
+                CultureInfo.InvariantCulture, out var remaining) && remaining == 0;
+            if (response.StatusCode == HttpStatusCode.TooManyRequests || exhausted || retryAfter.HasValue)
+            {
+                var reset = ReadRateLimitReset(response);
+                var deadline = retryAfter > now ? retryAfter : null;
+                if (reset > now && (deadline is null || reset > deadline)) { deadline = reset; }
+                throw new PortableUpdateException("RateLimited", retryAfter: deadline ?? now.AddMinutes(1));
+            }
+            throw new PortableUpdateException("ReleaseAccessDenied");
+        }
         response.EnsureSuccessStatusCode();
     }
+
+    private static DateTimeOffset? ReadRetryAfter(HttpResponseMessage response, DateTimeOffset now)
+    {
+        if (!RetryConditionHeaderValue.TryParse(ReadHeader(response, "Retry-After"), out var retry)) { return null; }
+        if (retry.Date is { } date) { return date; }
+        return retry.Delta is { } delay && delay <= DateTimeOffset.MaxValue - now ? now.Add(delay) : null;
+    }
+
+    private static DateTimeOffset? ReadRateLimitReset(HttpResponseMessage response) =>
+        long.TryParse(ReadHeader(response, "X-RateLimit-Reset"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds) &&
+        seconds is >= 0 and <= 253402300799 ? DateTimeOffset.FromUnixTimeSeconds(seconds) : null;
+
+    private static string? ReadHeader(HttpResponseMessage response, string name) =>
+        response.Headers.TryGetValues(name, out var values) ? values.FirstOrDefault() : null;
 
     private static async Task<byte[]> ReadBoundedAsync(HttpResponseMessage response, int limit, CancellationToken token)
     {

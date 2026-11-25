@@ -8,6 +8,7 @@ $trees = [Collections.Generic.List[Microsoft.CodeAnalysis.SyntaxTree]]::new()
 $methods = [Collections.Generic.List[string]]::new()
 foreach ($selection in @(
     @{ Path = 'src/Harness/Services/WebViewService.Lifecycle.cs'; Names = @('InitializeAsync', 'WaitForInitializationOperationAsync', 'DetachCurrentWebView', 'TryGetCoreWebView2', 'GetCoreWebView', 'IsCurrentInitialization', 'IsCurrentHost', 'IsCurrentNavigation') },
+    @{ Path = 'src/Harness/Services/WebViewService.Profile.cs'; Names = @('ReportProfileAccessDenied') },
     @{ Path = 'src/Harness/Services/WebViewService.ExternalContent.cs'; Names = @('OnNewWindowRequested', 'IsSameOriginAsCurrentSession') },
     @{ Path = 'src/Harness/Services/WebViewService.cs'; Names = @('Navigate', 'RetryNavigation') },
     @{ Path = 'src/Harness/Services/WebViewService.NavigationCommands.cs'; Names = @('TryNavigateCoreWebView') },

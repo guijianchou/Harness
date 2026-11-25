@@ -327,7 +327,7 @@ public sealed class OpenClawGatewayClientTests
             MaximumPayloadBytes = maximumPayload,
         };
 
-        public async Task<JsonElement> AcceptHelloAsync(int protocol = 4, bool nullFeatures = false)
+        public async Task<JsonElement> AcceptHelloAsync(int protocol = 4, bool nullFeatures = false, string[]? methods = null)
         {
             _tcp = await _listener.AcceptTcpClientAsync(_deadline.Token);
             var stream = _tcp.GetStream();
@@ -353,7 +353,7 @@ public sealed class OpenClawGatewayClientTests
                 type = "hello-ok",
                 protocol,
                 server = new { version = "test-v4", connId = "connection" },
-                features = nullFeatures ? null : new { methods = new[] { "sessions.list" }, events = new[] { "chat" } },
+                features = nullFeatures ? null : new { methods = methods ?? ["sessions.list"], events = new[] { "chat" } },
                 snapshot = new { },
                 auth = new { role = "operator", scopes = new[] { "operator.read", "operator.write" } },
                 policy = new { maxPayload = 1024 * 1024, maxBufferedBytes = 2 * 1024 * 1024, tickIntervalMs = 15000 }

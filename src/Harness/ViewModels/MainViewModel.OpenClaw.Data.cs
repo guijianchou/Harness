@@ -10,6 +10,7 @@ namespace Harness.ViewModels;
 public partial class MainViewModel
 {
     private string? _gatewaySubscribedKey;
+    private OpenClawGatewayClient? _gatewaySubscriptionClient;
     private string? _gatewayEventRunId;
 
     [Flags]
@@ -128,14 +129,13 @@ public partial class MainViewModel
                 return;
             }
             readingHistory = true;
-            if (_gatewaySubscribedKey != pageKey)
+            if (!ReferenceEquals(_gatewaySubscriptionClient, client) || _gatewaySubscribedKey != pageKey)
             {
-                await SubscribeGatewaySessionAsync(client, pageKey, agentId, cancellationToken);
+                await SubscribeGatewaySessionAsync(runtime, client, pageKey, agentId, cancellationToken);
                 if (!Current())
                 {
                     return;
                 }
-                _gatewaySubscribedKey = pageKey;
             }
 
             var eventVersion = _gatewayEventVersion;
@@ -311,25 +311,68 @@ public partial class MainViewModel
         return scope;
     }
 
-    private async Task SubscribeGatewaySessionAsync(OpenClawGatewayClient client, string key, string? agentId, CancellationToken cancellationToken)
+    private async Task SubscribeGatewaySessionAsync(OpenClawSessionRuntime runtime, OpenClawGatewayClient client,
+        string key, string? agentId, CancellationToken cancellationToken)
     {
         if (client.Hello?.Features.Methods.Contains("sessions.messages.subscribe", StringComparer.Ordinal) != true)
         {
             return;
         }
 
-        if (_gatewaySubscribedKey is { } previous)
+        bool OwnsConnection() => IsCurrentGateway(runtime) && ReferenceEquals(client, runtime.Client) && client.IsConnected;
+        if (!OwnsConnection())
         {
-            try
-            {
-                await client.RequestAsync<JsonElement>("sessions.messages.unsubscribe", new { key = previous }, cancellationToken: cancellationToken);
-            }
-            catch (OpenClawGatewayException)
-            {
-            }
+            return;
+        }
+        if (!ReferenceEquals(_gatewaySubscriptionClient, client))
+        {
+            _gatewaySubscriptionClient = client;
+            _gatewaySubscribedKey = null;
         }
 
-        await client.RequestAsync<JsonElement>("sessions.messages.subscribe", new { key, agentId }, cancellationToken: cancellationToken);
+        try
+        {
+            if (_gatewaySubscribedKey is { } previous)
+            {
+                await client.RequestAsync<JsonElement>("sessions.messages.unsubscribe", new { key = previous }, cancellationToken: cancellationToken);
+                if (!OwnsConnection())
+                {
+                    return;
+                }
+                // The server has removed this observer even if the UI target changed while awaiting its ACK.
+                _gatewaySubscribedKey = null;
+            }
+
+            if (key != _gatewayPage?.SessionKey)
+            {
+                return;
+            }
+
+            await client.RequestAsync<JsonElement>("sessions.messages.subscribe", new { key, agentId }, cancellationToken: cancellationToken);
+            if (OwnsConnection())
+            {
+                // Subscription ownership follows the connection, not the still-selected UI target.
+                _gatewaySubscribedKey = key;
+            }
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or OpenClawGatewayException { Kind: OpenClawFailureKind.Timeout })
+        {
+            // A late mutation ACK cannot establish which observer remains. Retire only the captured
+            // connection so its replacement rebuilds subscriptions without racing an unknown effect.
+            if (OwnsConnection())
+            {
+                _gatewaySubscribedKey = null;
+            }
+            await client.DisconnectAsync();
+            throw;
+        }
+        finally
+        {
+            if (OwnsConnection() && _gatewaySubscribedKey != _gatewayPage?.SessionKey)
+            {
+                RequestGatewayRefresh(GatewayRefreshScope.History);
+            }
+        }
     }
 
     private void ProjectGatewayRoster()

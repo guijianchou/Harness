@@ -627,6 +627,11 @@
                                               AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.Model}"
                                               IsEnabled="{x:Bind ViewModel.CanModifyGatewaySession, Mode=OneWay}"
                                               HorizontalAlignment="Stretch" />
+                                    <TextBlock Text="{x:Bind ViewModel.GatewayCurrentModelNotice, Mode=OneWay}"
+                                               Visibility="{x:Bind ShowWhen(ViewModel.HasGatewayCurrentModelNotice), Mode=OneWay}"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <ComboBox ItemsSource="{x:Bind ViewModel.GatewayThinkingLevels}"
                                               SelectedItem="{x:Bind ViewModel.SelectedGatewayThinkingLevel, Mode=TwoWay}"
                                               DisplayMemberPath="DisplayName"
@@ -636,7 +641,7 @@
                                               HorizontalAlignment="Stretch" />
                                     <Button Content="{x:Bind helpers:ShellGatewayLocalization.ApplyModel}"
                                             Command="{x:Bind ViewModel.ApplyGatewayModelCommand}"
-                                            IsEnabled="{x:Bind ViewModel.CanModifyGatewaySession, Mode=OneWay}"
+                                            IsEnabled="{x:Bind ViewModel.CanApplyGatewayModel, Mode=OneWay}"
                                             HorizontalAlignment="Stretch" />
 
                                     <Expander Header="{x:Bind helpers:ShellGatewayLocalization.SessionProperties}"

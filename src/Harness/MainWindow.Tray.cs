@@ -52,8 +52,19 @@ public sealed partial class MainWindow
 
     private void HideMainWindowToTray()
     {
-        if (_isClosing || _trayIconService?.IsAvailable != true)
+        if (_isClosing)
         {
+            return;
+        }
+
+        if (_trayIconService?.EnsureAvailable() != true)
+        {
+            App.Logger.Warning("Main window remains accessible because the tray icon is unavailable.");
+            if (_isWindowHidden)
+            {
+                ShowMainWindowFromTray();
+            }
+            ViewModel.ShowShellWarning(StringResources.Get("TrayUnavailableWarning"));
             return;
         }
 
@@ -138,6 +149,7 @@ public sealed partial class MainWindow
             if (!_isClosing && _isWindowHidden && _trayIconService?.IsAvailable != true)
             {
                 ShowMainWindowFromTray();
+                ViewModel.ShowShellWarning(StringResources.Get("TrayUnavailableWarning"));
             }
         }))
         {

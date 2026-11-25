@@ -6,10 +6,11 @@ namespace Harness.Services;
 
 public partial class WebViewService
 {
-    private static readonly EnvironmentProfileStore ProfileStore = new(Path.Combine(
+    private static readonly string ProfileDataRoot = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Harness",
-        "WebView2Data"));
+        "WebView2Data");
+    private static readonly EnvironmentProfileStore ProfileStore = new(ProfileDataRoot);
 
     public static void RegisterEnvironmentProfiles(IEnumerable<EnvironmentConfig> savedEnvironments)
     {
@@ -24,6 +25,33 @@ public partial class WebViewService
     private static string PrepareUserDataFolderForEnvironment(string environmentId)
     {
         return ProfileStore.PrepareUserDataFolder(environmentId);
+    }
+
+    private string ReportProfileAccessDenied(UnauthorizedAccessException error)
+    {
+        string? identityName = null;
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            identityName = identity.Name;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            // Identity lookup must not hide the original profile access failure.
+        }
+
+        _logger.Error("webview.profile.access_denied", new
+        {
+            stage = "prepare_profile",
+            dataDirectory = ProfileDataRoot,
+            processPath = Environment.ProcessPath,
+            processId = Environment.ProcessId,
+            windowsIdentity = identityName,
+            hResult = $"0x{error.HResult:X8}",
+            reason = error.Message,
+        });
+        return string.Format(System.Globalization.CultureInfo.CurrentCulture,
+            Harness.Helpers.StringResources.Get("WebViewProfileAccessDenied"), ProfileDataRoot);
     }
 
     public static void DeleteUserDataFolderForEnvironment(string environmentId, IAppLogger? logger = null)

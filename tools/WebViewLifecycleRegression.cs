@@ -17,6 +17,7 @@ public static class WebViewLifecycleRegression
         {
             await VerifyAsyncDispatcherAsync();
             await VerifyInitializationAsync();
+            await VerifyProfileAccessFailureAsync();
             await VerifyInitializationTimeoutAsync();
             await VerifyPopupNavigationAsync();
             await VerifyCompletionAsync();
@@ -117,6 +118,52 @@ public static class WebViewLifecycleRegression
         await service.InitializeAsync(new WebView2 { EnsureOperation = Task.FromException(new InvalidOperationException("current failure")) }, "failure");
         Check(service.ErrorCount == 1 && service.State == ConnectionState.Error, "current initialization failures remain actionable");
         Check(service.RequiresHostRecreation && !service.CanAccessCore, "failed initialization retires its host and enables manual recreation");
+    }
+
+    private static async Task VerifyProfileAccessFailureAsync()
+    {
+        var service = new WebViewService();
+        var environmentCreations = 0;
+        CoreWebView2Environment.Factory = () =>
+        {
+            environmentCreations++;
+            return Task.FromResult(new CoreWebView2Environment());
+        };
+        WebViewService.ProfileFactory = _ => throw new UnauthorizedAccessException("profile access sentinel");
+        try
+        {
+            await service.InitializeAsync(new WebView2(), "profile-denied");
+        }
+        finally
+        {
+            WebViewService.ProfileFactory = null;
+        }
+        Check(environmentCreations == 0 && service.State == ConnectionState.Error && service.RequiresHostRecreation,
+            "profile access denial stops before WebView creation and preserves manual recovery");
+        Check(service.LastNavigationError == "Profile access denied: " + WebViewService.ProfileRoot && service.UnavailableCount == 1,
+            "profile access denial uses the localized directory message");
+        Check(service.LastLoggedError == "webview.profile.access_denied" &&
+            (string?)service.DiagnosticValue("stage") == "prepare_profile" &&
+            (string?)service.DiagnosticValue("dataDirectory") == WebViewService.ProfileRoot &&
+            (string?)service.DiagnosticValue("hResult") == "0x80070005" &&
+            (string?)service.DiagnosticValue("processPath") == Environment.ProcessPath &&
+            (int?)service.DiagnosticValue("processId") == Environment.ProcessId &&
+            service.DiagnosticValue("windowsIdentity") is string,
+            "profile access diagnostic captures stage, path, HRESULT and actual process identity");
+
+        service = new WebViewService();
+        CoreWebView2Environment.Factory = () => Task.FromException<CoreWebView2Environment>(new UnauthorizedAccessException("runtime environment denied"));
+        await service.InitializeAsync(new WebView2(), "runtime-denied");
+        Check(service.LastNavigationError == "WebView2 initialization failed: runtime environment denied" &&
+            service.LastLoggedError != "webview.profile.access_denied",
+            "WebView runtime environment access errors are not misclassified as profile preparation errors");
+
+        CoreWebView2Environment.Factory = () => Task.FromResult(new CoreWebView2Environment());
+        service = new WebViewService();
+        await service.InitializeAsync(new WebView2 { EnsureOperation = Task.FromException(new UnauthorizedAccessException("runtime controller denied")) }, "controller-denied");
+        Check(service.LastNavigationError == "WebView2 initialization failed: runtime controller denied" &&
+            service.LastLoggedError != "webview.profile.access_denied",
+            "WebView controller access errors are not misclassified as profile preparation errors");
     }
 
     private static async Task VerifyInitializationTimeoutAsync()
@@ -526,6 +573,8 @@ namespace Harness.Services
     public partial class WebViewService
     {
         public static string ProfileRoot { get; set; } = "";
+        public static Func<string, string>? ProfileFactory { get; set; }
+        private static string ProfileDataRoot => ProfileRoot;
         private WebView2? _webView;
         private CoreWebView2? _coreWebView;
         private bool _isInitialized;
@@ -566,6 +615,9 @@ namespace Harness.Services
             InitializeAsync(webView, name, name, cancellationToken);
         public ConnectionState State { get; private set; } = ConnectionState.Connected;
         public int ErrorCount { get; private set; }
+        public string? LastNavigationError { get; private set; }
+        public string? LastLoggedError => _logger.LastError;
+        public object? DiagnosticValue(string property) => _logger.LastContext?.GetType().GetProperty(property)?.GetValue(_logger.LastContext);
         public int UnavailableCount => _statusInspector.UnavailableCount;
         public int CancellationCount { get; private set; }
         public int ReloadCount { get; private set; }
@@ -576,7 +628,7 @@ namespace Harness.Services
         public bool HasHost(WebView2 control) => ReferenceEquals(_webView, control);
         public bool HasNoHandlers => _zoomDocumentLoadedHandler is null && _navigationStartingHandler is null && _navigationCompletedHandler is null &&
             _processFailedHandler is null && _webMessageReceivedHandler is null && _newWindowRequestedHandler is null && _downloadStartingHandler is null;
-        public WebViewService() { NavigationErrorOccurred += _ => ErrorCount++; }
+        public WebViewService() { NavigationErrorOccurred += message => { ErrorCount++; LastNavigationError = message; }; }
         public void DetachForTest() => DetachCurrentWebView();
         public void ExpireInitializationForTest() => _initializationCancellation!.Cancel();
         public bool OpenPopupForTest(string target, bool staleHost = false)
@@ -595,7 +647,7 @@ namespace Harness.Services
         }
         public void FailProcess(CoreWebView2ProcessFailedKind kind) => OnProcessFailed(_coreWebView!, new CoreWebView2ProcessFailedEventArgs { ProcessFailedKind = kind }, _hostGeneration);
         private Task HandleNavigationCompletedAsync(CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs args, int hostGeneration) => _completionOperation;
-        private static string PrepareUserDataFolderForEnvironment(string environmentId) => Path.Combine(ProfileRoot, environmentId);
+        private static string PrepareUserDataFolderForEnvironment(string environmentId) => ProfileFactory?.Invoke(environmentId) ?? Path.Combine(ProfileRoot, environmentId);
         private void SetState(ConnectionState state) => State = state;
         private void ApplyWebViewColorScheme() { }
         private void OnWebViewActualThemeChanged() { }
@@ -618,7 +670,14 @@ namespace Harness.Services
         private void InvalidateControlUiInspectionCache() { }
         private void CancelNavigationCancellation() => CancellationCount++;
         private sealed class TestOwnership { public int Version { get; private set; } public void ResetForNewWebView() { } public void BeginNavigation() => Version++; }
-        private sealed class TestLogger { public void Info(string message, object? context = null) { } public void Warning(string message, object? context = null) { } public void Error(string message) { } }
+        private sealed class TestLogger
+        {
+            public string? LastError { get; private set; }
+            public object? LastContext { get; private set; }
+            public void Info(string message, object? context = null) { }
+            public void Warning(string message, object? context = null) { }
+            public void Error(string message, object? context = null) { LastError = message; LastContext = context; }
+        }
         private sealed class TestInspector { public int UnavailableCount { get; private set; } public void SetUnknownSnapshot() { } public void SetUnavailableSnapshot(string message) => UnavailableCount++; }
     }
     public enum ConnectionState { Connected, Error, Loading }
@@ -631,6 +690,7 @@ namespace Harness.Helpers
     {
         public static string WebViewInitializationTimedOut => "Initialization timed out";
         public static string WebViewRecreationFailedFormat => "Recreation failed: {0}";
+        public static string Get(string key) => key == "WebViewProfileAccessDenied" ? "Profile access denied: {0}" : key;
     }
 }
 

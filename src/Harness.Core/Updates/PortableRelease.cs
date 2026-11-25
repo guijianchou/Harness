@@ -6,9 +6,10 @@ namespace Harness.Updates;
 
 public sealed record PortableRelease(string Version, Uri PageUrl, Uri DownloadUrl, Uri ChecksumUrl, long Size);
 public sealed record UpdateProgress(string Phase, long Received = 0, long Total = 0);
-public sealed class PortableUpdateException(string code, Exception? inner = null) : Exception(code, inner)
+public sealed class PortableUpdateException(string code, Exception? inner = null, DateTimeOffset? retryAfter = null) : Exception(code, inner)
 {
     public string Code { get; } = code;
+    public DateTimeOffset? RetryAfter { get; } = retryAfter;
 }
 
 public static partial class PortableReleaseVersion

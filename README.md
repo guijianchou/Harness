@@ -292,6 +292,8 @@ dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 
 The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.10\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
 
+If the workspace has a Windows Low integrity label, its build outputs can inherit that label. Even launching the EXE from Explorer then runs Harness at Low integrity, which prevents writing its normal browser data and logs and can prevent tray registration. Package the entire build output as a ZIP and extract it into a normal user test directory outside that workspace before running it. Keep the workspace permissions and existing browser profiles intact. Use `icacls <path>` to inspect labels when diagnosing this combination of failures.
+
 ### Code Style
 
 - `.editorconfig` is the root style contract: LF endings, final newline, trimmed trailing whitespace, four-space C#/XAML indentation, required braces, and SDK-enforced formatting diagnostics.

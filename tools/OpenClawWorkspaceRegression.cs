@@ -10,7 +10,7 @@ using Harness.OpenClaw;
 using Harness.Services;
 using Harness.ViewModels;
 
-public static class OpenClawWorkspaceRegression
+public static partial class OpenClawWorkspaceRegression
 {
     private const string Key = "agent:main:workspace";
     private static readonly List<string> Passed = [];
@@ -45,6 +45,12 @@ public static class OpenClawWorkspaceRegression
             await StopTerminalBeforeAcknowledgementAsync();
             await OldHistoryAfterSelectionAsync();
             await ModelAndReasoningPatchAsync();
+            await UnavailableCurrentModelsAsync();
+            await ModelDraftReconciliationAsync();
+            await SubscriptionTargetChangedAsync();
+            await SubscriptionRejectedAsync();
+            await SubscriptionConnectionChangedAsync();
+            await SubscriptionCancelledAsync();
             await LabelClearPatchAsync();
             await LabelWithoutModelsAsync();
             await RecoveryPresentationAsync();
@@ -842,10 +848,11 @@ public static class OpenClawWorkspaceRegression
         public GatewayFixtures.FakeGateway Server { get; } = new();
         public OpenClawSessionRuntime Runtime { get; private set; } = null!;
         public MainViewModel View { get; private set; } = null!;
-        public static async Task<Fixture> CreateAsync()
+        public static async Task<Fixture> CreateAsync(bool subscriptions = false)
         {
             var fixture = new Fixture();
-            var accepted = fixture.Server.AcceptHelloAsync();
+            var accepted = fixture.Server.AcceptHelloAsync(methods: subscriptions ?
+                ["sessions.list", "sessions.messages.subscribe", "sessions.messages.unsubscribe"] : null);
             fixture.Runtime = new OpenClawSessionRuntime(_ => Task.FromResult(fixture.Server.Options()), (_, _) => Task.CompletedTask, false);
             var connected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             fixture.Runtime.Connected += _ => connected.TrySetResult(true);
@@ -953,6 +960,7 @@ namespace Harness.ViewModels
             ApplyGatewayRunProjection();
         }
         public Task RefreshData() => RefreshGatewayDataAsync(_gatewayRuntime!, false, _gatewayCancellation!.Token);
+        public Task RefreshData(CancellationToken token) => RefreshGatewayDataAsync(_gatewayRuntime!, false, token);
         public Task RefreshRoster() => RefreshGatewayDataAsync(_gatewayRuntime!, true, _gatewayCancellation!.Token);
         public Task SelectCurrentSession() => SelectGatewaySessionAsync(SelectedGatewaySession!);
         public bool TakeRefresh(DateTimeOffset? now = null) => TakeGatewayRefreshRequest(false, now ?? DateTimeOffset.UtcNow) != GatewayRefreshScope.None;
