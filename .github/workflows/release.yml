@@ -80,6 +80,10 @@ jobs:
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-bridge-scripts.ps1
 
+      - name: Verify HTTP probe isolation
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/verify-http-probe-isolation.ps1
+
       - name: Verify OpenClaw page selection
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-openclaw-selection.ps1

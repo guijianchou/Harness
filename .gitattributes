@@ -45,6 +45,7 @@
 *.ico binary
 *.bmp binary
 *.webp binary
+*.ttf binary
 *.pfx binary
 *.snk binary
 *.dll binary

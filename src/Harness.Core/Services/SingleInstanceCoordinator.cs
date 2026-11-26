@@ -29,7 +29,14 @@ public sealed class SingleInstanceCoordinator : IDisposable
 
     public const string DefaultLockName = @"Local\Harness.SingleInstance";
 
-    public const string DefaultPipeName = "Harness.SingleInstance";
+    public static string DefaultPipeName { get; } = GetDefaultPipeName();
+
+    private static string GetDefaultPipeName()
+    {
+        // Named pipes are machine-wide; match the session scope of the Local semaphore.
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        return $"Harness.SingleInstance.Session{process.SessionId}";
+    }
 
     public event Action? ActivationRequested;
 
@@ -203,6 +210,7 @@ public sealed class SingleInstanceCoordinator : IDisposable
 
     private async Task ListenForActivationRequestsAsync(CancellationToken cancellationToken)
     {
+        var loggedFailure = false;
         while (!cancellationToken.IsCancellationRequested)
         {
             try
@@ -214,6 +222,7 @@ public sealed class SingleInstanceCoordinator : IDisposable
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous);
                 SetActiveServer(server);
+                loggedFailure = false;
 
                 await server.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
                 using var reader = new StreamReader(server, Encoding.UTF8);
@@ -233,7 +242,12 @@ public sealed class SingleInstanceCoordinator : IDisposable
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.Warning($"Single-instance activation listener failed: {ex.Message}");
+                if (!loggedFailure)
+                {
+                    _logger.Warning($"Single-instance activation listener failed: {ex.Message}");
+                    loggedFailure = true;
+                }
+                await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

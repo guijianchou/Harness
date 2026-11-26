@@ -50,11 +50,11 @@ public sealed partial class MainWindow
         _trayIconService = null;
     }
 
-    private void HideMainWindowToTray()
+    private bool HideMainWindowToTray(bool showUnavailableWarning = true)
     {
         if (_isClosing)
         {
-            return;
+            return false;
         }
 
         if (_trayIconService?.EnsureAvailable() != true)
@@ -64,14 +64,18 @@ public sealed partial class MainWindow
             {
                 ShowMainWindowFromTray();
             }
-            ViewModel.ShowShellWarning(StringResources.Get("TrayUnavailableWarning"));
-            return;
+            if (showUnavailableWarning)
+            {
+                ViewModel.ShowShellWarning(StringResources.Get("TrayUnavailableWarning"));
+            }
+            return false;
         }
 
+        _trayClosePolicy.NotifyTrayAvailable();
         var isMinimized = WindowFrameHelper.IsWindowMinimized(this);
         if (_isWindowHidden && !isMinimized)
         {
-            return;
+            return true;
         }
 
         SaveWindowBounds();
@@ -83,6 +87,7 @@ public sealed partial class MainWindow
         }
 
         App.Logger.Info("Main window hidden to tray.");
+        return true;
     }
 
     private void ShowMainWindowFromTray()
@@ -115,6 +120,10 @@ public sealed partial class MainWindow
     private void UpdateTrayStatus()
     {
         _trayIconService?.UpdateStatus(ViewModel.WorkStatusText);
+        if (_trayIconService?.IsAvailable == true)
+        {
+            _trayClosePolicy.NotifyTrayAvailable();
+        }
     }
 
     internal void ActivateFromExternalLaunch()

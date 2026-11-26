@@ -18,6 +18,7 @@ public static class WebViewLifecycleRegression
             await VerifyAsyncDispatcherAsync();
             await VerifyInitializationAsync();
             await VerifyProfileAccessFailureAsync();
+            await VerifyEffectiveProfileAsync();
             await VerifyInitializationTimeoutAsync();
             await VerifyPopupNavigationAsync();
             await VerifyCompletionAsync();
@@ -164,6 +165,46 @@ public static class WebViewLifecycleRegression
         Check(service.LastNavigationError == "WebView2 initialization failed: runtime controller denied" &&
             service.LastLoggedError != "webview.profile.access_denied",
             "WebView controller access errors are not misclassified as profile preparation errors");
+    }
+
+    private static async Task VerifyEffectiveProfileAsync()
+    {
+        var service = new WebViewService();
+        var control = new WebView2();
+        CoreWebView2Environment.Factory = () => Task.FromResult(new CoreWebView2Environment
+        {
+            UserDataFolder = Path.Combine(WebViewService.ProfileRoot, "normal", ".") + Path.DirectorySeparatorChar,
+        });
+        await service.InitializeAsync(control, "normal");
+        Check(service.IsInitialized && control.EnsureCount == 1, "normalized effective profile accepts the requested directory");
+
+        foreach (var actualFolder in new[] { Path.Combine(WebViewService.ProfileRoot, "shared-override"), "", "relative-folder" })
+        {
+            control = new WebView2();
+            CoreWebView2Environment.Factory = () => Task.FromResult(new CoreWebView2Environment { UserDataFolder = actualFolder });
+            await service.InitializeAsync(control, "isolated");
+            Check(control.EnsureCount == 0 && !service.IsInitialized && service.RequiresHostRecreation && service.State == ConnectionState.Error,
+                "overridden, empty or relative profile is rejected before controller creation");
+            Check(service.LastNavigationError?.Contains("Profile mismatch:", StringComparison.Ordinal) == true,
+                "effective profile rejection supplies actionable directory diagnostics");
+        }
+
+        CoreWebView2Environment.Factory = () => Task.FromResult(new CoreWebView2Environment());
+        var replacement = new WebView2();
+        await service.InitializeAsync(replacement, "recovered");
+        Check(service.IsInitialized && replacement.EnsureCount == 1, "profile mismatch can recover after the override is corrected");
+
+        var pending = new TaskCompletionSource<CoreWebView2Environment>();
+        CoreWebView2Environment.Factory = () => pending.Task;
+        var retired = new WebView2();
+        var oldInitialization = service.InitializeAsync(retired, "retired-profile");
+        CoreWebView2Environment.Factory = () => Task.FromResult(new CoreWebView2Environment());
+        await service.InitializeAsync(replacement, "current-profile");
+        var previousErrors = service.ErrorCount;
+        pending.SetResult(new CoreWebView2Environment { UserDataFolder = Path.Combine(WebViewService.ProfileRoot, "stale-override") });
+        await oldInitialization;
+        Check(service.ErrorCount == previousErrors && service.IsInitialized && service.HasHost(replacement) && retired.EnsureCount == 0,
+            "retired environment profile mismatch cannot invalidate the replacement host");
     }
 
     private static async Task VerifyInitializationTimeoutAsync()
@@ -652,6 +693,8 @@ namespace Harness.Services
         private void ApplyWebViewColorScheme() { }
         private void OnWebViewActualThemeChanged() { }
         private void AttachContentZoom(CoreWebView2 core, int generation) { _zoomDocumentLoadedHandler = () => { }; core.DOMContentLoaded += _zoomDocumentLoadedHandler; }
+        private void AttachContentTypography(CoreWebView2 core, int generation) { }
+        private void DetachContentTypography(CoreWebView2? core) { }
         private Action CreateNavigationStartingHandler(int generation) => () => { };
         private Action CreateNavigationCompletedHandler(int generation) => () => { };
         private Action CreateProcessFailedHandler(int generation) => () => { };
@@ -690,7 +733,12 @@ namespace Harness.Helpers
     {
         public static string WebViewInitializationTimedOut => "Initialization timed out";
         public static string WebViewRecreationFailedFormat => "Recreation failed: {0}";
-        public static string Get(string key) => key == "WebViewProfileAccessDenied" ? "Profile access denied: {0}" : key;
+        public static string Get(string key) => key switch
+        {
+            "WebViewProfileAccessDenied" => "Profile access denied: {0}",
+            "WebViewProfilePathMismatch" => "Profile mismatch: {0}; actual: {1}",
+            _ => key,
+        };
     }
 }
 
@@ -850,7 +898,13 @@ namespace Microsoft.Web.WebView2.Core
     public sealed class CoreWebView2Environment
     {
         public static Func<Task<CoreWebView2Environment>> Factory { get; set; } = () => Task.FromResult(new CoreWebView2Environment());
-        public static Task<CoreWebView2Environment> CreateWithOptionsAsync(string? browserExecutableFolder, string userDataFolder, object? options) => Factory();
+        public string? UserDataFolder { get; set; }
+        public static async Task<CoreWebView2Environment> CreateWithOptionsAsync(string? browserExecutableFolder, string userDataFolder, object? options)
+        {
+            var environment = await Factory();
+            environment.UserDataFolder ??= userDataFolder;
+            return environment;
+        }
     }
     public sealed class CoreWebView2
     {

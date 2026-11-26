@@ -7,6 +7,7 @@ $hostMessagingPath = Join-Path $servicesRoot 'HostedUiBridge.HostMessaging.js'
 $mutationFilterPath = Join-Path $servicesRoot 'HostedUiBridge.MutationFilter.js'
 $resolverPath = Join-Path $servicesRoot 'HostedUiBridge.ModelResolver.js'
 $domUtilitiesPath = Join-Path $servicesRoot 'HostedUiBridge.DomUtilities.js'
+$backendAdapterPath = Join-Path $servicesRoot 'HostedUiBridge.BackendAdapter.js'
 $modelDomFallbackPath = Join-Path $servicesRoot 'HostedUiBridge.ModelDomFallback.js'
 $activityStatePath = Join-Path $servicesRoot 'HostedUiBridge.ActivityState.js'
 $phaseClassifierPath = Join-Path $servicesRoot 'HostedUiBridge.PhaseClassifier.js'
@@ -119,6 +120,7 @@ $scriptReplacements = [ordered]@{
     '__OPENCLAW_MUTATION_FILTER_SCRIPT__' = Read-Utf8Script $mutationFilterPath
     '__OPENCLAW_MODEL_RESOLVER_SCRIPT__' = Read-Utf8Script $resolverPath
     '__OPENCLAW_DOM_UTILITIES_SCRIPT__' = Read-Utf8Script $domUtilitiesPath
+    '__HARNESS_BACKEND_ADAPTER_SCRIPT__' = Read-Utf8Script $backendAdapterPath
     '__OPENCLAW_MODEL_DOM_FALLBACK_SCRIPT__' = Read-Utf8Script $modelDomFallbackPath
     '__OPENCLAW_ACTIVITY_STATE_SCRIPT__' = Read-Utf8Script $activityStatePath
     '__OPENCLAW_PHASE_CLASSIFIER_SCRIPT__' = Read-Utf8Script $phaseClassifierPath
@@ -138,6 +140,7 @@ $runner = @(
     Read-Utf8Script $mutationFilterPath
     Read-Utf8Script $resolverPath
     Read-Utf8Script $domUtilitiesPath
+    Read-Utf8Script $backendAdapterPath
     Read-Utf8Script $modelDomFallbackPath
     Read-Utf8Script $activityStatePath
     Read-Utf8Script $phaseClassifierPath
@@ -147,6 +150,10 @@ $runner = @(
 
 $asyncExecutionLiteral = Read-Utf8Script (Join-Path $servicesRoot 'WebViewCommands.ExecuteAsync.js') | ConvertTo-Json -Compress
 $runner += "`nconst asyncExecutionTemplate = $asyncExecutionLiteral;`n"
+$stopInjectionSource = Read-Utf8Script (Join-Path $servicesRoot 'WebViewCommands.StopInjection.js')
+$abortRunLiteral = (Read-Utf8Script (Join-Path $servicesRoot 'WebViewCommands.AbortRun.js')).Replace('__HARNESS_STOP_INJECTION_SCRIPT__', $stopInjectionSource) | ConvertTo-Json -Compress
+$stopInjectionLiteral = $stopInjectionSource | ConvertTo-Json -Compress
+$runner += "`nconst abortRunScript = $abortRunLiteral;`nconst stopInjectionScript = $stopInjectionLiteral;`n"
 
 $runner += @'
 
@@ -281,7 +288,7 @@ const runModelDomFixture = (kind) => {
     dom: openClawDomUtilities,
     mutationFilter: fakeMutationFilter,
     modelResolver: openClawModelResolver,
-    profile: {}
+    profile: { kind: kind === 'openclaw' ? 'OpenClaw' : 'Generic' }
   });
   return { model: reader.readCurrentModel(), effort: reader.readCurrentEffort() };
 };
@@ -293,12 +300,12 @@ assertEqual('MODEL DOM fixture identifies OpenClaw model source',
   openClawFixture.model.source,
   'dom:openclaw-model-label');
 const deepSeekFixture = runModelDomFixture('deepseek');
-assertEqual('MODEL DOM fixture reads DeepSeek model instead of Settings',
+assertEqual('ordinary DeepSeek web page does not expose agent model telemetry',
   deepSeekFixture.model.value,
-  'DeepSeek-V4-Flash');
-assertEqual('MODEL DOM fixture reads DeepSeek effort separately',
+  '');
+assertEqual('ordinary DeepSeek web page does not expose agent effort telemetry',
   deepSeekFixture.effort.value,
-  'High');
+  '');
 
 globalThis.window = {};
 globalThis.document = { querySelector: () => null, querySelectorAll: () => [] };
@@ -406,7 +413,7 @@ const statusInspector = openClawStatusInspection.createInspector({
   mutationFilter: fakeMutationFilter,
   modelResolver: openClawModelResolver,
   statusKind: 'harness-control-ui-status',
-  backendProfile: { appStateElement: 'openclaw-app', commandGlobals: ['__openclaw', '__OPENCLAW__', '__APP__', 'app'] }
+  backendProfile: { kind: 'OpenClaw', appStateElement: 'openclaw-app', commandGlobals: ['__openclaw', '__OPENCLAW__', '__APP__', 'app'] }
 });
 const statusSnapshot = statusInspector.inspectControlUi();
 assertTrue('status inspection composes split bridge modules',
@@ -576,10 +583,11 @@ assertTrue('generic backend dispatches no host-command events and reports unhand
   genericHandled === false && genericDispatched.length === 0);
 
 const replies = [];
-globalThis.window = { chrome: { webview: { postMessage: (message) => replies.push(message) } } };
+globalThis.window = { __openClawHostBridge: { ownerToken: 'owner', pageToken: 'page' },
+  chrome: { webview: { postMessage: (message) => replies.push(message) } } };
 const executeOwned = async (expression, commandId) => {
   const script = asyncExecutionTemplate
-    .replace('__HARNESS_COMMAND_MESSAGE_JSON__', JSON.stringify({ kind: 'harness-command-result', commandId, nativeOwnerToken: 'owner', nativePageToken: 'page' }))
+    .replace('__HARNESS_COMMAND_MESSAGE_JSON__', JSON.stringify({ kind: 'harness-command-result', commandId, nativeOwnerToken: 'owner', nativePageToken: 'page', deadlineUnixMs: Date.now() + 3000 }))
     .replace('__HARNESS_COMMAND_EXPRESSION__', expression);
   const accepted = eval(script);
   await new Promise((resolve) => setImmediate(resolve));
@@ -689,5 +697,51 @@ assertTrue('composed bridge allows native session-ready replay after an earlier 
 process.exit(failed === 0 ? 0 : 1);
 '@
 
+$backendRegression = Read-Utf8Script (Join-Path $PSScriptRoot 'HostedBackendBridgeRegression.js')
+$stopSafetyRegression = Read-Utf8Script (Join-Path $PSScriptRoot 'HostedStopSafetyRegression.js')
+$runner = $runner.Replace('process.exit(failed === 0 ? 0 : 1);', $backendRegression + "`n" + $stopSafetyRegression + "`nprocess.exit(failed === 0 ? 0 : 1);")
 Invoke-NodeRunner -Source $runner -Name 'bridge-scripts'
 Invoke-NodeRunner -Source $composedRunner -Name 'composed-bridge-script'
+
+$typographyScriptLiteral = ConvertTo-Json -InputObject (Read-Utf8Script (Join-Path $servicesRoot 'WebViewTypography.js')) -Compress
+$typographyRunner = @'
+import vm from 'node:vm';
+const template = __TYPOGRAPHY_SCRIPT__;
+let created = 0;
+let style = null;
+const root = { appendChild(node) { style = node; } };
+const context = vm.createContext({
+  window: { location: { protocol: 'https:', origin: 'https://gateway.example.test' } },
+  document: {
+    documentElement: root, head: root,
+    getElementById() { return style; },
+    createElement() { created++; return {}; }
+  }
+});
+function apply(options) {
+  vm.runInContext(template.replace('__HARNESS_TYPOGRAPHY_OPTIONS__', JSON.stringify(options)), context);
+}
+function check(value, message) {
+  if (!value) throw new Error(message);
+  console.log('PASS: ' + message);
+}
+apply({ family: 'Noto Sans SC', size: 18, revision: 1 });
+check(style.textContent.includes('font-size: 18px') &&
+  style.textContent.includes('https://gateway.example.test/__harness__/fonts/NotoSansSC.ttf'),
+  'Noto uses the same-origin bundled font route and chosen size');
+check(style.textContent.includes('pre *') && style.textContent.includes('code *') &&
+  style.textContent.includes('[class*="icon"]'), 'typography preserves code and icon exclusions');
+apply({ family: 'System UI', size: 14, revision: 3 });
+const current = style.textContent;
+check(created === 1 && current.includes('font-family: system-ui,'),
+  'changing typography updates one style node without accumulating styles');
+apply({ family: 'Noto Sans SC', size: 30, revision: 2 });
+check(style.textContent === current, 'a stale typography revision cannot overwrite the latest preference');
+apply({ family: 'malicious;}', size: 100, revision: 4 });
+check(!style.textContent.includes('malicious') && style.textContent.includes('font-size: 14px'),
+  'invalid font settings fall back to System UI and 14 px');
+apply({ family: 'Noto Sans SC', size: 14.5, revision: 5 });
+check(style.textContent.includes('font-size: 14px') && !style.textContent.includes('font-size: 14.5px'),
+  'fractional sizes fall back consistently with native settings');
+'@
+Invoke-NodeRunner -Source $typographyRunner.Replace('__TYPOGRAPHY_SCRIPT__', $typographyScriptLiteral) -Name 'webview-typography'

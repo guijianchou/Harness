@@ -13,6 +13,7 @@ internal static class HostedUiBridgeScript
     private const string MutationFilterResourceName = "Harness.Services.HostedUiBridge.MutationFilter.js";
     private const string ModelResolverResourceName = "Harness.Services.HostedUiBridge.ModelResolver.js";
     private const string DomUtilitiesResourceName = "Harness.Services.HostedUiBridge.DomUtilities.js";
+    private const string BackendAdapterResourceName = "Harness.Services.HostedUiBridge.BackendAdapter.js";
     private const string ModelDomFallbackResourceName = "Harness.Services.HostedUiBridge.ModelDomFallback.js";
     private const string ActivityStateResourceName = "Harness.Services.HostedUiBridge.ActivityState.js";
     private const string PhaseClassifierResourceName = "Harness.Services.HostedUiBridge.PhaseClassifier.js";
@@ -27,6 +28,7 @@ internal static class HostedUiBridgeScript
     private const string MutationFilterPlaceholder = "__OPENCLAW_MUTATION_FILTER_SCRIPT__";
     private const string ModelResolverPlaceholder = "__OPENCLAW_MODEL_RESOLVER_SCRIPT__";
     private const string DomUtilitiesPlaceholder = "__OPENCLAW_DOM_UTILITIES_SCRIPT__";
+    private const string BackendAdapterPlaceholder = "__HARNESS_BACKEND_ADAPTER_SCRIPT__";
     private const string ModelDomFallbackPlaceholder = "__OPENCLAW_MODEL_DOM_FALLBACK_SCRIPT__";
     private const string ActivityStatePlaceholder = "__OPENCLAW_ACTIVITY_STATE_SCRIPT__";
     private const string PhaseClassifierPlaceholder = "__OPENCLAW_PHASE_CLASSIFIER_SCRIPT__";
@@ -38,6 +40,7 @@ internal static class HostedUiBridgeScript
     private static readonly Lazy<string> MutationFilterScript = new(() => LoadEmbeddedResource(MutationFilterResourceName));
     private static readonly Lazy<string> ModelResolverScript = new(() => LoadEmbeddedResource(ModelResolverResourceName));
     private static readonly Lazy<string> DomUtilitiesScript = new(() => LoadEmbeddedResource(DomUtilitiesResourceName));
+    private static readonly Lazy<string> BackendAdapterScript = new(() => LoadEmbeddedResource(BackendAdapterResourceName));
     private static readonly Lazy<string> ModelDomFallbackScript = new(() => LoadEmbeddedResource(ModelDomFallbackResourceName));
     private static readonly Lazy<string> ActivityStateScript = new(() => LoadEmbeddedResource(ActivityStateResourceName));
     private static readonly Lazy<string> PhaseClassifierScript = new(() => LoadEmbeddedResource(PhaseClassifierResourceName));
@@ -76,6 +79,8 @@ internal static class HostedUiBridgeScript
             ["bridgePairingDetail"] = StringResources.BridgePairingDetail,
             ["bridgeAuthRequiredSummary"] = StringResources.BridgeAuthRequiredSummary,
             ["bridgeAuthRequiredDetail"] = StringResources.BridgeAuthRequiredDetail,
+            ["bridgeWebAuthRequiredSummary"] = StringResources.BridgeWebAuthRequiredSummary,
+            ["bridgeWebAuthRequiredDetail"] = StringResources.BridgeWebAuthRequiredDetail,
             ["bridgeGatewaySessionNotConnectedSummary"] = StringResources.BridgeGatewaySessionNotConnectedSummary,
             ["bridgeGatewaySessionNotConnectedDetail"] = StringResources.BridgeGatewaySessionNotConnectedDetail,
             ["bridgeConnectingSummary"] = StringResources.BridgeConnectingSummary,
@@ -101,6 +106,7 @@ internal static class HostedUiBridgeScript
             .Replace(MutationFilterPlaceholder, MutationFilterScript.Value, StringComparison.Ordinal)
             .Replace(ModelResolverPlaceholder, ModelResolverScript.Value, StringComparison.Ordinal)
             .Replace(DomUtilitiesPlaceholder, DomUtilitiesScript.Value, StringComparison.Ordinal)
+            .Replace(BackendAdapterPlaceholder, BackendAdapterScript.Value, StringComparison.Ordinal)
             .Replace(ModelDomFallbackPlaceholder, ModelDomFallbackScript.Value, StringComparison.Ordinal)
             .Replace(ActivityStatePlaceholder, ActivityStateScript.Value, StringComparison.Ordinal)
             .Replace(PhaseClassifierPlaceholder, PhaseClassifierScript.Value, StringComparison.Ordinal)

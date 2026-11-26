@@ -80,6 +80,7 @@ const openClawActivityState = (() => {
         shellDetected: app.connected === true || Boolean(tab),
         isBusy: isChatBusy || isShellBusy,
         isChatBusy,
+        canAbortRun: Boolean(harnessBackendAdapter.captureOpenClawStopTarget()),
         activitySignature: isChatBusy ? readChatActivitySignature(app) : ''
       };
     };

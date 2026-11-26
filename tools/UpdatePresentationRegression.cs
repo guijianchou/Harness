@@ -257,7 +257,7 @@ public static class UpdatePresentationRegression
         {
             ReviewUpdateBackend.Reset();
             var resultFile = Path.Combine(ReviewUpdateBackend.OutputDirectory, "prior-result-" + state + ".json");
-            File.WriteAllText(resultFile, JsonSerializer.Serialize(new PortableUpdateResult(state, "5.3.11", "fixture-backup"), PortablePackage.JsonOptions));
+            File.WriteAllText(resultFile, JsonSerializer.Serialize(new PortableUpdateResult(state, "5.3.12", "fixture-backup"), PortablePackage.JsonOptions));
             ReviewUpdateBackend.ResultFileOverride = resultFile;
             var view = new UpdateViewModel(NullAppLogger.Instance);
             try
@@ -434,7 +434,7 @@ namespace CommunityToolkit.Mvvm.ComponentModel
 
 namespace Harness.Helpers
 {
-    public static class AppMetadata { public static string GetDisplayVersion() => "5.3.11"; }
+    public static class AppMetadata { public static string GetDisplayVersion() => "5.3.12"; }
     internal static class StringResources
     {
         private static Dictionary<string, string> _values = [];

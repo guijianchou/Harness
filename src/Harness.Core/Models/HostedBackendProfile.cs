@@ -16,14 +16,13 @@ public sealed record HostedBackendProfile
 
     /// <summary>
     /// Gets the Control UI relative path used for the latency probe, or null to
-    /// probe the environment URL itself. Backend-specific paths are attempted
-    /// first and fall back to the root when the origin answers 404/405.
+    /// probe the environment URL itself.
     /// </summary>
     public string? LatencyProbePath { get; init; }
 
     /// <summary>
     /// Gets the custom element name carrying hosted app state, or null when the
-    /// backend exposes none and only generic DOM heuristics apply.
+    /// backend exposes none.
     /// </summary>
     public string? AppStateElement { get; init; }
 
@@ -48,16 +47,12 @@ public sealed record HostedBackendProfile
         CommandGlobals = ["__openclaw", "__OPENCLAW__", "__APP__", "app"],
     };
 
-    private static readonly HostedBackendProfile DeepSeekProfile = new()
+    private static readonly HostedBackendProfile HermesProfile = new()
     {
-        Kind = HostedBackendKind.DeepSeek,
-        LatencyProbePath = null,
-        AppStateElement = null,
-        HostCommandEventPrefix = null,
-        CommandGlobals = ["__APP__", "app"],
+        Kind = HostedBackendKind.Hermes,
     };
 
-    private static readonly HostedBackendProfile AutoProfile = OpenClawProfile with
+    private static readonly HostedBackendProfile AutoProfile = new()
     {
         Kind = HostedBackendKind.Auto,
     };
@@ -65,10 +60,6 @@ public sealed record HostedBackendProfile
     private static readonly HostedBackendProfile GenericProfile = new()
     {
         Kind = HostedBackendKind.Generic,
-        LatencyProbePath = null,
-        AppStateElement = null,
-        HostCommandEventPrefix = null,
-        CommandGlobals = ["__APP__", "app"],
     };
 
     /// <summary>
@@ -77,16 +68,15 @@ public sealed record HostedBackendProfile
     public static HostedBackendProfile For(HostedBackendKind kind) => kind switch
     {
         HostedBackendKind.OpenClaw => OpenClawProfile,
-        HostedBackendKind.DeepSeek => DeepSeekProfile,
-        HostedBackendKind.Generic => GenericProfile,
-        _ => AutoProfile,
+        HostedBackendKind.Hermes => HermesProfile,
+        HostedBackendKind.Auto => AutoProfile,
+        _ => GenericProfile,
     };
 
     /// <summary>
     /// Gets whether a failed backend-specific latency probe should retry against
-    /// the environment root. Only <see cref="HostedBackendKind.Auto"/> does, so a
-    /// misconfigured OpenClaw environment still surfaces its missing probe path
-    /// instead of silently reporting the web server's latency.
+    /// the environment URL. An automatic profile must first specify a dedicated
+    /// path; the default automatic profile probes the page directly.
     /// </summary>
-    public bool AllowsRootLatencyFallback => Kind == HostedBackendKind.Auto;
+    public bool AllowsRootLatencyFallback => Kind == HostedBackendKind.Auto && !string.IsNullOrWhiteSpace(LatencyProbePath);
 }

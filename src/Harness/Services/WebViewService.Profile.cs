@@ -27,6 +27,24 @@ public partial class WebViewService
         return ProfileStore.PrepareUserDataFolder(environmentId);
     }
 
+    private void ValidateUserDataFolder(string expectedFolder, string actualFolder)
+    {
+        // WebView2 policy and environment overrides can supersede the explicit path.
+        // Validate before creating a controller, which would expose the shared profile.
+        if (!string.IsNullOrWhiteSpace(actualFolder) &&
+            Path.IsPathFullyQualified(actualFolder) &&
+            string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(expectedFolder)),
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(actualFolder)),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _logger.Error("webview.profile.path_mismatch", new { expectedFolder, actualFolder });
+        throw new InvalidOperationException(string.Format(System.Globalization.CultureInfo.CurrentCulture,
+            Harness.Helpers.StringResources.Get("WebViewProfilePathMismatch"), expectedFolder, actualFolder));
+    }
+
     private string ReportProfileAccessDenied(UnauthorizedAccessException error)
     {
         string? identityName = null;

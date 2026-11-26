@@ -45,6 +45,7 @@ $sourceFiles = @(
     'src/Harness/Services/WebViewMessageOwnership.cs',
     'src/Harness/Services/WebViewService.ErrorPage.cs',
     'src/Harness/Services/WebViewService.HostMessages.cs',
+    'src/Harness/Services/WebViewService.Typography.cs',
     'src/Harness/Services/SettingsPersistenceAdapter.cs',
     'src/Harness/Services/StartupRegistrationService.cs',
     'src/Harness/ViewModels/SettingsViewModel.cs',
@@ -62,6 +63,15 @@ foreach ($relativePath in $sourceFiles) {
     $source = $source.Replace('TypedEventHandler<CoreWebView2, CoreWebView2WebMessageReceivedEventArgs>', 'EventHandler<CoreWebView2WebMessageReceivedEventArgs>')
     $source = $source.Replace('OnWebMessageReceived(sender, args, hostGeneration)', 'OnWebMessageReceived((CoreWebView2)sender, args, hostGeneration)')
     $source = $source.Replace('.AsTask(cancellationToken)', '.WaitAsync(cancellationToken)')
+    if ($relativePath -eq 'src/Harness/Services/WebViewService.Typography.cs') {
+        $source = $source.Replace('TypedEventHandler<CoreWebView2, CoreWebView2DOMContentLoadedEventArgs>', 'EventHandler<CoreWebView2DOMContentLoadedEventArgs>')
+        $source = $source.Replace('TypedEventHandler<CoreWebView2, CoreWebView2WebResourceRequestedEventArgs>', 'EventHandler<CoreWebView2WebResourceRequestedEventArgs>')
+        $source = $source.Replace('OnTypographyFontRequested(sender, args, hostGeneration)', 'OnTypographyFontRequested((CoreWebView2)sender, args, hostGeneration)')
+        $source = $source.Replace('QueueContentTypography(sender, hostGeneration)', 'QueueContentTypography((CoreWebView2)sender, hostGeneration)')
+        $source = $source.Replace('Deferral? deferral', 'CoreWebView2Deferral? deferral')
+        $source = $source.Replace('.AsTask()', '').Replace('.AsRandomAccessStream()', '')
+        $source = $source.Replace('AppContext.BaseDirectory', 'HarnessNativeRegression.FontBaseDirectory')
+    }
     $trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText($source, $parseOptions))
 }
 $methods = [Collections.Generic.List[string]]::new()

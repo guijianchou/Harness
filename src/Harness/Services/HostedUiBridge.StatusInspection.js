@@ -3,8 +3,9 @@ const openClawStatusInspection = (() => {
     const dom = openClawDomUtilities;
     const vocabulary = harnessLabelVocabulary;
     const profile = backendProfile || {};
-    const modelReader = openClawModelDomFallback.createReader({ dom, mutationFilter, modelResolver, profile });
-    const activity = openClawActivityState.createActivityTracker({ dom, mutationFilter, profile });
+    const agentProfile = harnessBackendAdapter.openClawProfile(profile);
+    const modelReader = openClawModelDomFallback.createReader({ dom, mutationFilter, modelResolver, profile: agentProfile });
+    const activity = openClawActivityState.createActivityTracker({ dom, mutationFilter, profile: agentProfile });
     const phaseClassifier = openClawPhaseClassifier.createClassifier({ dom, mutationFilter, strings });
     const isStatusProbeExcludedElement = mutationFilter.isStatusProbeExcludedElement;
 
@@ -43,12 +44,16 @@ const openClawStatusInspection = (() => {
     };
 
     const inspectControlUi = () => {
+      const backendKind = harnessBackendAdapter.resolveKind(profile);
+      const { inputFocused, focusedInputHasText } = readFocusedInputState();
+      if (backendKind !== 'OpenClaw') {
+        return harnessBackendAdapter.inspectPage({ backendKind, kind: backendKind, statusKind, strings, inputFocused, focusedInputHasText });
+      }
       const url = window.location ? window.location.href : '';
       const lowerUrl = url.toLowerCase();
       const appState = activity.readOpenClawAppStateStatus();
       const needsDomSignals = !appState || !appState.connected || Boolean(appState.lastError);
       const text = needsDomSignals ? phaseClassifier.collectSignalText() : '';
-      const { inputFocused, focusedInputHasText } = readFocusedInputState();
       const shellDetected = appState?.shellDetected || (needsDomSignals && detectShellFromDom());
       const apiBusy = activity.detectBusyFromApi();
       const domBusy = detectBusyFromDom(needsDomSignals);
@@ -71,10 +76,12 @@ const openClawStatusInspection = (() => {
 
       return activity.applyBusyStaleness({
         kind: statusKind,
+        backendKind,
         ...phaseSnapshot,
         url,
         shellDetected,
         isBusy,
+        canAbortRun: appState?.canAbortRun === true,
         isBusyStaleCandidate,
         inputFocused,
         focusedInputHasText,

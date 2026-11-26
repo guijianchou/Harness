@@ -2,16 +2,19 @@
 
 **语言：** [English](README.md) | 简体中文
 
-**当前版本：** 5.3.11
+**当前版本：** 5.3.12
 
 Harness 是一个轻量的 Windows 原生客户端，用于承载托管的 agent Control UI，基于 WinUI 3 和 WebView2 构建。
 
-Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运行在 VPS 上、并通过 Cloudflare Tunnel、反向代理或其他公共 HTTPS 源暴露的部署。
+Harness 面向 **VPS 上 Hermes Agent 与 OpenClaw Gateway 的远程管理**，由官方 Gateway 协议决定原生功能，详见 [远程管理范围与协议依据](docs/gateway-management.md)。目前 OpenClaw 已有部分原生接入，Hermes 原生 Gateway 接入尚未实现。包括 DeepSeek 在内的其他站点按普通 Web 应用承载。
 
 | 后端 | 状态 |
 |---|---|
 | OpenClaw Gateway | 已支持托管 Web UI；可选的原生 Gateway v4 控制仍需实际部署联调 |
-| DeepSeek Harness | Web UI 测试通过 |
+| Hermes Agent | 已明确 Gateway 管理范围；当前代码仅有网页辅助适配 |
+| 其他 Web 应用 | 普通网页承载，不启用 Agent 专属模型识别或运行命令 |
+
+在设置 → 环境中选择应用类型。“自动检测”识别受支持的 Agent 页面，其他页面按普通网页处理。旧 DeepSeek 配置迁移为普通 Web 应用，保留网址与浏览器数据。支持范围和验证边界见 [Hermes 与后端支持说明](docs/hermes-integration.md)。
 
 可按环境启用 OpenClaw Gateway v4 原生连接，提供会话列表、新建空会话、模型选择、精确停止运行及完成通知，同时保留网页工作空间。入口位于设置的环境编辑中。授权、Cloudflare Access、兼容边界和验证方法见 [OpenClaw 集成说明](docs/openclaw-integration.md)；新增原生路径仍需针对实际部署联调。
 
@@ -21,9 +24,9 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 
 本项目最初叫 **OpenClaw Manager**，是专门为 OpenClaw Control UI 写的 WebView2 + WinUI 3 客户端。窗口 chrome、托盘、全局热键、按环境隔离的会话、心跳、导航恢复、诊断和日志属于共享的托管 UI 外壳能力；后端配置、页内 bridge 和可选的原生 OpenClaw Gateway 连接负责各产品的专属行为。
 
-把应用改名为 **Harness**，标记的是从"OpenClaw 的客户端"到"托管 agent Control UI 的通用客户端"的定位转变，OpenClaw 和 DeepSeek Harness 是最初计划支持的两个后端。
+把应用改名为 **Harness**，标记的是从 OpenClaw 客户端到通用网页工作空间的定位转变。目前的 Agent 专用支持聚焦 Hermes Agent 与 OpenClaw。
 
-改名已在 5.3.0 完成。Harness 目前支持后端配置，并已通过 DeepSeek Harness 托管 Web UI 的手动测试。5.3.8 进一步在网页工作空间之外提供可选的 OpenClaw Gateway v4 原生控制。
+改名已在 5.3.0 完成。DeepSeek Harness 曾通过托管 Web UI 手动测试，现在仍可作为普通 Web 应用使用。5.3.8 增加了网页工作空间之外可选的 OpenClaw Gateway v4 原生控制。
 
 ### 5.3.0 改名覆盖的范围
 
@@ -66,19 +69,22 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 
 它适合以下用户：
 
-- 在远程机器上运行 OpenClaw Gateway 或 DeepSeek Harness
+- 在本地或远程机器上运行 Hermes Agent 网页界面或 OpenClaw Gateway
 - 通过 Cloudflare Tunnel 或反向代理访问它
 - 想用轻量 Windows 原生客户端，而不是一直开着浏览器标签页
 
-## 当前 5.3.11 注意事项
+## 当前 5.3.12 注意事项
 
-发布日期：**2026-11-25**。本次保护 OpenClaw 会话设置与订阅，改善更新反馈和 GitHub 限流处理，并完善托盘与浏览器配置目录故障的恢复。详见 [5.3.11 发布说明](docs/releases/5.3.11.md)。
+发布日期：**2026-11-26**。本次增加 Hermes 网页适配与字体设置，并加强浏览器资料隔离、停止命令归属、设置保存、托盘退出及便携更新恢复。详见 [5.3.12 发布说明](docs/releases/5.3.12.md)。
 
-- 不可用的 OpenClaw 模型以只读信息展示，仅在存在有效未提交修改时启用“应用”。未修改选择不会意外清除模型或推理强度覆盖；主动选择“默认”仍会清除覆盖。
-- 页面切换时按连接维护 Gateway 会话订阅，迟到回执会重新核对当前目标；订阅请求超时或取消、服务器状态无法确认时，先退役连接再重建订阅。
-- 关于页用同一张自适应卡片展示检查、下载、校验与重启状态，支持行内重试/取消，仅下载期间显示下载进度条。
-- 遵守 GitHub 限流重试时间，区分访问拒绝与限流，合并并发检查，并在应用运行期间复用五分钟内的成功检查结果。
-- 隐藏窗口前确认托盘注册成功，失败时保留可访问窗口并提示。浏览器配置目录访问被拒绝时提供明确错误和诊断，可手动重试；Low 完整性工作区产物的处理见下方本机构建说明。
+- Agent 专用行为仅面向 Hermes Agent 与 OpenClaw。其他站点（含旧 DeepSeek 环境）使用普通 Web 承载。Hermes 适配官方 `hermes webapp` 界面；原生 Hermes Gateway 管理仍处于文档设计阶段，尚未实现。
+- 在“设置 > 外观”选择 System UI 或随包提供的 Noto Sans SC，以及 10–32 px 基础字号。保存后应用到原生控件和内嵌页面，无需下载字体；图标、代码字体与网页缩放独立保留。
+- 创建 WebView2 控制器前验证实际资料目录，拒绝将环境变量或策略覆盖指向其他资料目录；HTTP 探测不共享 Cookie，单实例激活管道与 Windows 会话作用域对齐，并对监听失败退避。
+- 停止命令及延迟回退始终归属于原页面、会话和运行，并在超时后失效。环境重命名时保留当前选择，成功保存后的再次保存不会覆盖其他位置新提交的设置。
+- 托盘不可用时保留窗口，15 秒内再次关闭可退出；多次诊断导出不会互相覆盖。
+- 更新结果记录失败不再阻断旧版恢复启动。仅将生成的 apphost 和更新暂存区的三个 EXE 规范化为 Medium 完整性，保留目录标签与 DACL，并补齐 x86 测试宿主处理。
+
+本次未对真实 Hermes/OpenClaw VPS 完成登录、代理、流式输出或服务端取消验收。现有 OpenClaw 原生功能与 Hermes 网页适配具有自动回归覆盖，但不代表已实现完整的远程 Gateway 管理。
 
 ### 历史变更
 
@@ -149,7 +155,7 @@ Harness 是远程 agent 网关 Web Control UI 的薄桌面外壳。它面向运�
 ### 本项目是
 
 - WinUI 3 + WebView2 远程管理外壳
-- 托管 agent Control UI 会话的 Windows 原生入口，已通过 OpenClaw Gateway 和 DeepSeek Harness Web UI 验证
+- 专门增强 Hermes Agent 与 OpenClaw，同时承载普通 Web 应用的 Windows 原生工作空间
 - 在现有 Web UI 之上增强原生 UX 的薄客户端
 
 ### 本项目不是
@@ -296,9 +302,9 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
-应用项目会按所选平台设置 Windows 运行时，并在构建后检查原生依赖。本机 x64 测试请运行 `bin\Debug\5.3.11\net10.0-windows10.0.26100.0\win-x64\Harness.exe`；旧的不含 `win-x64` 子目录的产物依赖不完整，请勿使用。Debug 版本需要本机安装 .NET 10 和 WebView2 运行时。
+应用项目会按所选平台设置 Windows 运行时，并在构建后检查原生依赖。本机 x64 测试请运行 `bin\Debug\5.3.12\net10.0-windows10.0.26100.0\win-x64\Harness.exe`；旧的不含 `win-x64` 子目录的产物依赖不完整，请勿使用。Debug 版本需要本机安装 .NET 10 和 WebView2 运行时。
 
-如果工作区带有 Windows Low 完整性标签，构建产物也可能继承该标签，即使从资源管理器双击 EXE，Harness 仍会以 Low 完整性运行，无法写入正常的浏览器数据和日志目录，托盘注册也可能失败。此时应将完整构建输出打包为 ZIP，解压到工作区外的普通用户测试目录后运行，保留工作区权限和现有浏览器资料。排查这组故障时，可用 `icacls <路径>` 检查完整性标签。
+如果工作区带有 Windows Low 完整性标签，构建产物也可能继承该标签，即使从资源管理器双击 EXE，Harness 仍可能以 Low 完整性运行，无法写入正常的浏览器数据和日志目录，托盘注册也可能失败。当前 Windows 构建和发布目标会将 Harness 与更新器的 apphost 标记为 Medium，测试构建也会处理测试宿主；更新准备阶段会在交接前处理三个暂存 apphost。这些操作仅修改 EXE 的完整性标签，保留目录权限、DACL 和浏览器数据。排查这组故障时，可用 `icacls <路径>` 检查标签。手动部署时应将完整构建输出复制或解压到普通用户目录。
 
 ### 代码规范
 
@@ -327,7 +333,7 @@ git diff --check
 
 真实 WebView2、Gateway、Cloudflare Tunnel、tray、hotkey 和 compact mode 行为仍需要 VS2026 manual debug。
 
-DeepSeek Harness Web UI 已通过当前手动网页端测试。
+DeepSeek Harness Web UI 曾通过手动网页端测试，现在归类为普通 Web 应用。5.3.12 包含 Hermes 网页适配，仍需在实际部署的官方网页界面上验证；原生 Hermes Gateway 管理尚未实现。
 
 Manual debug 需要明确覆盖：
 
@@ -380,11 +386,11 @@ dotnet restore Harness.sln --locked-mode
 pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
 ```
 
-脚本会创建新的版本目录，例如 `artifacts/release/5.3.11`，验证发布文件并生成 ZIP 和 SHA-256 校验文件。已有版本目录不会被覆盖；再次构建时请选择其他 `OutputRoot`。
+脚本会创建新的版本目录，例如 `artifacts/release/5.3.12`，验证发布文件并生成 ZIP 和 SHA-256 校验文件。已有版本目录不会被覆盖；再次构建时请选择其他 `OutputRoot`。
 
 当前源码生成的便携包支持“设置 > 关于 > 检查更新”、校验下载和“保存设置并重启更新”。更新保留程序路径、AppData 和用户额外文件，新版启动失败时回滚。已发布的 5.3.8 需先手动升级一次到包含更新器的 5.3.9。详见[便携更新与恢复说明](docs/portable-updates.md)。
 
-推送 `5.3.11` 这样的纯数字版本 tag（不带 `v` 前缀）后，[.github/workflows/release.yml](.github/workflows/release.yml) 会自动执行。tag 必须与项目版本一致，并有对应的 `docs/releases/<version>.md` 发布说明。工作流完成验证和打包后，会将 ZIP 及 SHA-256 校验文件发布到 GitHub Releases。
+推送 `5.3.12` 这样的纯数字版本 tag（不带 `v` 前缀）后，[.github/workflows/release.yml](.github/workflows/release.yml) 会自动执行。tag 必须与项目版本一致，并有对应的 `docs/releases/<version>.md` 发布说明。工作流完成验证和打包后，会将 ZIP 及 SHA-256 校验文件发布到 GitHub Releases。
 
 ### 首次启动
 

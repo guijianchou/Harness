@@ -15,11 +15,13 @@ namespace Harness.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : INotifyPropertyChanged
 {
-    private readonly Dictionary<EnvironmentConfig, string> _originalNames = [];
+    private static readonly HostedBackendKind[] SelectableBackends =
+    [HostedBackendKind.Auto, HostedBackendKind.OpenClaw, HostedBackendKind.Hermes, HostedBackendKind.Generic];
+
     private readonly Dictionary<EnvironmentConfig, EnvironmentConfig> _originalSnapshots = [];
     private readonly SettingsPersistenceAdapter _settingsPersistence;
     private List<EnvironmentConfig> _environmentBaseline;
-    private readonly string? _originalSelectedEnvironmentName;
+    private readonly string? _originalSelectedEnvironmentId;
     private bool _didEditSelectedLanguage;
     private bool _didEditEnableDevLog;
     private bool _didEditSystemTray;
@@ -49,14 +51,14 @@ public partial class SettingsViewModel : INotifyPropertyChanged
         _settingsPersistence = settingsPersistence ?? throw new ArgumentNullException(nameof(settingsPersistence));
         var settings = _settingsPersistence.CreateDraft();
         _environmentBaseline = settings.Environments.Select(env => env.Clone()).ToList();
-        _originalSelectedEnvironmentName = settings.SelectedEnvironmentName;
+        _originalSelectedEnvironmentId = settings.Environments
+            .FirstOrDefault(env => string.Equals(env.Name, settings.SelectedEnvironmentName, StringComparison.Ordinal))?.Id;
 
         // Load a copy of environments so we can cancel without persisting
         foreach (var env in settings.Environments)
         {
             var clone = env.Clone();
             Environments.Add(clone);
-            _originalNames[clone] = env.Name;
             _originalSnapshots[clone] = env.Clone();
         }
 
@@ -107,13 +109,13 @@ public partial class SettingsViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Gets the selectable backend labels, in <see cref="HostedBackendKind"/> order.
+    /// Gets the selectable backend labels in display order, independent of saved enum values.
     /// </summary>
     public IReadOnlyList<string> BackendOptions { get; } = (string[])
     [
         StringResources.SettingsBackendAuto,
         StringResources.SettingsBackendOpenClaw,
-        StringResources.SettingsBackendDeepSeek,
+        StringResources.SettingsBackendHermes,
         StringResources.SettingsBackendGeneric,
     ];
 
@@ -123,12 +125,15 @@ public partial class SettingsViewModel : INotifyPropertyChanged
     /// </summary>
     public int EditBackendIndex
     {
-        get => (int)_editBackend;
+        get => GetBackendIndex(_editBackend);
         set
         {
-            var kind = value is >= 0 and <= (int)HostedBackendKind.Generic
-                ? (HostedBackendKind)value
-                : HostedBackendKind.Auto;
+            if (value < 0 || value >= SelectableBackends.Length)
+            {
+                return;
+            }
+
+            var kind = SelectableBackends[value];
             if (_editBackend == kind)
             {
                 return;
@@ -137,7 +142,22 @@ public partial class SettingsViewModel : INotifyPropertyChanged
             _editBackend = kind;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsOpenClawBackend));
+            OnPropertyChanged(nameof(EditBackendDescription));
         }
+    }
+
+    public string EditBackendDescription => _editBackend switch
+    {
+        HostedBackendKind.OpenClaw => StringResources.SettingsBackendOpenClawHint,
+        HostedBackendKind.Hermes => StringResources.SettingsBackendHermesHint,
+        HostedBackendKind.Auto => StringResources.SettingsBackendHint,
+        _ => StringResources.SettingsBackendGenericHint,
+    };
+
+    private static int GetBackendIndex(HostedBackendKind kind)
+    {
+        var index = Array.IndexOf(SelectableBackends, kind);
+        return index >= 0 ? index : Array.IndexOf(SelectableBackends, HostedBackendKind.Generic);
     }
 
     public bool IsEditing
@@ -307,7 +327,6 @@ public partial class SettingsViewModel : INotifyPropertyChanged
             IsDefault = Environments.Count == 0,
         };
         Environments.Add(env);
-        _originalNames[env] = env.Name;
         _originalSnapshots[env] = env.Clone();
         DidChangeEnvironmentState = true;
         DidChangeSessionTopology = true;
@@ -325,7 +344,6 @@ public partial class SettingsViewModel : INotifyPropertyChanged
             return;
         }
 
-        _originalNames.Remove(_selectedEnvironment);
         _originalSnapshots.Remove(_selectedEnvironment);
         _pendingCredentials.Remove(_selectedEnvironment.Id);
         Environments.Remove(_selectedEnvironment);
@@ -423,9 +441,9 @@ public partial class SettingsViewModel : INotifyPropertyChanged
         if (didChangeEnvironmentState)
         {
             baseline.Environments = _environmentBaseline;
+            settings.SelectedEnvironmentName = ResolveSelectedEnvironmentName(settings);
             settings.Environments = Environments.Select(env => env.Clone()).ToList();
             EnsureAtLeastOneDefault(settings.Environments);
-            settings.SelectedEnvironmentName = ResolveSelectedEnvironmentName(settings);
         }
 
         ApplyChangedShellSettings(settings);
@@ -457,6 +475,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
             UpdateEnvironmentBaseline();
         }
 
+        ResetCommittedShellEdits();
         ValidationMessage = StringResources.SettingsValidationDefaultMessage;
         var committedSettings = _settingsPersistence.CreateDraft();
         var afterLiveSettings = LiveShellSettings.From(committedSettings);
@@ -503,7 +522,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
             EditName = _selectedEnvironment.Name;
             EditUrl = _selectedEnvironment.GatewayUrl;
             EditIsDefault = _selectedEnvironment.IsDefault;
-            EditBackendIndex = (int)_selectedEnvironment.Backend;
+            EditBackendIndex = GetBackendIndex(_selectedEnvironment.Backend);
             LoadGatewayFields();
             IsEditing = true;
         }
@@ -512,7 +531,7 @@ public partial class SettingsViewModel : INotifyPropertyChanged
             EditName = string.Empty;
             EditUrl = string.Empty;
             EditIsDefault = false;
-            EditBackendIndex = (int)HostedBackendKind.Auto;
+            EditBackendIndex = GetBackendIndex(HostedBackendKind.Auto);
             LoadGatewayFields();
             IsEditing = false;
         }
@@ -520,13 +539,16 @@ public partial class SettingsViewModel : INotifyPropertyChanged
 
     private string? ResolveSelectedEnvironmentName(AppSettings settings)
     {
-        var currentSelection = FindEnvironmentByOriginalOrCurrentName(settings.SelectedEnvironmentName);
+        // Resolve against the live list before replacing it with renamed draft entries.
+        var selectedId = settings.Environments
+            .FirstOrDefault(env => string.Equals(env.Name, settings.SelectedEnvironmentName, StringComparison.Ordinal))?.Id;
+        var currentSelection = FindEnvironmentById(selectedId);
         if (currentSelection is not null)
         {
             return currentSelection.Name;
         }
 
-        var originalSelection = FindEnvironmentByOriginalOrCurrentName(_originalSelectedEnvironmentName);
+        var originalSelection = FindEnvironmentById(_originalSelectedEnvironmentId);
         if (originalSelection is not null)
         {
             return originalSelection.Name;
@@ -536,17 +558,14 @@ public partial class SettingsViewModel : INotifyPropertyChanged
             ?? Environments.FirstOrDefault()?.Name;
     }
 
-    private EnvironmentConfig? FindEnvironmentByOriginalOrCurrentName(string? environmentName)
+    private EnvironmentConfig? FindEnvironmentById(string? environmentId)
     {
-        if (string.IsNullOrEmpty(environmentName))
+        if (string.IsNullOrEmpty(environmentId))
         {
             return null;
         }
 
-        return Environments.FirstOrDefault(env =>
-            string.Equals(env.Name, environmentName, StringComparison.Ordinal) ||
-            (_originalNames.TryGetValue(env, out var originalName) &&
-             string.Equals(originalName, environmentName, StringComparison.Ordinal)));
+        return Environments.FirstOrDefault(env => string.Equals(env.Id, environmentId, StringComparison.Ordinal));
     }
 
     private EnvironmentConfig CreateDraftEnvironment() => new()
@@ -565,7 +584,6 @@ public partial class SettingsViewModel : INotifyPropertyChanged
         _environmentBaseline = Environments.Select(env => env.Clone()).ToList();
         foreach (var env in Environments)
         {
-            _originalNames[env] = env.Name;
             _originalSnapshots[env] = env.Clone();
         }
     }
@@ -613,6 +631,19 @@ public partial class SettingsViewModel : INotifyPropertyChanged
         {
             settings.Diagnostics.EnableVerboseRecoveryLogging = EnableDevLog;
         }
+    }
+
+    private void ResetCommittedShellEdits()
+    {
+        _didEditSelectedLanguage = false;
+        _didEditEnableDevLog = false;
+        _didEditSystemTray = false;
+        _didEditAutoRefresh = false;
+        _didEditAllowMultipleInstances = false;
+        _didEditEnableGlobalHotkey = false;
+        _didEditGlobalHotkey = false;
+        _didEditAlwaysOnTop = false;
+        ResetCommittedAppearanceEdits();
     }
 
     private bool HasEnvironmentMetadataChanges()

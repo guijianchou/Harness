@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 namespace Harness.Models;
 
 /// <summary>
-/// Represents a remote OpenClaw Gateway environment configuration.
+/// Represents a hosted agent or ordinary Web application environment.
 /// </summary>
 public class EnvironmentConfig : INotifyPropertyChanged
 {
@@ -54,7 +54,7 @@ public class EnvironmentConfig : INotifyPropertyChanged
     /// <summary>
     /// Gets or sets which hosted Control UI product this environment points at.
     /// Defaults to <see cref="HostedBackendKind.Auto"/> so existing settings files
-    /// keep working and unknown backends degrade instead of failing.
+    /// keep working while unrecognized pages use ordinary Web behavior.
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter<HostedBackendKind>))]
     public HostedBackendKind Backend

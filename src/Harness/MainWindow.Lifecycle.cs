@@ -172,7 +172,18 @@ public sealed partial class MainWindow
         }
 
         args.Cancel = true;
-        HideMainWindowToTray();
+        if (HideMainWindowToTray(showUnavailableWarning: false))
+        {
+            return;
+        }
+
+        if (_trayClosePolicy.GetUnavailableTrayCloseDisposition(DateTimeOffset.UtcNow) == TrayCloseDisposition.Exit)
+        {
+            args.Cancel = DeferExitUntilSettingsSaved();
+            return;
+        }
+
+        ViewModel.ShowShellWarning(StringResources.Get("TrayUnavailableCloseWarning"));
     }
 
     private bool DeferExitUntilSettingsSaved()

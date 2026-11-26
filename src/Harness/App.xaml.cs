@@ -78,6 +78,7 @@ public partial class App : Application
         }
 
         Logger.Info("Creating main window.");
+        AppTypography.Current.Apply(Configuration.Settings);
         _mainWindow = new MainWindow();
         _mainWindow.Closed += OnMainWindowClosed;
         Logger.Info("Main window created.");

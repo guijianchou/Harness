@@ -1,6 +1,7 @@
 // Copyright (c) Lanstack @openclaw. All rights reserved.
 
 using CommunityToolkit.WinUI.Controls;
+using Harness.Helpers;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -35,12 +36,17 @@ public sealed partial class SettingsDialog
         }
 
         // Measure the card itself, including when a previously hidden page first opens.
-        var stacked = e.NewSize.Width < (card.Content is ToggleSwitch ? 340 : 560);
+        var textScale = Math.Max(1, AppTypography.Current.Size / 14);
+        var stacked = e.NewSize.Width < (card.Content is ToggleSwitch ? 340 : 560) * textScale;
         card.ContentAlignment = stacked ? ContentAlignment.Vertical : ContentAlignment.Right;
         if (card.Content is FrameworkElement editor)
         {
             editor.HorizontalAlignment = stacked ? HorizontalAlignment.Left : HorizontalAlignment.Right;
             editor.MaxWidth = Math.Max(0, e.NewSize.Width - card.Padding.Left - card.Padding.Right - 2);
+            if (editor is ComboBox or NumberBox)
+            {
+                editor.Width = 160 * textScale;
+            }
         }
     }
 

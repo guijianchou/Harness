@@ -4,7 +4,7 @@ namespace Harness.Services;
 
 internal sealed class GatewayHeartbeatTransport
 {
-    private static readonly HttpClient HeartbeatHttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly HttpClient HeartbeatHttpClient = StatelessProbeHttpClient.Create(TimeSpan.FromSeconds(10));
 
     public async Task<HeartbeatProbeResult> ProbeAsync(string url, CancellationToken token)
     {

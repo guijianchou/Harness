@@ -16,6 +16,11 @@ public static class StringResources
     public static string SettingsThemeDescription => Get("SettingsThemeDescription");
     public static string SettingsZoomTitle => Get("SettingsZoomTitle");
     public static string SettingsZoomDescription => Get("SettingsZoomDescription");
+    public static string SettingsFontTitle => Get("SettingsFontTitle");
+    public static string SettingsFontDescription => Get("SettingsFontDescription");
+    public static string SettingsFontSizeTitle => Get("SettingsFontSizeTitle");
+    public static string SettingsFontSizeDescription => Get("SettingsFontSizeDescription");
+    public static string SettingsFontSizeInvalid => Get("SettingsFontSizeInvalid");
     public static string SettingsSaving => Get("SettingsSaving");
     public static string SettingsClearingSession => Get("SettingsClearingSession");
     public static string SettingsAboutDescription => Get("SettingsAboutDescription");
@@ -203,8 +208,11 @@ public static class StringResources
     public static string SettingsBackendHint => Get("SettingsBackendHint");
     public static string SettingsBackendAuto => Get("SettingsBackendAuto");
     public static string SettingsBackendOpenClaw => Get("SettingsBackendOpenClaw");
-    public static string SettingsBackendDeepSeek => Get("SettingsBackendDeepSeek");
+    public static string SettingsBackendHermes => Get("SettingsBackendHermes");
     public static string SettingsBackendGeneric => Get("SettingsBackendGeneric");
+    public static string SettingsBackendOpenClawHint => Get("SettingsBackendOpenClawHint");
+    public static string SettingsBackendHermesHint => Get("SettingsBackendHermesHint");
+    public static string SettingsBackendGenericHint => Get("SettingsBackendGenericHint");
     public static string SettingsControlUiUrlPlaceholder => Get("SettingsControlUiUrlPlaceholder");
     public static string SettingsControlUiUrlHint1 => Get("SettingsControlUiUrlHint1");
     public static string SettingsControlUiUrlHint2 => Get("SettingsControlUiUrlHint2");
@@ -318,6 +326,8 @@ public static class StringResources
 
     // --- Hosted UI Bridge ---
     public static string BridgeGatewayUiLoaded => Get("BridgeGatewayUiLoaded");
+    public static string BridgeWebAuthRequiredSummary => Get("BridgeWebAuthRequiredSummary");
+    public static string BridgeWebAuthRequiredDetail => Get("BridgeWebAuthRequiredDetail");
     public static string BridgePageLoading => Get("BridgePageLoading");
     public static string BridgeTokenMissingSummary => Get("BridgeTokenMissingSummary");
     public static string BridgeTokenMissingDetail => Get("BridgeTokenMissingDetail");

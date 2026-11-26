@@ -186,6 +186,90 @@ public sealed partial class PortableUpdateTests
     }
 
     [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task UnwritableResultDoesNotPreventRollbackAndRestart(bool throwsDuringStartup)
+    {
+        using var tree = new TempTree();
+        var (installation, job) = MakeUpdate(tree.Root);
+        var restarted = false;
+        var result = await PortableUpdateInstaller.ApplyAsync(job, _ =>
+        {
+            BlockResultFile(job);
+            if (throwsDuringStartup) { throw new IOException("Candidate startup failed."); }
+            return Task.FromResult(false);
+        }, executable =>
+        {
+            restarted = true;
+            Assert.AreEqual("5.3.8", PortablePackage.ReadManifest(Path.GetDirectoryName(executable)!).Version);
+        }, default);
+
+        Assert.AreEqual("RolledBack", result.State);
+        Assert.IsTrue(restarted, "A diagnostic write failure must not leave the restored app closed.");
+        Assert.AreEqual("5.3.8", PortablePackage.ReadManifest(installation).Version);
+        Assert.IsTrue(Directory.Exists(Path.Combine(job, "failed-version")));
+    }
+
+    [TestMethod]
+    public async Task UnwritableRecoveryResultDoesNotRestartAnUnconfirmedCandidate()
+    {
+        using var tree = new TempTree();
+        var (installation, job) = MakeUpdate(tree.Root);
+        var restarted = false;
+        var result = await PortableUpdateInstaller.ApplyAsync(job, _ =>
+        {
+            BlockResultFile(job);
+            throw new PortableUpdateException("RecoveryRequired");
+        }, _ => restarted = true, default);
+
+        Assert.AreEqual("RecoveryRequired", result.State);
+        Assert.IsFalse(restarted, "Another process owns the installation; recovery must retain both directories.");
+        Assert.AreEqual("5.10.0", PortablePackage.ReadManifest(installation).Version);
+        Assert.AreEqual("5.3.8", PortablePackage.ReadManifest(result.BackupDirectory).Version);
+    }
+
+    [TestMethod]
+    public async Task UnwritableCompletionResultDoesNotRollBackHealthyCandidate()
+    {
+        using var tree = new TempTree();
+        var (installation, job) = MakeUpdate(tree.Root);
+        var restarted = false;
+        var result = await PortableUpdateInstaller.ApplyAsync(job, _ =>
+        {
+            BlockResultFile(job);
+            return Task.FromResult(true);
+        }, _ => restarted = true, default);
+
+        Assert.AreEqual("Completed", result.State);
+        Assert.IsFalse(restarted);
+        Assert.AreEqual("5.10.0", PortablePackage.ReadManifest(installation).Version);
+    }
+
+    [TestMethod]
+    public async Task InitialResultWriteFailureKeepsOriginalInstallationAndRestartsIt()
+    {
+        using var tree = new TempTree();
+        var (installation, job) = MakeUpdate(tree.Root);
+        BlockResultFile(job);
+        var restarted = false;
+        var result = await PortableUpdateInstaller.ApplyAsync(job,
+            _ => throw new AssertFailedException("Candidate must not start before a replacement journal is written."),
+            _ => restarted = true, default);
+
+        Assert.AreEqual("Failed", result.State);
+        Assert.IsTrue(restarted);
+        Assert.AreEqual("5.3.8", PortablePackage.ReadManifest(installation).Version);
+        Assert.IsFalse(Directory.Exists(Path.Combine(job, "backup")));
+    }
+
+    private static void BlockResultFile(string job)
+    {
+        var path = Path.Combine(job, "result.json");
+        File.Delete(path);
+        Directory.CreateDirectory(path);
+    }
+
+    [TestMethod]
     public async Task UserFileCollisionAndDamagedPayloadNeverReplaceInstallation()
     {
         foreach (var damaged in new[] { true, false })

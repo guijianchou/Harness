@@ -13,8 +13,11 @@ using Microsoft.Web.WebView2.Core;
 
 public static class HarnessNativeRegression
 {
+    public static string FontBaseDirectory { get; private set; } = string.Empty;
+
     public static void Run(string loaderFolder, string repoRoot, string outputDirectory)
     {
+        FontBaseDirectory = Path.Combine(repoRoot, "src", "Harness");
         CoreWebView2Environment.SetLoaderDllFolderPath(loaderFolder);
         var profile = Directory.CreateTempSubdirectory("Harness-native-regression-");
         Harness.Helpers.StringResources.Load(Path.Combine(repoRoot, "src", "Harness", "Strings", "en-us", "Resources.resw"));
@@ -33,6 +36,7 @@ public static class HarnessNativeRegression
                 await VerifyProtectedGatewaySettingsAsync(Path.Combine(profile.FullName, "gateway-settings-regression"));
                 await VerifyAppearanceAndStartupSettingsAsync(Path.Combine(profile.FullName, "appearance-settings-regression"));
                 await VerifyMergedEnvironmentSettingsAsync(Path.Combine(profile.FullName, "merged-environment-settings-regression"));
+                await VerifyProfileIsolationAsync(form.Handle, Path.Combine(profile.FullName, "profile-isolation"));
                 var environment = await CoreWebView2Environment.CreateAsync(null, profile.FullName);
                 environment.BrowserProcessExited += (_, _) => browserExited.TrySetResult(true);
                 controller = await environment.CreateCoreWebView2ControllerAsync(form.Handle);
@@ -41,6 +45,7 @@ public static class HarnessNativeRegression
                 Console.WriteLine("WebView2 runtime: " + environment.BrowserVersionString);
                 await NavigateAsync(core, () => { core.NavigateToString("<html><body>Native regression</body></html>"); return Task.CompletedTask; });
                 await VerifyCommandsAsync(core);
+                await VerifyTypographyAsync(core, environment);
                 await VerifyErrorPageAsync(core, controller, environment, repoRoot, outputDirectory);
             }
             catch (Exception ex)
@@ -75,18 +80,92 @@ public static class HarnessNativeRegression
         }
     }
 
+    private static async Task VerifyProfileIsolationAsync(IntPtr parentWindow, string folder)
+    {
+        const string target = "https://profile-isolation-native.test/control";
+        var controllers = new List<CoreWebView2Controller>();
+        var browserExitTasks = new List<Task>();
+
+        async Task<CoreWebView2> OpenProfileAsync(string name)
+        {
+            var requestedFolder = Path.GetFullPath(Path.Combine(folder, name));
+            var environment = await CoreWebView2Environment.CreateAsync(null, requestedFolder);
+            // Fail before creating a controller if a host override redirects the
+            // requested temporary profile to an unexpected or real user folder.
+            Check(string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(environment.UserDataFolder)),
+                Path.TrimEndingDirectorySeparator(requestedFolder), StringComparison.OrdinalIgnoreCase),
+                $"profile {name} uses its requested temporary UserDataFolder");
+            var browserExited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            environment.BrowserProcessExited += (_, _) => browserExited.TrySetResult(true);
+            var profileController = await environment.CreateCoreWebView2ControllerAsync(parentWindow);
+            controllers.Add(profileController);
+            browserExitTasks.Add(browserExited.Task);
+            profileController.IsVisible = false;
+            var core = profileController.CoreWebView2;
+            core.AddWebResourceRequestedFilter(target, CoreWebView2WebResourceContext.Document);
+            core.WebResourceRequested += (_, args) =>
+            {
+                const string html = "<!doctype html><html><head><link rel='icon' href='data:,'></head><body>Profile isolation fixture</body></html>";
+                args.Response = environment.CreateWebResourceResponse(new MemoryStream(Encoding.UTF8.GetBytes(html)), 200, "OK",
+                    "Content-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nContent-Security-Policy: default-src 'none'");
+            };
+            await NavigateAsync(core, () => { core.Navigate(target); return Task.CompletedTask; });
+            return core;
+        }
+
+        try
+        {
+            var first = await OpenProfileAsync("environment-a-" + Guid.NewGuid().ToString("N"));
+            Check(await first.ExecuteScriptAsync("document.cookie === '' && localStorage.getItem('harness_profile_probe') === null") == "true",
+                "first temporary profile starts with no fixture cookies or storage");
+            await first.ExecuteScriptAsync("document.cookie = 'harness_profile_probe=environment-a; Path=/; Secure; SameSite=Strict'; localStorage.setItem('harness_profile_probe', 'environment-a');");
+            Check(await first.ExecuteScriptAsync("document.cookie === 'harness_profile_probe=environment-a' && localStorage.getItem('harness_profile_probe') === 'environment-a'") == "true",
+                "first profile stores its own same-origin cookie and localStorage");
+
+            var second = await OpenProfileAsync("environment-b-" + Guid.NewGuid().ToString("N"));
+            Check(await second.ExecuteScriptAsync("document.cookie === '' && localStorage.getItem('harness_profile_probe') === null") == "true",
+                "second profile cannot read the first profile's same-origin cookie or localStorage");
+            await second.ExecuteScriptAsync("document.cookie = 'harness_profile_probe=environment-b; Path=/; Secure; SameSite=Strict'; localStorage.setItem('harness_profile_probe', 'environment-b');");
+
+            await NavigateAsync(first, () => { first.Reload(); return Task.CompletedTask; });
+            await NavigateAsync(second, () => { second.Reload(); return Task.CompletedTask; });
+            Check(await first.ExecuteScriptAsync("document.cookie === 'harness_profile_probe=environment-a' && localStorage.getItem('harness_profile_probe') === 'environment-a'") == "true",
+                "first profile preserves its own cookie and localStorage after the second profile writes and both reload");
+            Check(await second.ExecuteScriptAsync("document.cookie === 'harness_profile_probe=environment-b' && localStorage.getItem('harness_profile_probe') === 'environment-b'") == "true",
+                "second profile preserves its own cookie and localStorage after reload");
+        }
+        finally
+        {
+            foreach (var profileController in controllers) profileController.Close();
+            if (browserExitTasks.Count > 0)
+            {
+                try { await Task.WhenAll(browserExitTasks).WaitAsync(TimeSpan.FromSeconds(3)); }
+                catch (TimeoutException) { Console.WriteLine("Temporary isolation browsers are still exiting; final cleanup will retry."); }
+            }
+        }
+    }
+
     private static async Task VerifyCommandsAsync(CoreWebView2 core)
     {
         var ownership = new WebViewMessageOwnership();
         ownership.AcceptPageToken(core.Source, "native-test-page");
         var version = ownership.CaptureAcceptedPageVersion();
+        await core.ExecuteScriptAsync("window.__openClawHostBridge = " + JsonSerializer.Serialize(new
+        {
+            ownerToken = ownership.OwnerToken,
+            pageToken = "native-test-page"
+        }) + ";");
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         async Task<bool> Execute(string script) => await WebViewScriptExecutor.ExecuteBooleanAsync(core, ownership, version, script, deadline.Token);
         Check(await Execute("true"), "synchronous command reply");
         Check(await Execute("Promise.resolve(true)"), "resolved Promise reply");
         Check(!await Execute("Promise.resolve(false)"), "unhandled Promise reply");
         Check(!await Execute("Promise.reject(new Error('synthetic failure'))"), "rejected Promise reply");
-        await core.ExecuteScriptAsync("window.abortCount = 0; window.__openClawHostBridge = { onCommand: async () => { window.abortCount++; return true; } };");
+        await core.ExecuteScriptAsync("window.sideEffectCount = 0; window.__openClawHostBridge.pageToken = 'replacement-page';");
+        Check(!await Execute("(++window.sideEffectCount, true)"), "retired page command is unhandled before evaluation");
+        Check(await core.ExecuteScriptAsync("window.sideEffectCount") == "0", "retired command cannot execute a side effect");
+        await core.ExecuteScriptAsync("window.__openClawHostBridge.pageToken = 'native-test-page';");
+        await core.ExecuteScriptAsync("window.abortCount = 0; Object.assign(window.__openClawHostBridge, { getBackendKind: () => 'OpenClaw', onCommand: async () => { window.abortCount++; return true; } });");
         Check(await Execute(WebViewCommandScripts.AbortRun), "actual AbortRun script reports success");
         Check(await core.ExecuteScriptAsync("window.abortCount") == "1", "abort executes exactly once");
 
@@ -104,7 +183,54 @@ public static class HarnessNativeRegression
 
         ownership.AcceptPageToken(core.Source, "next-native-test-page");
         version = ownership.CaptureAcceptedPageVersion();
+        await core.ExecuteScriptAsync("window.__openClawHostBridge.pageToken = 'next-native-test-page';");
         Check(await Execute("Promise.resolve(true)"), "command recovers after timeout and page retirement");
+    }
+
+    private static async Task VerifyTypographyAsync(CoreWebView2 core, CoreWebView2Environment environment)
+    {
+        const string target = "https://typography-native.test/control";
+        core.AddWebResourceRequestedFilter(target, CoreWebView2WebResourceContext.Document);
+        EventHandler<CoreWebView2WebResourceRequestedEventArgs> servePage = (_, args) =>
+        {
+            const string html = "<html><head><style>.btn,.input{font-size:14px}</style></head><body><h1>Heading 标题</h1><p id='body'>English 中文</p><button id='button' class='btn'>Button 按钮</button><textarea id='input' class='input'>Input 输入</textarea><pre><code id='code'>code 代码</code></pre><span id='icon' class='material-icons' style='font-family:monospace'>M</span></body></html>";
+            args.Response = environment.CreateWebResourceResponse(new MemoryStream(Encoding.UTF8.GetBytes(html)), 200, "OK",
+                "Content-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'");
+        };
+        core.WebResourceRequested += servePage;
+        try
+        {
+            using var service = new WebViewService(core, typography: true);
+            service.SetContentTypography("Noto Sans SC", 18);
+            await NavigateAsync(core, () => { core.Navigate(target); return Task.CompletedTask; });
+            await service.WaitForTypographyAsync();
+            await core.ExecuteScriptAsync("document.fonts.load('18px \"Harness Noto Sans SC\"', 'English 中文').then(fonts => window.fontReady = fonts.length === 1).catch(() => window.fontReady = false)");
+            for (var attempt = 0; attempt < 100 && await core.ExecuteScriptAsync("window.fontReady") == "null"; attempt++)
+            {
+                await Task.Delay(50);
+            }
+            Check(await core.ExecuteScriptAsync("window.fontReady") == "true", "bundled Noto font loads through production same-origin route under font-src self CSP");
+            Check(await core.ExecuteScriptAsync("getComputedStyle(document.getElementById('body')).fontFamily.includes('Harness Noto Sans SC') && getComputedStyle(document.getElementById('body')).fontSize === '18px'") == "true", "native page applies selected family and base size to English and Chinese text");
+            Check(await core.ExecuteScriptAsync("getComputedStyle(document.getElementById('button')).fontSize === '18px' && getComputedStyle(document.getElementById('input')).fontSize === '18px'") == "true", "form controls follow selected typography despite fixed page font-size rules");
+            Check(await core.ExecuteScriptAsync("getComputedStyle(document.getElementById('code')).fontFamily.includes('monospace') && getComputedStyle(document.getElementById('icon')).fontFamily.includes('monospace')") == "true", "typography preserves code and icon fonts in a real browser");
+            service.SetContentTypography("System UI", 14);
+            await service.WaitForTypographyAsync();
+            Check(await core.ExecuteScriptAsync("getComputedStyle(document.body).fontFamily.startsWith('system-ui') && getComputedStyle(document.body).fontSize === '14px' && document.querySelectorAll('#harness-typography').length === 1") == "true", "font change applies without reload or duplicate styles");
+            service.SetContentTypography("Noto Sans SC", 18);
+            await NavigateAsync(core, () => { core.NavigateToString("<html><body>Local page 本地页面</body></html>"); return Task.CompletedTask; });
+            await service.WaitForTypographyAsync();
+            await core.ExecuteScriptAsync("document.fonts.load('18px \"Harness Noto Sans SC\"', 'English 中文').then(fonts => window.fontReady = fonts.length === 1).catch(() => window.fontReady = false)");
+            for (var attempt = 0; attempt < 100 && await core.ExecuteScriptAsync("window.fontReady") == "null"; attempt++)
+            {
+                await Task.Delay(50);
+            }
+            Check(await core.ExecuteScriptAsync("window.fontReady") == "true", "local data pages load bundled Noto through the reserved local-only font route");
+        }
+        finally
+        {
+            core.WebResourceRequested -= servePage;
+            core.RemoveWebResourceRequestedFilter(target, CoreWebView2WebResourceContext.Document);
+        }
     }
 
     private static async Task VerifyProtectedGatewaySettingsAsync(string folder)
@@ -534,6 +660,9 @@ namespace Harness.Services
         private readonly TestInspector _statusInspector;
         private readonly IAppLogger _logger = new TestLogger();
         private readonly bool _isInitialized = true;
+        private readonly int _hostGeneration = 1;
+        private readonly bool _typographyAttached;
+        private bool _isDisposed;
         private string? _lastNavigatedUrl;
         private int _retryCount;
         private ulong _currentNavigationId;
@@ -545,8 +674,9 @@ namespace Harness.Services
         public event Action<string>? NavigationErrorOccurred;
         public event Action<ControlUiProbeSnapshot>? ControlUiSnapshotUpdated;
         public static void RegisterEnvironmentProfiles(IEnumerable<Harness.Models.EnvironmentConfig> savedEnvironments) { }
-        public WebViewService(CoreWebView2 core) { _coreWebView = core; _statusInspector = new TestInspector(snapshot => ApplyControlUiSnapshot(snapshot, false)); core.WebMessageReceived += HandleMessage; core.NavigationStarting += HandleStarting; }
-        public void Dispose() { _coreWebView.WebMessageReceived -= HandleMessage; _coreWebView.NavigationStarting -= HandleStarting; }
+        public WebViewService(CoreWebView2 core, bool typography = false) { _coreWebView = core; _statusInspector = new TestInspector(snapshot => ApplyControlUiSnapshot(snapshot, false)); core.WebMessageReceived += HandleMessage; core.NavigationStarting += HandleStarting; _typographyAttached = typography; if (typography) AttachContentTypography(core, _hostGeneration); }
+        public void Dispose() { _isDisposed = true; if (_typographyAttached) DetachContentTypography(_coreWebView); _coreWebView.WebMessageReceived -= HandleMessage; _coreWebView.NavigationStarting -= HandleStarting; }
+        public Task WaitForTypographyAsync() => _typographyApplyTask;
         public void ShowError(string target, string status, ConnectionState state = ConnectionState.Error) { _lastNavigatedUrl = target; SetState(state); NavigateToErrorPage(target, status); }
         public void SetTheme(bool dark) { _webView.ActualTheme = dark ? Microsoft.UI.Xaml.ElementTheme.Dark : Microsoft.UI.Xaml.ElementTheme.Light; ApplyWebViewColorScheme(); }
         private void HandleMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs args) => OnWebMessageReceived(_coreWebView, args, 1);
@@ -555,7 +685,7 @@ namespace Harness.Services
             LastNavigationScheme = Uri.TryCreate(args.Uri, UriKind.Absolute, out var uri) ? uri.Scheme : "unknown";
             OnNavigationStarting(_coreWebView, args, 1);
         }
-        private bool IsCurrentHost(int generation) => generation == 1;
+        private bool IsCurrentHost(int generation) => !_isDisposed && generation == 1;
         private CoreWebView2 GetCoreWebView() => _coreWebView;
         private void SetState(ConnectionState state) => CurrentState = state;
         private int PrepareNavigationStart() { ClearErrorPageOwnership(); _messageOwnership.BeginNavigation(); return 1; }

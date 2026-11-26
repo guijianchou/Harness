@@ -129,4 +129,81 @@ public sealed class TrayClosePolicyTests
 
         Assert.AreEqual(TrayCloseDisposition.Exit, policy.GetCloseDisposition(systemTray: true));
     }
+
+    [TestMethod]
+    public void FirstUnavailableTrayCloseKeepsWindowVisible()
+    {
+        var policy = new TrayClosePolicy();
+
+        Assert.AreEqual(TrayCloseDisposition.KeepVisible,
+            policy.GetUnavailableTrayCloseDisposition(DateTimeOffset.UnixEpoch));
+        Assert.AreEqual(TrayCloseDisposition.HideToTray, policy.GetCloseDisposition(systemTray: true),
+            "The next close must retry tray registration before considering exit.");
+    }
+
+    [TestMethod]
+    [DataRow(0)]
+    [DataRow(15)]
+    public void RepeatedUnavailableTrayCloseConfirmsExitWithinWindow(int elapsedSeconds)
+    {
+        var policy = new TrayClosePolicy();
+        var firstClose = DateTimeOffset.UnixEpoch;
+        policy.GetUnavailableTrayCloseDisposition(firstClose);
+
+        Assert.AreEqual(TrayCloseDisposition.Exit,
+            policy.GetUnavailableTrayCloseDisposition(firstClose.AddSeconds(elapsedSeconds)));
+        policy.NotifyTrayAvailable();
+        Assert.AreEqual(TrayCloseDisposition.Exit, policy.GetCloseDisposition(systemTray: true),
+            "A confirmed exit must survive tray recovery while settings are still saving.");
+    }
+
+    [TestMethod]
+    [DataRow(16)]
+    [DataRow(-1)]
+    public void ExpiredOrReversedClockStartsNewConfirmation(int elapsedSeconds)
+    {
+        var policy = new TrayClosePolicy();
+        var firstClose = DateTimeOffset.UnixEpoch;
+        policy.GetUnavailableTrayCloseDisposition(firstClose);
+        var nextClose = firstClose.AddSeconds(elapsedSeconds);
+
+        Assert.AreEqual(TrayCloseDisposition.KeepVisible, policy.GetUnavailableTrayCloseDisposition(nextClose));
+        Assert.AreEqual(TrayCloseDisposition.Exit, policy.GetUnavailableTrayCloseDisposition(nextClose.AddSeconds(1)));
+    }
+
+    [TestMethod]
+    public void RecoveredTrayClearsPendingExitConfirmation()
+    {
+        var policy = new TrayClosePolicy();
+        var firstClose = DateTimeOffset.UnixEpoch;
+        policy.GetUnavailableTrayCloseDisposition(firstClose);
+
+        policy.NotifyTrayAvailable();
+
+        Assert.AreEqual(TrayCloseDisposition.KeepVisible,
+            policy.GetUnavailableTrayCloseDisposition(firstClose.AddSeconds(1)));
+    }
+
+    [TestMethod]
+    public void DisabledTrayClearsPendingExitConfirmation()
+    {
+        var policy = new TrayClosePolicy();
+        var firstClose = DateTimeOffset.UnixEpoch;
+        policy.GetUnavailableTrayCloseDisposition(firstClose);
+
+        Assert.AreEqual(TrayCloseDisposition.Exit, policy.GetCloseDisposition(systemTray: false));
+        Assert.AreEqual(TrayCloseDisposition.KeepVisible,
+            policy.GetUnavailableTrayCloseDisposition(firstClose.AddSeconds(1)));
+    }
+
+    [TestMethod]
+    public void ExplicitExitBypassesUnavailableTrayConfirmation()
+    {
+        var policy = new TrayClosePolicy();
+        policy.GetUnavailableTrayCloseDisposition(DateTimeOffset.UnixEpoch);
+        policy.RequestExit();
+
+        Assert.AreEqual(TrayCloseDisposition.Exit,
+            policy.GetUnavailableTrayCloseDisposition(DateTimeOffset.UnixEpoch.AddMinutes(1)));
+    }
 }

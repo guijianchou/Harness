@@ -13,6 +13,10 @@ public sealed record LiveShellSettings(
 
     public double ZoomFactor { get; init; } = 1.0;
 
+    public string AppFontFamily { get; init; } = "System UI";
+
+    public double AppFontSize { get; init; } = 14;
+
     public static LiveShellSettings From(AppSettings settings)
     {
         return new LiveShellSettings(
@@ -24,6 +28,8 @@ public sealed record LiveShellSettings(
         {
             AppTheme = settings.AppTheme,
             ZoomFactor = settings.ZoomFactor,
+            AppFontFamily = settings.AppFontFamily,
+            AppFontSize = settings.AppFontSize,
         };
     }
 }

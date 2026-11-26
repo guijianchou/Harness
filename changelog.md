@@ -8,6 +8,20 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 
 ## English
 
+### v5.3.12 (2026-11-26)
+
+- Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.12`; aligned the Core library, updater, Gateway client, and validation fixtures.
+- Focused dedicated Agent support on Hermes Agent and OpenClaw; other sites and legacy DeepSeek profiles use Generic hosting without losing their URL or browser profile. Added official Hermes `hermes webapp` model/status/stop adaptation and Gateway contract research. Native Hermes Gateway management is not implemented.
+- Added System UI and bundled Noto Sans SC font preferences with a 10–32 px base size, applied to native controls and hosted pages while preserving icons, code fonts, page security policies, and separate web zoom.
+- Verify WebView2's effective user-data folder before creating its controller. Reject environment/policy overrides that redirect an environment to another profile; keep heartbeat, latency, and diagnostic HTTP probes free of shared cookies and automatic redirects; align single-instance pipe names with the Windows session scope and back off listener failures.
+- Keep asynchronous Stop and its fallbacks bound to the original page, session, run, and deadline. Do not send Agent commands to Generic pages or issue a second Stop against a newer run.
+- Preserve selected environments by stable ID through renames. Reset committed Settings edit flags so repeated saves cannot overwrite later live changes, including appearance preferences.
+- Keep the main window visible when tray registration fails; a second close within 15 seconds exits if recovery still fails. Successful recovery clears the pending exit confirmation, and active Settings saves still finish before exit.
+- Generate unique diagnostic archive names and create new files exclusively so repeated or concurrent exports cannot overwrite an earlier bundle.
+- Make update-result reporting best effort after failure, preserving rollback and old-version restart. Failed lease reacquisition requires manual recovery; fallback restart only launches the restored previous version.
+- Normalize generated apphosts and the update's three staged EXEs to Medium integrity without changing directory labels or DACLs, and cover `testhost.x86.exe`. Update preparation fails before handoff if staged integrity cannot be prepared.
+- Expanded automated coverage for backend selection, isolation, stop ownership, Settings, tray recovery, diagnostics, fonts, and portable updates. Real Hermes/OpenClaw VPS authentication, proxy routing, streaming, and server-side cancellation remain unverified.
+
 ### v5.3.11 (2026-11-25)
 
 - Updated app, assembly, file, package manifest, application manifest, README, Chinese README, and changelog metadata to `5.3.11`; aligned the Core library, updater, and Gateway client version.
@@ -418,6 +432,20 @@ Full release notes for Harness (formerly OpenClaw Manager). See [README.md](READ
 ---
 
 ## 简体中文
+
+### v5.3.12 (2026-11-26)
+
+- 将应用、程序集、文件、包清单、应用清单、README、中英文说明和更新日志版本统一到 `5.3.12`，同步 Core、更新器、Gateway 客户端和验证夹具版本。
+- Agent 专用支持聚焦 Hermes Agent 与 OpenClaw；其他站点及旧 DeepSeek 配置转为普通 Web 承载，保留 URL 与浏览器资料。增加官方 Hermes `hermes webapp` 的模型、状态和停止适配及 Gateway 契约研究文档；原生 Hermes Gateway 管理尚未实现。
+- 增加 System UI、随包提供的 Noto Sans SC 和 10–32 px 基础字号设置，应用于原生控件与内嵌页面，保留图标、代码字体、页面安全策略及独立网页缩放。
+- 创建 WebView2 控制器前验证实际资料目录，拒绝环境变量或策略将其重定向至其他资料；心跳、延迟和诊断 HTTP 探测不共享 Cookie、不自动跟随重定向；单实例激活管道与 Windows 会话作用域对齐，并对监听失败退避。
+- 异步停止及其回退绑定原页面、会话、运行和截止时间；不向普通网页发送 Agent 命令，也不会二次停止后来启动的运行。
+- 环境重命名按稳定 ID 保留当前选择；成功保存后重置设置编辑标记，避免再次保存覆盖后来发生的实时修改，包括外观设置。
+- 托盘注册失败时保留主窗口，15 秒内再次关闭且恢复仍失败时退出；恢复成功清除待确认退出，正在执行的设置保存仍会先完成。
+- 诊断归档采用唯一文件名和独占新建方式，防止重复或并发导出覆盖已有文件。
+- 更新失败后的结果记录改为尽力写入，不再阻断回滚和旧版重启；重新获取租约失败时保留目录待人工恢复，兜底仅启动已恢复的旧版。
+- 仅规范化生成的 apphost 和更新暂存区的三个 EXE 为 Medium 完整性，不修改目录标签或 DACL，并覆盖 `testhost.x86.exe`。暂存标签无法准备时在交接前终止更新准备。
+- 扩展后端选择、隔离、停止归属、设置、托盘恢复、诊断、字体和便携更新自动回归；真实 Hermes/OpenClaw VPS 认证、代理、流式输出与服务端取消仍未验收。
 
 ### v5.3.11 (2026-11-25)
 

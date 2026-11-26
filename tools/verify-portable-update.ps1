@@ -14,6 +14,7 @@ dotnet build (Join-Path $repoRoot 'src/Harness.Updater/Harness.Updater.csproj') 
 if ($LASTEXITCODE -ne 0) { throw 'Updater build failed.' }
 $fixtureSource = Join-Path $PSScriptRoot 'UpdateProcessFixture/bin/Debug/net10.0/win-x64'
 $helperSource = Join-Path $repoRoot 'src/Harness.Updater/bin/Debug/net10.0/win-x64'
+Add-Type -Path (Join-Path $helperSource 'Harness.Core.dll')
 
 function Write-Json($path, $value) { [IO.File]::WriteAllText($path, ($value | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false)) }
 function Wait-File($path, $seconds = 40) {
@@ -53,7 +54,7 @@ function Make-Package($directory, $version, $mode) {
 }
 
 $results = @()
-foreach ($mode in @('healthy', 'fail', 'busy')) {
+foreach ($mode in @('healthy', 'fail', 'busy', 'blocked-result')) {
     $case = Join-Path $runRoot $mode
     [IO.Directory]::CreateDirectory($case) | Out-Null
     $installation = Join-Path $case 'Harness portable test'
@@ -63,6 +64,9 @@ foreach ($mode in @('healthy', 'fail', 'busy')) {
     Copy-Item -Path (Join-Path $helperSource '*') -Destination $runner -Recurse
     Make-Package $installation '5.3.8' 'old'
     Make-Package (Join-Path $job 'payload') '5.10.0' $mode
+    # Fixtures created in a Low workspace must start at the same level as real prepared apphosts.
+    & (Join-Path $env:SystemRoot 'System32/icacls.exe') (Join-Path $installation 'Harness.exe') /setintegritylevel M | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the isolated parent fixture integrity label.' }
     [IO.File]::WriteAllText((Join-Path $installation 'personal-note.txt'), 'Preserve this file')
     $ready = Join-Path $case 'parent-ready'
     $stop = Join-Path $case 'stop-parent'
@@ -78,11 +82,21 @@ foreach ($mode in @('healthy', 'fail', 'busy')) {
             Wait-File $otherReady
         }
         Write-Json (Join-Path $job 'plan.json') @{ installation = $installation; currentVersion = '5.3.8'; version = '5.10.0'; parentProcessId = $parent.Id; parentStartTicks = $parent.StartTime.ToUniversalTime().Ticks }
+        [Harness.Updates.PortableUpdateIntegrity]::NormalizePreparedAppHosts($job)
         $helper = Start-Hidden (Join-Path $runner 'Harness.Updater.exe') @($job)
         Wait-File (Join-Path $job 'helper-ready.json')
         if (-not (Test-Path -LiteralPath (Join-Path $installation 'Harness.exe'))) { throw 'Helper changed files before parent exit.' }
+        if ($mode -eq 'blocked-result') { [IO.Directory]::CreateDirectory((Join-Path $job 'result.json')) | Out-Null }
         [IO.File]::WriteAllText($stop, 'stop')
         if (-not $helper.WaitForExit(60000)) { throw 'Updater did not complete.' }
+        if ($mode -eq 'blocked-result') {
+            Wait-File (Join-Path $installation 'restarted.txt')
+            $installed = Get-Content -LiteralPath (Join-Path $installation 'portable-manifest.json') -Raw | ConvertFrom-Json
+            if ($installed.version -ne '5.3.8' -or $helper.ExitCode -eq 0) { throw 'A blocked result file must leave and restart the old installation.' }
+            $results += [pscustomobject]@{ Case = $mode; Result = 'PreviousVersionRestarted'; ExitCode = $helper.ExitCode }
+            Write-Output 'PASS: result write failure does not prevent restarting the previous version'
+            continue
+        }
         $result = Get-Content -LiteralPath (Join-Path $job 'result.json') -Raw | ConvertFrom-Json
         $expected = if ($mode -eq 'healthy') { 'Completed' } elseif ($mode -eq 'busy') { 'Failed' } else { 'RolledBack' }
         if ($result.state -ne $expected) { throw "Expected $expected, got $($result | ConvertTo-Json -Compress)" }

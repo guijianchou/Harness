@@ -39,6 +39,7 @@ public static class PortableUpdatePreparation
             using var process = Process.GetCurrentProcess();
             PortableUpdatePaths.WriteJson(Path.Combine(job, "plan.json"), new PortableUpdatePlan(installation, currentVersion,
                 release.Version, process.Id, process.StartTime.ToUniversalTime().Ticks));
+            PortableUpdateIntegrity.NormalizePreparedAppHosts(job);
             File.Delete(archive);
             return job;
         }

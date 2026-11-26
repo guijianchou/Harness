@@ -26,7 +26,7 @@
             <TextBlock x:Name="LogFileLabel"
                        VerticalAlignment="Center"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       FontSize="12" />
+                       helpers:AppTypography.BaseSize="12" />
         </StackPanel>
 
         <!-- Log content -->
@@ -37,7 +37,7 @@
             <TextBlock x:Name="LogContent"
                        TextWrapping="NoWrap"
                        FontFamily="Cascadia Mono, Consolas, Courier New"
-                       FontSize="12"
+                       helpers:AppTypography.BaseSize="12"
                        IsTextSelectionEnabled="True" />
         </ScrollViewer>
     </Grid>

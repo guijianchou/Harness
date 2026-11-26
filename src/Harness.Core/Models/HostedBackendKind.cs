@@ -10,9 +10,8 @@ namespace Harness.Models;
 public enum HostedBackendKind
 {
     /// <summary>
-    /// Detect at runtime. Backend-specific probes and DOM readers are all
-    /// attempted, and the latency probe falls back to the site root when the
-    /// backend-specific path is absent. Correct default for an unknown backend.
+    /// Detect a supported agent from explicit page markers. Until identified,
+    /// use ordinary Web behavior and probe only the configured page URL.
     /// </summary>
     Auto = 0,
 
@@ -24,14 +23,20 @@ public enum HostedBackendKind
     OpenClaw = 1,
 
     /// <summary>
-    /// DeepSeek Harness Web UI. Uses root latency probe with generic DOM heuristics
-    /// and CJK + English vocabulary matching for status detection.
+    /// Legacy persisted value. Settings migrate it to <see cref="Generic"/>.
+    /// Its numeric value must not be reused for a different product.
     /// </summary>
     DeepSeek = 2,
 
     /// <summary>
-    /// A hosted Control UI with no Harness-specific integration contract.
-    /// Latency probes the site root and the bridge uses generic DOM heuristics only.
+    /// An ordinary Web application. Probe the configured page URL without
+    /// agent-specific state detection or page commands.
     /// </summary>
     Generic = 3,
+
+    /// <summary>
+    /// Hermes Agent Web UI. Enables the Hermes page adapter while retaining
+    /// the configured page URL for transport probes.
+    /// </summary>
+    Hermes = 4,
 }

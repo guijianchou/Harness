@@ -1,0 +1,33 @@
+<Project>
+  <!--
+    A checkout can inherit a Low mandatory integrity label from its workspace.
+    Windows also applies an executable's label when creating its process, even
+    when Explorer launches it. Normalize only the finished desktop apphosts so
+    normal user launches can write Settings/WebView2 data and use the shell tray.
+    This does not change the checkout's permissions or request administrator access.
+  -->
+  <Target Name="NormalizeBuiltAppHostIntegrity" AfterTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT' And '$(DesignTimeBuild)' != 'true' And '$(IsCrossTargetingBuild)' != 'true' And '$(UseAppHost)' != 'false' And ('$(MSBuildProjectName)' == 'Harness' Or '$(MSBuildProjectName)' == 'Harness.Updater') And Exists('$(TargetDir)$(AssemblyName).exe')">
+    <Exec Command="&quot;$(SystemRoot)\System32\icacls.exe&quot; &quot;$(TargetDir)$(AssemblyName).exe&quot; /setintegritylevel M"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <!-- Publish copies into a different directory and can inherit Low again. -->
+  <Target Name="NormalizePublishedAppHostIntegrity" AfterTargets="Publish"
+          Condition="'$(OS)' == 'Windows_NT' And '$(DesignTimeBuild)' != 'true' And '$(IsCrossTargetingBuild)' != 'true' And '$(UseAppHost)' != 'false' And ('$(MSBuildProjectName)' == 'Harness' Or '$(MSBuildProjectName)' == 'Harness.Updater') And Exists('$(PublishDir)$(AssemblyName).exe')">
+    <Exec Command="&quot;$(SystemRoot)\System32\icacls.exe&quot; &quot;$(PublishDir)$(AssemblyName).exe&quot; /setintegritylevel M"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <!-- The generated VSTest host must also run at the invoking user's level. -->
+  <Target Name="NormalizeTestHostIntegrity" AfterTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT' And '$(DesignTimeBuild)' != 'true' And '$(IsCrossTargetingBuild)' != 'true' And '$(IsTestProject)' == 'true'">
+    <ItemGroup>
+      <HarnessTestHost Include="$(TargetDir)testhost.exe" Condition="Exists('$(TargetDir)testhost.exe')" />
+      <HarnessTestHost Include="$(TargetDir)testhost.x86.exe" Condition="Exists('$(TargetDir)testhost.x86.exe')" />
+    </ItemGroup>
+    <Exec Command="&quot;$(SystemRoot)\System32\icacls.exe&quot; &quot;%(HarnessTestHost.Identity)&quot; /setintegritylevel M"
+          Condition="'@(HarnessTestHost)' != ''"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+</Project>

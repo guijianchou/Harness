@@ -70,6 +70,16 @@ public class AppSettings
     public string AppLanguage { get; set; } = "en-US";
 
     /// <summary>
+    /// Gets or sets the application text font (System UI or Noto Sans SC).
+    /// </summary>
+    public string AppFontFamily { get; set; } = "System UI";
+
+    /// <summary>
+    /// Gets or sets the base application text size in logical pixels.
+    /// </summary>
+    public double AppFontSize { get; set; } = 14;
+
+    /// <summary>
     /// Gets or sets whether closing the main window hides it to the system tray.
     /// </summary>
     public bool SystemTray { get; set; } = false;

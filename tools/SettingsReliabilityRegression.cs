@@ -22,6 +22,9 @@ public static class SettingsReliabilityRegression
             VerifyStaleEnvironmentDraft(Path.Combine(folder.FullName, "stale-addition"), remoteAddition: true);
             VerifyStaleEnvironmentDraft(Path.Combine(folder.FullName, "stale-edit"), remoteAddition: false);
             VerifyDefaultEnvironmentBaseline(Path.Combine(folder.FullName, "default-baseline"));
+            VerifySelectedEnvironmentIdentity(Path.Combine(folder.FullName, "selected-identity"));
+            VerifyBackendSelection(Path.Combine(folder.FullName, "backend-selection"));
+            VerifyTypographySettings(Path.Combine(folder.FullName, "typography"));
             await VerifyCommittedSynchronizationAsync(Path.Combine(folder.FullName, "synchronization"));
             VerifyProfileDeletion(folder.FullName);
             VerifyEmptyEnvironment(Path.Combine(folder.FullName, "empty-environment"));
@@ -56,6 +59,137 @@ public static class SettingsReliabilityRegression
 
     private static SettingsViewModel CreateModel(ConfigurationService configuration) =>
         new(new SettingsPersistenceAdapter(configuration, TestLogger.Instance));
+
+    private static void VerifyBackendSelection(string folder)
+    {
+        var configuration = CreateConfiguration(folder);
+        var environment = configuration.Settings.Environments.Single();
+        environment.GatewayUrl = "https://agent.example.org/chat";
+        environment.Backend = HostedBackendKind.OpenClaw;
+        environment.OpenClawConnection = new OpenClawConnectionOptions
+        {
+            Enabled = true,
+            AuthMode = OpenClawAuthMode.ExistingProxy,
+        };
+        Check(configuration.Save().Succeeded, "seed an explicitly enabled OpenClaw environment");
+        var draft = CreateModel(configuration);
+        draft.SelectedEnvironment = draft.Environments.Single();
+        Check(draft.IsOpenClawBackend && draft.BackendOptions.Count == 4,
+            "settings offer auto, OpenClaw, Hermes and ordinary web apps");
+        draft.EditBackendIndex = 2;
+        draft.EditBackendIndex = -1;
+        Check(!draft.IsOpenClawBackend && draft.EditBackendIndex == 2 &&
+            draft.EditBackendDescription == StringResources.SettingsBackendHermesHint,
+            "Hermes selection survives a temporary empty ComboBox binding and hides OpenClaw options");
+        Check(draft.TryApplyEdit() && draft.SaveAll(out var changed) && changed.DidChangeSessionTopology,
+            "changing a saved backend recreates the hosted session");
+        var reloaded = new ConfigurationService(folder);
+        reloaded.Load();
+        var saved = reloaded.Settings.Environments.Single();
+        Check(saved.Backend == HostedBackendKind.Hermes && saved.Id == environment.Id &&
+            saved.GatewayUrl == environment.GatewayUrl && saved.OpenClawConnection?.Enabled == false,
+            "Hermes persists independently of the former DeepSeek value and disables native Gateway access");
+        var reopened = CreateModel(reloaded);
+        reopened.SelectedEnvironment = reopened.Environments.Single();
+        Check(reopened.EditBackendIndex == 2, "saved Hermes maps back to the display index");
+        reopened.EditBackendIndex = 3;
+        Check(reopened.TryApplyEdit() && reopened.SaveAll(out _) &&
+            reloaded.Settings.Environments.Single().Backend == HostedBackendKind.Generic,
+            "ordinary web app selection saves the Generic kind");
+    }
+
+    private static void VerifySelectedEnvironmentIdentity(string folder)
+    {
+        var configuration = CreateConfiguration(folder);
+        configuration.Settings.Environments =
+        [
+            new() { Id = "id-a", Name = "A", GatewayUrl = "https://a.example.org", IsDefault = true },
+            new() { Id = "id-b", Name = "B", GatewayUrl = "https://b.example.org" },
+        ];
+        configuration.Settings.SelectedEnvironmentName = "B";
+        Check(configuration.Save().Succeeded, "seed selected environment B");
+        var draft = CreateModel(configuration);
+        draft.SelectedEnvironment = draft.Environments[0];
+        draft.EditName = "B";
+        Check(draft.TryApplyEdit(), "stage the first half of an environment name swap");
+        draft.SelectedEnvironment = draft.Environments[1];
+        draft.EditName = "A";
+        Check(draft.TryApplyEdit() && draft.SaveAll(out _), "save unique swapped environment names");
+        Check(configuration.GetSelectedEnvironment()?.Id == "id-b" && configuration.Settings.SelectedEnvironmentName == "A",
+            "swapping environment names preserves the selected stable ID");
+
+        // A main-window selection made after this draft opened is authoritative.
+        configuration.Settings.SelectedEnvironmentName = "B";
+        Check(configuration.Save().Succeeded, "select the other live environment after the first draft save");
+        draft.SelectedEnvironment = draft.Environments[0];
+        draft.EditName = "Renamed B";
+        Check(draft.TryApplyEdit() && draft.SaveAll(out _), "rename the newly selected live environment in the same draft");
+        Check(configuration.GetSelectedEnvironment()?.Id == "id-a" && configuration.Settings.SelectedEnvironmentName == "Renamed B",
+            "a repeated save preserves the latest live selection by ID");
+
+        draft.RemoveEnvironment();
+        draft.SelectedEnvironment = draft.Environments.Single();
+        draft.EditName = "Renamed B";
+        Check(draft.TryApplyEdit() && draft.SaveAll(out _), "reuse a deleted selection's name on the remaining environment");
+        Check(configuration.GetSelectedEnvironment()?.Id == "id-b",
+            "deleting the selected ID falls back to a remaining environment");
+    }
+
+    private static void VerifyTypographySettings(string folder)
+    {
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(new ConfigurationService(folder).SettingsFilePath, "{\"appTheme\":\"Dark\"}");
+        var configuration = CreateConfiguration(folder);
+        var stale = CreateModel(configuration);
+        Check(configuration.Settings.AppFontFamily == "System UI" && configuration.Settings.AppFontSize == 14 &&
+            stale.FontFamilyOptions[stale.FontFamilyIndex] == "System UI" && stale.FontSize == 14,
+            "older settings JSON without typography loads System UI and 14 px defaults");
+        stale.FontFamilyIndex = stale.FontFamilyIndex;
+        stale.FontSize = stale.FontSize;
+
+        var edited = CreateModel(configuration);
+        edited.FontFamilyIndex = 0;
+        edited.FontSize = 18;
+        Check(edited.SaveAll(out var changed) && changed.DidChangeLiveShellOptions &&
+            changed.LiveShellSettingsChange.DidChangeTypography,
+            "saving font and size emits a live typography change");
+        var reloaded = new ConfigurationService(folder);
+        reloaded.Load();
+        Check(reloaded.Settings.AppFontFamily == "Noto Sans SC" && reloaded.Settings.AppFontSize == 18,
+            "font and size survive a fresh configuration load");
+
+        stale.NotifyOnRunCompleted = false;
+        Check(stale.SaveAll(out var unchanged) && !unchanged.LiveShellSettingsChange.DidChangeTypography &&
+            configuration.Settings.AppFontFamily == "Noto Sans SC" && configuration.Settings.AppFontSize == 18,
+            "unrelated saves from a stale dialog preserve live typography after same-value binding writes");
+
+        var reopened = CreateModel(configuration);
+        reopened.FontFamilyIndex = -1;
+        Check(reopened.FontFamilyOptions[reopened.FontFamilyIndex] == "Noto Sans SC",
+            "a temporary empty font selection during binding does not replace the saved choice");
+        reopened.FontFamilyIndex = 1;
+        Check(reopened.SaveAll(out var fontOnly) && fontOnly.LiveShellSettingsChange.DidChangeTypography &&
+            configuration.Settings.AppFontFamily == "System UI" && configuration.Settings.AppFontSize == 18,
+            "a font-only edit emits a live change and preserves the size");
+        reopened.FontSize = 14;
+        Check(reopened.SaveAll(out var sizeOnly) && sizeOnly.LiveShellSettingsChange.DidChangeTypography &&
+            configuration.Settings.AppFontFamily == "System UI" && configuration.Settings.AppFontSize == 14,
+            "a size-only edit emits a live change and preserves the font");
+
+        var notifications = 0;
+        configuration.SettingsCommitted += () => notifications++;
+        var diskBefore = File.ReadAllText(configuration.SettingsFilePath);
+        foreach (var invalidSize in new[] { double.NaN, double.PositiveInfinity, 9d, 33d, 14.5d })
+        {
+            var invalidDraft = CreateModel(configuration);
+            invalidDraft.FontSize = invalidSize;
+            Check(!invalidDraft.SaveAll(out _) && invalidDraft.ValidationMessage == StringResources.SettingsFontSizeInvalid,
+                $"invalid font size {invalidSize} is rejected with localized validation");
+            Check(notifications == 0 && configuration.Settings.AppFontSize == 14 &&
+                File.ReadAllText(configuration.SettingsFilePath) == diskBefore,
+                "invalid typography cannot write settings or publish a live commit");
+        }
+    }
 
     private static async Task VerifyProfileRegistrationBeforeRenameAsync(string folder)
     {
@@ -341,6 +475,9 @@ public static class SettingsReliabilityRegression
         var configuration = CreateConfiguration(folder);
         var model = CreateModel(configuration);
         model.ThemeIndex = 2;
+        model.FontSize = 18;
+        model.AlwaysOnTop = true;
+        model.AutoRefresh = false;
         var dialog = new SettingsDialog(model, FakeStartup((_, _) => throw new InvalidOperationException()));
         dialog.SettingsSaved += _ => throw new InvalidOperationException("Synthetic apply failure");
         dialog.ClickSave();
@@ -350,6 +487,18 @@ public static class SettingsReliabilityRegression
             "runtime apply failure is distinguished from persistence failure after settings have committed");
         Check(!dialog.OperationProgressVisible && dialog.OperationStatus == StringResources.SettingsApplyHint,
             "runtime apply failure does not leave the footer in a saving state");
+
+        configuration.Settings.AppTheme = "Light";
+        configuration.Settings.AppFontSize = 16;
+        configuration.Settings.AlwaysOnTop = false;
+        configuration.Settings.AutoRefresh = true;
+        Check(configuration.Save().Succeeded, "commit new live shell values while the saved dialog remains open");
+        model.SystemTray = true;
+        dialog.ClickSave();
+        await dialog.WaitForPendingSaveAsync();
+        Check(configuration.Settings.SystemTray && configuration.Settings.AppTheme == "Light" &&
+            configuration.Settings.AppFontSize == 16 && !configuration.Settings.AlwaysOnTop && configuration.Settings.AutoRefresh,
+            "retrying a retained dialog does not replay shell edits already committed before the apply failure");
     }
 
     private static async Task VerifyClosedContinuationAsync(string folder)
@@ -403,6 +552,8 @@ public static class SettingsReliabilityRegression
         second.Settings.AutoRefresh = false;
         second.Settings.AppTheme = "Dark";
         second.Settings.ZoomFactor = 1.25;
+        second.Settings.AppFontFamily = "Noto Sans SC";
+        second.Settings.AppFontSize = 18;
         Check(second.Save().Succeeded, "another instance commits live preferences");
         configuration.Settings.WindowLeft = 120;
         configuration.SaveDeferred();
@@ -411,9 +562,12 @@ public static class SettingsReliabilityRegression
         main.DispatcherQueue.Drain();
         Check(!main.RuntimeAutoRefresh && main.Theme == "Dark" && main.ViewModel.Zoom == 1.25,
             "ordinary deferred save applies settings merged from another instance");
+        Check(main.RuntimeFontFamily == "Noto Sans SC" && main.RuntimeFontSize == 18 && main.TypographyApplyCount == 1,
+            "the authored settings synchronization handler applies committed typography once");
         var applications = main.LiveApplyCount;
         main.ApplyDialogResult(default);
         Check(main.LiveApplyCount == applications, "settings dialog callback does not duplicate a queued commit apply");
+        Check(main.TypographyApplyCount == 1, "the dialog callback does not duplicate an already applied typography change");
 
         configuration.Settings.AppTheme = "Light";
         Check(configuration.Save().Succeeded, "queue a newer local theme");
@@ -424,10 +578,14 @@ public static class SettingsReliabilityRegression
 
         second.Load();
         second.Settings.AutoRefresh = true;
+        second.Settings.AppFontFamily = "System UI";
+        second.Settings.AppFontSize = 14;
         Check(second.Save().Succeeded && configuration.Save().Succeeded, "queue an external change before window shutdown");
         main.ExitFromTray();
         main.DispatcherQueue.Drain();
         Check(!main.RuntimeAutoRefresh, "queued committed settings do not touch a closed main window");
+        Check(main.RuntimeFontFamily == "Noto Sans SC" && main.RuntimeFontSize == 18 && main.TypographyApplyCount == 1,
+            "queued typography changes do not apply after the main window closes");
     }
 
     private static void VerifyProfileDeletion(string folder)
@@ -588,6 +746,9 @@ namespace Harness
         public bool RuntimeAutoRefresh { get; private set; } = true;
         public int LiveApplyCount { get; private set; }
         public string Theme { get; private set; } = "System";
+        public string RuntimeFontFamily { get; private set; } = "System UI";
+        public double RuntimeFontSize { get; private set; } = 14;
+        public int TypographyApplyCount { get; private set; }
         public int ActivationCount { get; private set; }
         public void ActivateFromExternalLaunch() => ActivationCount++;
         internal MainWindow(SettingsDialog settingsWindow)
@@ -599,6 +760,12 @@ namespace Harness
         public void StartSynchronization() => InitializeSettingsSynchronization();
         public void ApplyDialogResult(SettingsSaveResult result) => OnSettingsSaved(result);
         private void ApplyTheme(string theme) => Theme = theme;
+        private void ApplyTypography(AppSettings settings)
+        {
+            RuntimeFontFamily = settings.AppFontFamily;
+            RuntimeFontSize = settings.AppFontSize;
+            TypographyApplyCount++;
+        }
         private void UpdateThemeSelector(string theme) { }
 
         public void ExitFromTray() => RequestApplicationExit();

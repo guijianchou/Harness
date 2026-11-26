@@ -10,6 +10,7 @@ public partial class MainViewModel
 {
     private void ResetTelemetry()
     {
+        ResetHostedStopAvailability();
         ResetHeartbeatProjection();
         StatusIndicatorBrush = NeutralBrush;
         _lastKnownModelSummaryText = DefaultModelSummary;

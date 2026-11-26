@@ -29,6 +29,21 @@ public static class PortableUpdatePaths
         finally { if (File.Exists(temporary)) { File.Delete(temporary); } }
     }
 
+    public static bool TryWriteResult(string path, PortableUpdateResult result)
+    {
+        try
+        {
+            WriteJson(path, result);
+            return true;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException or
+            PortableUpdateException { Code: "UnsafeLocation" })
+        {
+            // Result reporting must not prevent restarting a restored installation.
+            return false;
+        }
+    }
+
     public static PortableUpdatePlan ReadPlan(string job)
     {
         PortablePackage.RejectReparsePoints(job);

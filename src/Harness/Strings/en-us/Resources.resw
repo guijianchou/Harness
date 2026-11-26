@@ -71,6 +71,9 @@
   <data name="WebViewProfileAccessDenied" xml:space="preserve">
     <value>The current Harness process cannot access the browser data directory: {0}. Close Harness, then retry by opening the same Harness.exe. If this continues, export a diagnostic bundle from Settings.</value>
   </data>
+  <data name="WebViewProfilePathMismatch" xml:space="preserve">
+    <value>WebView2 selected a different browser data directory. Loading was stopped to keep environments separate. Expected: {0}. Actual: {1}. Check WEBVIEW2_USER_DATA_FOLDER and WebView2 user data folder policies, then restart Harness.</value>
+  </data>
   <data name="DevTools" xml:space="preserve">
     <value>Developer Tools</value>
   </data>
@@ -124,7 +127,7 @@
     <value>Offline</value>
   </data>
   <data name="StatusConfigureGateway" xml:space="preserve">
-    <value>Configure a Gateway URL in Settings</value>
+    <value>Configure a web app URL in Settings</value>
   </data>
   <data name="StatusHeartbeatFailed" xml:space="preserve">
     <value>Gateway heartbeat lost - refreshing...</value>
@@ -270,16 +273,16 @@
     <value>e.g. Production</value>
   </data>
   <data name="SettingsControlUiUrlPlaceholder" xml:space="preserve">
-    <value>https://your-gateway.example.com</value>
+    <value>https://your-app.example.com</value>
   </data>
   <data name="SettingsControlUiUrl" xml:space="preserve">
-    <value>Control UI URL</value>
+    <value>Web app URL</value>
   </data>
   <data name="SettingsBackend" xml:space="preserve">
     <value>Backend</value>
   </data>
   <data name="SettingsBackendHint" xml:space="preserve">
-    <value>Selects the latency probe path and in-page bridge behaviour. Auto works for any hosted Control UI; pick OpenClaw Gateway for its status bridge and MODEL display.</value>
+    <value>Recognizes supported Hermes Agent and OpenClaw pages. All other pages open as ordinary web apps. Select OpenClaw explicitly to enable its optional Gateway controls.</value>
   </data>
   <data name="SettingsBackendAuto" xml:space="preserve">
     <value>Auto detect</value>
@@ -287,11 +290,20 @@
   <data name="SettingsBackendOpenClaw" xml:space="preserve">
     <value>OpenClaw Gateway</value>
   </data>
-  <data name="SettingsBackendDeepSeek" xml:space="preserve">
-    <value>DeepSeek Harness</value>
+  <data name="SettingsBackendHermes" xml:space="preserve">
+    <value>Hermes Agent</value>
   </data>
   <data name="SettingsBackendGeneric" xml:space="preserve">
-    <value>Generic Control UI</value>
+    <value>Ordinary web app</value>
+  </data>
+  <data name="SettingsBackendOpenClawHint" xml:space="preserve">
+    <value>OpenClaw Control UI status, model and run controls. Enable the optional Gateway connection below for native sessions and model selection.</value>
+  </data>
+  <data name="SettingsBackendHermesHint" xml:space="preserve">
+    <value>Enter your Hermes Agent web interface URL. Supported Hermes pages provide model, activity and stop controls; other frontends open as ordinary web apps.</value>
+  </data>
+  <data name="SettingsBackendGenericHint" xml:space="preserve">
+    <value>Hosts any web app with isolated sign-in, reload, tray and shortcuts. Agent model detection and run commands are disabled.</value>
   </data>
   <data name="SettingsControlUiUrlHint1" xml:space="preserve">
     <value>Use the public hosted Control UI page URL (`http://` or `https://`), not the Gateway WebSocket URL. If you connect through Cloudflare Tunnel or another reverse proxy, this should be the exact public origin exposed to the browser.</value>
@@ -405,7 +417,7 @@
     <value>About</value>
   </data>
   <data name="AboutDescription" xml:space="preserve">
-    <value>A native Windows workspace for OpenClaw Gateway and DeepSeek Harness.</value>
+    <value>A native Windows workspace with dedicated Hermes Agent and OpenClaw support, plus ordinary web apps.</value>
   </data>
   <data name="AboutGitHubProfile" xml:space="preserve">
     <value>Project on GitHub</value>
@@ -590,7 +602,13 @@
   </data>
 
   <data name="BridgeGatewayUiLoaded" xml:space="preserve">
-    <value>Gateway UI loaded.</value>
+    <value>Web page loaded.</value>
+  </data>
+  <data name="BridgeWebAuthRequiredSummary" xml:space="preserve">
+    <value>Sign-in is required.</value>
+  </data>
+  <data name="BridgeWebAuthRequiredDetail" xml:space="preserve">
+    <value>Complete sign-in in the hosted web page.</value>
   </data>
   <data name="BridgePageLoading" xml:space="preserve">
     <value>Page is loading.</value>
@@ -1013,6 +1031,21 @@
   <data name="SettingsZoomDescription" xml:space="preserve">
     <value>Scale hosted page content from 50% to 200%. The app toolbar keeps its size.</value>
   </data>
+  <data name="SettingsFontTitle" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="SettingsFontDescription" xml:space="preserve">
+    <value>Both fonts support English and Chinese. Applies when you save.</value>
+  </data>
+  <data name="SettingsFontSizeTitle" xml:space="preserve">
+    <value>Font size (px)</value>
+  </data>
+  <data name="SettingsFontSizeDescription" xml:space="preserve">
+    <value>Base text size, from 10 to 32 px. Default: 14 px. Applies when you save.</value>
+  </data>
+  <data name="SettingsFontSizeInvalid" xml:space="preserve">
+    <value>Enter a whole-number font size from 10 to 32 px.</value>
+  </data>
   <data name="SettingsApplyHint" xml:space="preserve">
     <value>Changes take effect when you save and close.</value>
   </data>
@@ -1312,5 +1345,8 @@
   </data>
   <data name="TrayUnavailableWarning" xml:space="preserve">
     <value>Windows could not show the Harness tray icon. The window has been kept open so you can return to it. Try closing it again, or turn off System tray in Settings to exit.</value>
+  </data>
+  <data name="TrayUnavailableCloseWarning" xml:space="preserve">
+    <value>Windows could not show the Harness tray icon, so the window remains open. Close again within 15 seconds to exit Harness if the tray is still unavailable.</value>
   </data>
 </root>

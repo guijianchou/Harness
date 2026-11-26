@@ -51,6 +51,10 @@ public partial class MainViewModel
         private set
         {
             _isLoading = value;
+            if (value)
+            {
+                ResetHostedStopAvailability();
+            }
             OnPropertyChanged();
             OnPropertyChanged(nameof(LoadingVisibility));
             OnPropertyChanged(nameof(CanStop));
@@ -59,7 +63,8 @@ public partial class MainViewModel
 
     public Visibility LoadingVisibility => IsLoading ? Visibility.Visible : Visibility.Collapsed;
 
-    public bool CanStop => !IsPlaceholderEnvironment && (IsLoading || !IsOpenClawAvailable || CanStopGatewayRun);
+    public bool CanStop => !IsPlaceholderEnvironment &&
+        (IsLoading || (IsOpenClawAvailable ? CanStopGatewayRun : CanStopHostedRun));
 
     public string ErrorMessage
     {

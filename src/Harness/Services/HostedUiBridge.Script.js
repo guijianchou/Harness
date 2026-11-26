@@ -12,9 +12,8 @@ __OPENCLAW_MUTATION_FILTER_SCRIPT__
 __OPENCLAW_MODEL_RESOLVER_SCRIPT__
 
 __OPENCLAW_DOM_UTILITIES_SCRIPT__
-
+__HARNESS_BACKEND_ADAPTER_SCRIPT__
 __OPENCLAW_MODEL_DOM_FALLBACK_SCRIPT__
-
 __OPENCLAW_ACTIVITY_STATE_SCRIPT__
 
 __OPENCLAW_PHASE_CLASSIFIER_SCRIPT__
@@ -113,6 +112,7 @@ __OPENCLAW_COMMAND_DISPATCH_SCRIPT__
     ownerToken: OWNER_TOKEN,
     pageToken: openClawHostMessaging.pageToken,
     inspect: inspectControlUi,
+    getBackendKind: () => harnessBackendAdapter.resolveKind(BACKEND_PROFILE),
     sendStatus: postStatus,
     onCommand,
     reportSeq: (seq, stateVersion) => {

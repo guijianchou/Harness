@@ -10,7 +10,7 @@ public partial class WebViewService
     private static readonly TimeSpan CommandScriptTimeout = TimeSpan.FromSeconds(3);
 
     /// <summary>
-    /// Sends the in-app stop command when possible, falling back to stopping navigation.
+    /// Stops navigation while loading, or sends one run-owned hosted stop transaction.
     /// </summary>
     public async Task StopAsync()
     {
@@ -34,25 +34,10 @@ public partial class WebViewService
             return;
         }
 
-        if (!IsStillCurrentWebViewCommandTarget(coreWebView, pageVersion))
-        {
-            return;
-        }
-
-        var injected = await InjectStopCommandAsync(coreWebView, pageVersion);
-        if (injected)
-        {
-            _logger.Info("Injected /stop command into the web UI.");
-            return;
-        }
-
-        if (!IsStillCurrentWebViewCommandTarget(coreWebView, pageVersion))
-        {
-            return;
-        }
-
-        _logger.Info("Stop command injection unavailable, stopping navigation instead.");
-        StopCurrentNavigation(coreWebView);
+        // The page owns every fallback under the originally captured run. A
+        // timeout/false result must not issue another command against a new SPA
+        // conversation or stop the network activity of an unrelated loaded page.
+        _logger.Info("Hosted UI stop was unavailable or its original target expired.");
     }
 
     private void StopCurrentNavigation(CoreWebView2 coreWebView)
@@ -80,26 +65,6 @@ public partial class WebViewService
     }
 
     /// <summary>
-    /// Attempts to inject "/stop" into the active chat input and submit it.
-    /// </summary>
-    public async Task<bool> InjectStopCommandAsync()
-    {
-        var coreWebView = GetCoreWebView();
-        if (coreWebView is null)
-        {
-            return false;
-        }
-
-        var pageVersion = _messageOwnership.CaptureAcceptedPageVersion();
-        if (pageVersion == 0)
-        {
-            return false;
-        }
-
-        return await InjectStopCommandAsync(coreWebView, pageVersion);
-    }
-
-    /// <summary>
     /// Attempts to use the hosted UI's built-in stop/abort affordance before falling back to command injection.
     /// </summary>
     public async Task<bool> TryAbortActiveRunAsync()
@@ -117,35 +82,6 @@ public partial class WebViewService
         }
 
         return await TryAbortActiveRunAsync(coreWebView, pageVersion);
-    }
-
-    private async Task<bool> InjectStopCommandAsync(CoreWebView2 coreWebView, int pageVersion)
-    {
-        try
-        {
-            var result = await ExecuteCommandScriptAsync(coreWebView, pageVersion, WebViewCommandScripts.StopInjection);
-            if (!IsStillCurrentWebViewCommandTarget(coreWebView, pageVersion))
-            {
-                return false;
-            }
-
-            return result;
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.Warning($"Stop command injection timed out after {CommandScriptTimeout.TotalSeconds:0.#}s.");
-            return false;
-        }
-        catch (Exception ex) when (ex is COMException or InvalidOperationException)
-        {
-            _logger.Warning($"Stop skipped because CoreWebView2 became unavailable: {ex.Message}");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.Warning($"Failed to inject /stop command: {ex.Message}");
-            return false;
-        }
     }
 
     private async Task<bool> TryAbortActiveRunAsync(CoreWebView2 coreWebView, int pageVersion)
@@ -180,7 +116,8 @@ public partial class WebViewService
     private async Task<bool> ExecuteCommandScriptAsync(CoreWebView2 coreWebView, int pageVersion, string script)
     {
         using var timeout = new CancellationTokenSource(CommandScriptTimeout);
-        return await WebViewScriptExecutor.ExecuteBooleanAsync(coreWebView, _messageOwnership, pageVersion, script, timeout.Token);
+        return await WebViewScriptExecutor.ExecuteBooleanAsync(
+            coreWebView, _messageOwnership, pageVersion, script, timeout.Token, CommandScriptTimeout);
     }
 
     private bool IsStillCurrentWebViewCommandTarget(CoreWebView2 coreWebView, int pageVersion)

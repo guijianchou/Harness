@@ -8,6 +8,11 @@ $trees = [Collections.Generic.List[Microsoft.CodeAnalysis.SyntaxTree]]::new()
 $sourceFiles = @((Get-ChildItem -LiteralPath (Join-Path $repoRoot 'src/Harness.Core/OpenClaw') -Filter '*.cs').FullName)
 $sourceFiles += @(
     'src/Harness/Services/OpenClawSessionRuntime.cs',
+    'src/Harness/Services/WebViewMessageOwnership.cs',
+    'src/Harness/Services/WebViewStatusInspector.Parsing.cs',
+    'src/Harness.Core/Models/HostedBackendKind.cs',
+    'src/Harness.Core/Services/SessionProbeModels.cs',
+    'src/Harness/ViewModels/MainViewModel.Stop.cs',
     'src/Harness/ViewModels/MainViewModel.OpenClaw.Properties.cs',
     'src/Harness/ViewModels/MainViewModel.OpenClaw.Commands.cs',
     'src/Harness/ViewModels/MainViewModel.OpenClaw.Data.cs',
@@ -20,6 +25,7 @@ $sourceFiles += @(
     'src/Harness/Helpers/SimpleCommand.cs',
     'src/Harness.Core/Services/NativeNotificationRequest.cs',
     'tools/OpenClawWorkspaceRegression.cs',
+    'tools/OpenClawWorkspaceRegression.Backends.cs',
     'tools/OpenClawWorkspaceRegression.SessionSafety.cs'
 ) | ForEach-Object { Join-Path $repoRoot $_ }
 foreach ($path in $sourceFiles) {
@@ -40,6 +46,10 @@ $shellCommands = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText((Ge
 $stopMethod = $shellCommands.GetRoot().DescendantNodes() | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax] -and $_.Identifier.ValueText -eq 'OnStopAsync' } | Select-Object -First 1
 if ($null -eq $stopMethod) { throw 'Missing authored toolbar Stop handler.' }
 $trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText('using Microsoft.UI.Xaml; namespace Harness.ViewModels { public partial class MainViewModel {' + ($stopProperties -join "`n") + $stopMethod.ToFullString() + '} }', $parseOptions))
+$statusTree = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText((Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/ViewModels/MainViewModel.Status.cs') -Raw), $parseOptions)
+$statusMethod = $statusTree.GetRoot().DescendantNodes() | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax] -and $_.Identifier.ValueText -eq 'OnControlUiSnapshotUpdated' } | Select-Object -First 1
+if ($null -eq $statusMethod) { throw 'Missing authored hosted snapshot ownership handler.' }
+$trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText('using Harness.Services; namespace Harness.ViewModels { public partial class MainViewModel {' + $statusMethod.ToFullString() + '} }', $parseOptions))
 $pageTree = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText((Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/Services/WebViewService.OpenClaw.cs') -Raw), $parseOptions)
 $pageRecord = $pageTree.GetRoot().DescendantNodes() | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.RecordDeclarationSyntax] -and $_.Identifier.ValueText -eq 'OpenClawPageSelection' } | Select-Object -First 1
 $trees.Add([Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText('namespace Harness.Services {' + $pageRecord.ToFullString() + '}', $parseOptions))

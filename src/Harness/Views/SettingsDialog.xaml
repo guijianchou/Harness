@@ -18,11 +18,13 @@
             <Grid.Resources>
                 <x:Double x:Key="SettingsEditorWidth">160</x:Double>
                 <Style x:Key="SettingsChoiceStyle" TargetType="ComboBox">
+                    <Setter Property="helpers:AppTypography.BaseSize" Value="14" />
                     <Setter Property="Width" Value="{StaticResource SettingsEditorWidth}" />
                     <Setter Property="HorizontalAlignment" Value="Right" />
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 </Style>
                 <Style x:Key="SettingsNumberStyle" TargetType="NumberBox">
+                    <Setter Property="helpers:AppTypography.BaseSize" Value="14" />
                     <Setter Property="Width" Value="{StaticResource SettingsEditorWidth}" />
                     <Setter Property="HorizontalAlignment" Value="Right" />
                 </Style>
@@ -38,7 +40,7 @@
             <Grid x:Name="SettingsTitleBar" Background="Transparent">
                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="20,0,160,0" VerticalAlignment="Center">
                     <Image Source="/Assets/apple-touch-icon.png" Width="20" Height="20" />
-                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsTitle}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsTitle}" helpers:AppTypography.BaseSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
             </Grid>
 
@@ -89,7 +91,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE790;" FontSize="16" Width="20" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsAppearanceTitle}" helpers:AppTypography.BaseSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                             </Grid>
                         </ListViewItem>
                         <ListViewItem x:Name="NavShell" Tag="Shell">
@@ -99,7 +101,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE8A7;" FontSize="16" Width="20" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsWindowStartupTitle}" helpers:AppTypography.BaseSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                             </Grid>
                         </ListViewItem>
                         <ListViewItem x:Name="NavEnvironments" Tag="Environments">
@@ -109,7 +111,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE909;" FontSize="16" Width="20" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavEnvironments}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavEnvironments}" helpers:AppTypography.BaseSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                             </Grid>
                         </ListViewItem>
                         <ListViewItem x:Name="NavNotifications" Tag="Notifications">
@@ -119,7 +121,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE7F4;" FontSize="16" Width="20" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNotificationsHeader}" helpers:AppTypography.BaseSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                             </Grid>
                         </ListViewItem>
                         <ListViewItem x:Name="NavSessions" Tag="Sessions">
@@ -129,7 +131,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE74D;" FontSize="16" Width="20" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavSessions}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavSessions}" helpers:AppTypography.BaseSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                             </Grid>
                         </ListViewItem>
                         <ListViewItem x:Name="NavDevTools" Tag="DevTools">
@@ -139,7 +141,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE9D9;" FontSize="16" Width="20" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavDevTools}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsNavDevTools}" helpers:AppTypography.BaseSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                             </Grid>
                         </ListViewItem>
                         <ListViewItem x:Name="NavAbout" Tag="About">
@@ -149,7 +151,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <FontIcon Glyph="&#xE946;" FontSize="16" Width="20" />
-                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.AboutTitle}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind helpers:StringResources.AboutTitle}" helpers:AppTypography.BaseSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                             </Grid>
                         </ListViewItem>
                     </ListView>
@@ -184,6 +186,18 @@
                                 <ComboBox x:Name="LanguageComboBox" SelectionChanged="OnLanguageSelectionChanged" Style="{StaticResource SettingsChoiceStyle}"
                                     AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsNavLanguage}" />
                             </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsFontTitle}"
+                                Description="{x:Bind helpers:StringResources.SettingsFontDescription}">
+                                <ComboBox x:Name="FontFamilyComboBox" Style="{StaticResource SettingsChoiceStyle}" ItemsSource="{x:Bind ViewModel.FontFamilyOptions}"
+                                    SelectedIndex="{x:Bind ViewModel.FontFamilyIndex, Mode=TwoWay}"
+                                    AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsFontTitle}" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsFontSizeTitle}"
+                                Description="{x:Bind helpers:StringResources.SettingsFontSizeDescription}">
+                                <NumberBox x:Name="FontSizeNumberBox" Style="{StaticResource SettingsNumberStyle}" Minimum="10" Maximum="32" SmallChange="1" LargeChange="2"
+                                    SpinButtonPlacementMode="Compact" Value="{x:Bind ViewModel.FontSize, Mode=TwoWay}"
+                                    AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsFontSizeTitle}" />
+                            </controls:SettingsCard>
                         </StackPanel>
 
                         <!-- ======= Panel: Shell ======= -->
@@ -200,7 +214,7 @@
                                 <ToggleSwitch AutomationProperties.Name="{x:Bind helpers:StringResources.SettingsLaunchAtStartup}" IsOn="{x:Bind ViewModel.LaunchAtStartup, Mode=TwoWay}" OnContent="" OffContent="" />
                             </controls:SettingsCard>
                             <TextBlock Text="{x:Bind ViewModel.StartupRegistrationStatus, Mode=OneWay}"
-                                FontSize="12" Margin="4,0" TextWrapping="Wrap"
+                                helpers:AppTypography.BaseSize="12" Margin="4,0" TextWrapping="Wrap"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 AutomationProperties.LiveSetting="Polite" />
                             <controls:SettingsCard Style="{StaticResource SettingsCardStyle}" SizeChanged="OnSettingsCardSizeChanged" Header="{x:Bind helpers:StringResources.SettingsStartMinimized}"
@@ -262,7 +276,7 @@
                                     </Grid>
                                     <TextBlock Text="{x:Bind helpers:StringResources.SettingsGlobalHotkeyHint}"
                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        FontSize="12"
+                                        helpers:AppTypography.BaseSize="12"
                                         TextWrapping="Wrap" />
 
                                 </StackPanel>
@@ -297,13 +311,13 @@
                                         <ListView.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Spacing="3">
-                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Text="{Binding GatewayUrl}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Name}" helpers:AppTypography.BaseSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding GatewayUrl}" helpers:AppTypography.BaseSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ListView.ItemTemplate>
                                     </ListView>
-                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsEnvironmentSelectionHint}" Style="{StaticResource SettingsDescriptionStyle}" FontSize="12" />
+                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsEnvironmentSelectionHint}" Style="{StaticResource SettingsDescriptionStyle}" helpers:AppTypography.BaseSize="12" />
                                 </StackPanel>
                             </Border>
 
@@ -328,52 +342,52 @@
                                                 ItemsSource="{x:Bind ViewModel.BackendOptions}"
                                                 SelectedIndex="{x:Bind ViewModel.EditBackendIndex, Mode=TwoWay}" />
 
-                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsBackendHint}"
+                                            <TextBlock Text="{x:Bind ViewModel.EditBackendDescription, Mode=OneWay}"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                FontSize="12"
+                                                helpers:AppTypography.BaseSize="12"
                                                 TextWrapping="Wrap" />
 
                                         </StackPanel>
                                     </Border>
-                                    <Expander Style="{StaticResource SettingsExpanderStyle}" Header="{x:Bind helpers:StringResources.SettingsGatewayAdvanced}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <Expander Style="{StaticResource SettingsExpanderStyle}" Header="{x:Bind helpers:StringResources.SettingsGatewayAdvanced}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Visibility="{x:Bind ViewModel.IsOpenClawBackend, Mode=OneWay}">
                                         <StackPanel Spacing="8">
                                             <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint1}"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                FontSize="12"
+                                                helpers:AppTypography.BaseSize="12"
                                                 TextWrapping="Wrap" />
 
                                             <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint2}"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                FontSize="12"
+                                                helpers:AppTypography.BaseSize="12"
                                                 TextWrapping="Wrap" />
 
                                             <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint3}"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                FontSize="12"
+                                                helpers:AppTypography.BaseSize="12"
                                                 TextWrapping="Wrap" />
 
                                             <TextBlock Text="{x:Bind helpers:StringResources.SettingsControlUiUrlHint4}"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                FontSize="12"
+                                                helpers:AppTypography.BaseSize="12"
                                                 TextWrapping="Wrap" />
                                         </StackPanel>
                                     </Expander>
 
-                                    <Expander Style="{StaticResource SettingsExpanderStyle}" Header="{x:Bind helpers:StringResources.SettingsGatewayTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True" IsEnabled="{x:Bind ViewModel.IsOpenClawBackend, Mode=OneWay}">
+                                    <Expander Style="{StaticResource SettingsExpanderStyle}" Header="{x:Bind helpers:StringResources.SettingsGatewayTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True" Visibility="{x:Bind ViewModel.IsOpenClawBackend, Mode=OneWay}">
                                         <StackPanel Spacing="12">
                                             <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayDescription}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                             <ToggleSwitch Header="{x:Bind helpers:StringResources.SettingsGatewayEnabled}" IsOn="{x:Bind ViewModel.EditGatewayEnabled, Mode=TwoWay}" />
                                             <ContentControl IsEnabled="{x:Bind ViewModel.EditGatewayEnabled, Mode=OneWay}" HorizontalContentAlignment="Stretch">
                                                 <StackPanel Spacing="12">
                                                     <TextBox Header="{x:Bind helpers:StringResources.SettingsGatewayWebSocketUrl}" PlaceholderText="{x:Bind helpers:StringResources.SettingsGatewayWebSocketPlaceholder}" Text="{x:Bind ViewModel.EditGatewayWebSocketUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayRouteHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayRouteHint}" TextWrapping="Wrap" helpers:AppTypography.BaseSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                                     <ComboBox Header="{x:Bind helpers:StringResources.SettingsGatewayAuthentication}" HorizontalAlignment="Stretch" ItemsSource="{x:Bind ViewModel.GatewayAuthOptions}" SelectedIndex="{x:Bind ViewModel.EditGatewayAuthModeIndex, Mode=TwoWay}" />
                                                     <PasswordBox Header="{x:Bind helpers:StringResources.SettingsGatewaySecret}" Password="{x:Bind ViewModel.EditGatewaySecret, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.UsesGatewaySecret, Mode=OneWay}" PasswordRevealMode="Peek" />
-                                                    <TextBlock Text="{x:Bind ViewModel.GatewayCredentialStatus, Mode=OneWay}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewaySecretHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <TextBlock Text="{x:Bind ViewModel.GatewayCredentialStatus, Mode=OneWay}" TextWrapping="Wrap" helpers:AppTypography.BaseSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewaySecretHint}" TextWrapping="Wrap" helpers:AppTypography.BaseSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                                     <Expander Style="{StaticResource SettingsExpanderStyle}" Header="{x:Bind helpers:StringResources.SettingsGatewayAccessTitle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                                         <StackPanel Spacing="10">
-                                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayAccessHint}" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                            <TextBlock Text="{x:Bind helpers:StringResources.SettingsGatewayAccessHint}" TextWrapping="Wrap" helpers:AppTypography.BaseSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                                             <PasswordBox Header="{x:Bind helpers:StringResources.SettingsGatewayAccessToken}" Password="{x:Bind ViewModel.EditGatewayAccessToken, Mode=TwoWay}" PasswordRevealMode="Peek" />
                                                             <CheckBox Content="{x:Bind helpers:StringResources.SettingsGatewayAccessClear}" IsChecked="{x:Bind ViewModel.EditGatewayClearAccessToken, Mode=TwoWay}" />
                                                         </StackPanel>
@@ -404,7 +418,7 @@
 
                                                 <TextBlock Text="{x:Bind helpers:StringResources.SetAsDefault}"
                                                     TextWrapping="Wrap"
-                                                    FontSize="13"
+                                                    helpers:AppTypography.BaseSize="13"
                                                     VerticalAlignment="Center" />
                                                 <ToggleSwitch Grid.Column="1"
                                                     IsOn="{x:Bind ViewModel.EditIsDefault, Mode=TwoWay}"
@@ -546,7 +560,7 @@
                                         </Grid.ColumnDefinitions>
                                         <Image Source="/Assets/apple-touch-icon.png" Width="56" Height="56" />
                                         <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-                                            <TextBlock Text="Harness" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="Harness" helpers:AppTypography.BaseSize="24" FontWeight="SemiBold" TextWrapping="Wrap" />
                                             <TextBlock x:Name="AboutVersionText" Style="{StaticResource SettingsDescriptionStyle}" />
                                         </StackPanel>
                                     </Grid>
@@ -565,7 +579,7 @@
                                             Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                                         <StackPanel Grid.Column="1" Spacing="2">
                                             <TextBlock Text="{x:Bind helpers:UpdateLocalization.Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                            <TextBlock Text="{x:Bind Updates.CurrentVersionText}" FontSize="12"
+                                            <TextBlock Text="{x:Bind Updates.CurrentVersionText}" helpers:AppTypography.BaseSize="12"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                                         </StackPanel>
                                         <ProgressRing Grid.Column="2" Width="20" Height="20"
@@ -574,7 +588,7 @@
                                             AutomationProperties.Name="{x:Bind Updates.StatusTitle, Mode=OneWay}" />
                                     </Grid>
                                     <StackPanel Spacing="6" MinHeight="72">
-                                        <TextBlock Text="{x:Bind Updates.StatusTitle, Mode=OneWay}" FontSize="18" FontWeight="SemiBold"
+                                        <TextBlock Text="{x:Bind Updates.StatusTitle, Mode=OneWay}" helpers:AppTypography.BaseSize="18" FontWeight="SemiBold"
                                             TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                                         <TextBlock Text="{x:Bind Updates.StatusDescription, Mode=OneWay}"
                                             Style="{StaticResource SettingsDescriptionStyle}" />
@@ -587,7 +601,7 @@
                                             AutomationProperties.Name="{x:Bind helpers:UpdateLocalization.Downloading}" />
                                     </Grid>
                                     <TextBlock Text="{x:Bind helpers:UpdateLocalization.RestartHint}"
-                                        Style="{StaticResource SettingsDescriptionStyle}" FontSize="12"
+                                        Style="{StaticResource SettingsDescriptionStyle}" helpers:AppTypography.BaseSize="12"
                                         Visibility="{x:Bind Updates.RestartHintVisibility, Mode=OneWay}" />
                                     <Grid x:Name="UpdateCardActions" ColumnSpacing="12" RowSpacing="12" SizeChanged="OnUpdateCardSizeChanged">
                                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -600,7 +614,7 @@
                                         </StackPanel>
                                         <Button x:Name="UpdatePrimaryButton" Grid.Column="1" Click="OnUpdatePrimaryClick"
                                             IsEnabled="{x:Bind Updates.CanExecutePrimaryAction, Mode=OneWay}"
-                                            Style="{StaticResource AccentButtonStyle}" MinWidth="160" MaxWidth="280" HorizontalAlignment="Right">
+                                            helpers:AppTypography.BaseSize="14" Style="{StaticResource AccentButtonStyle}" MinWidth="160" MaxWidth="280" HorizontalAlignment="Right">
                                             <TextBlock Text="{x:Bind Updates.PrimaryActionText, Mode=OneWay}" TextWrapping="Wrap" TextAlignment="Center" />
                                         </Button>
                                     </Grid>
@@ -617,12 +631,12 @@
                                 </controls:SettingsCard.ActionIcon>
                             </controls:SettingsCard>
                             <StackPanel Spacing="6" Margin="4,4,4,0">
-                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                <TextBlock TextWrapping="Wrap" helpers:AppTypography.BaseSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
                                     <Run Text="{x:Bind helpers:StringResources.AboutDevelopedBy}" />
                                     <Hyperlink NavigateUri="https://github.com/Guijianchou">@Guijianchou</Hyperlink>
                                 </TextBlock>
                                 <TextBlock Text="{x:Bind helpers:StringResources.AboutCopyright}" TextWrapping="Wrap"
-                                    FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    helpers:AppTypography.BaseSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -643,12 +657,12 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                             <ProgressRing x:Name="SettingsOperationProgress" Width="20" Height="20" IsActive="False" Visibility="Collapsed" />
                             <TextBlock x:Name="SettingsStatusText" Grid.Column="1" Text="{x:Bind helpers:StringResources.SettingsApplyHint}"
-                                Style="{StaticResource SettingsDescriptionStyle}" FontSize="12" AutomationProperties.LiveSetting="Polite" />
+                                Style="{StaticResource SettingsDescriptionStyle}" helpers:AppTypography.BaseSize="12" AutomationProperties.LiveSetting="Polite" />
                         </Grid>
                         <StackPanel x:Name="SettingsFooterButtons" Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                             <Button Content="{x:Bind helpers:StringResources.Cancel}" Click="OnCancelClick" MinWidth="96" />
                             <Button Content="{x:Bind helpers:StringResources.SettingsGatewaySaveClose}" Click="OnSaveClick"
-                                Style="{StaticResource AccentButtonStyle}" MinWidth="120" />
+                                helpers:AppTypography.BaseSize="14" Style="{StaticResource AccentButtonStyle}" MinWidth="120" />
                         </StackPanel>
                     </Grid>
                 </StackPanel>

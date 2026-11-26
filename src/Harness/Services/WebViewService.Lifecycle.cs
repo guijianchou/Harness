@@ -63,10 +63,8 @@ public partial class WebViewService
                 return;
             }
 
-            // Create an explicit environment per user data folder. The
-            // WEBVIEW2_USER_DATA_FOLDER variable only influences the process-wide
-            // default environment, which is created once and cached, so it cannot
-            // switch profiles when the user changes environments at runtime.
+            // Request an explicit profile, then verify the effective folder because
+            // WebView2 environment variables and policy may override this value.
             var environmentOperation = CoreWebView2Environment.CreateWithOptionsAsync(
                 browserExecutableFolder: null,
                 userDataFolder: userDataFolder,
@@ -80,6 +78,7 @@ public partial class WebViewService
                 return;
             }
 
+            ValidateUserDataFolder(userDataFolder, webView2Environment.UserDataFolder);
             await WaitForInitializationOperationAsync(webView.EnsureCoreWebView2Async(webView2Environment).AsTask(), initializationToken);
             initializationToken.ThrowIfCancellationRequested();
 
@@ -109,6 +108,7 @@ public partial class WebViewService
 
             var hostGeneration = _hostGeneration;
             AttachContentZoom(coreWebView, hostGeneration);
+            AttachContentTypography(coreWebView, hostGeneration);
             _navigationStartingHandler = CreateNavigationStartingHandler(hostGeneration);
             _navigationCompletedHandler = CreateNavigationCompletedHandler(hostGeneration);
             _processFailedHandler = CreateProcessFailedHandler(hostGeneration);
@@ -227,6 +227,7 @@ public partial class WebViewService
         CancelNavigationCancellation();
 
         var coreWebView = _coreWebView ?? TryGetCoreWebView2(_webView);
+        DetachContentTypography(coreWebView);
         try
         {
             if (coreWebView is not null)

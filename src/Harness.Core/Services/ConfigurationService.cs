@@ -544,6 +544,13 @@ public partial class ConfigurationService
         for (var index = 0; index < settings.Environments.Count; index++)
         {
             var environment = settings.Environments[index];
+            if (environment.Backend is not (HostedBackendKind.Auto or HostedBackendKind.OpenClaw or
+                HostedBackendKind.Hermes or HostedBackendKind.Generic))
+            {
+                environment.Backend = HostedBackendKind.Generic;
+                changed = true;
+            }
+
             if (string.IsNullOrWhiteSpace(environment.Id) || !environmentIds.Add(environment.Id))
             {
                 // Deterministic legacy migration lets two instances normalize the same file safely.

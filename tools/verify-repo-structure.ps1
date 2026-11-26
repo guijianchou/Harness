@@ -104,7 +104,7 @@ foreach ($linkedCompileItem in $linkedCompileItems) {
     }
 }
 
-$currentVersion = '5.3.11'
+$currentVersion = '5.3.12'
 $currentFileVersion = "$currentVersion.0"
 if ($project -notmatch [regex]::Escape("<Version>$currentVersion</Version>") -or
     $project -notmatch [regex]::Escape("<AssemblyVersion>$currentFileVersion</AssemblyVersion>") -or
@@ -178,6 +178,7 @@ $bridgeScriptResourcePairs = @(
     @{ Resource = 'HostedUiBridge.ModelResolver.js'; ResourceField = 'ModelResolverResourceName'; ScriptField = 'ModelResolverScript'; PlaceholderField = 'ModelResolverPlaceholder'; Placeholder = '__OPENCLAW_MODEL_RESOLVER_SCRIPT__' },
     @{ Resource = 'HostedUiBridge.DomUtilities.js'; ResourceField = 'DomUtilitiesResourceName'; ScriptField = 'DomUtilitiesScript'; PlaceholderField = 'DomUtilitiesPlaceholder'; Placeholder = '__OPENCLAW_DOM_UTILITIES_SCRIPT__' },
     @{ Resource = 'HostedUiBridge.ModelDomFallback.js'; ResourceField = 'ModelDomFallbackResourceName'; ScriptField = 'ModelDomFallbackScript'; PlaceholderField = 'ModelDomFallbackPlaceholder'; Placeholder = '__OPENCLAW_MODEL_DOM_FALLBACK_SCRIPT__' },
+    @{ Resource = 'HostedUiBridge.BackendAdapter.js'; ResourceField = 'BackendAdapterResourceName'; ScriptField = 'BackendAdapterScript'; PlaceholderField = 'BackendAdapterPlaceholder'; Placeholder = '__HARNESS_BACKEND_ADAPTER_SCRIPT__' },
     @{ Resource = 'HostedUiBridge.ActivityState.js'; ResourceField = 'ActivityStateResourceName'; ScriptField = 'ActivityStateScript'; PlaceholderField = 'ActivityStatePlaceholder'; Placeholder = '__OPENCLAW_ACTIVITY_STATE_SCRIPT__' },
     @{ Resource = 'HostedUiBridge.PhaseClassifier.js'; ResourceField = 'PhaseClassifierResourceName'; ScriptField = 'PhaseClassifierScript'; PlaceholderField = 'PhaseClassifierPlaceholder'; Placeholder = '__OPENCLAW_PHASE_CLASSIFIER_SCRIPT__' },
     @{ Resource = 'HostedUiBridge.StatusInspection.js'; ResourceField = 'StatusInspectionResourceName'; ScriptField = 'StatusInspectionScript'; PlaceholderField = 'StatusInspectionPlaceholder'; Placeholder = '__OPENCLAW_STATUS_INSPECTION_SCRIPT__' },
@@ -399,18 +400,19 @@ if ($commandFile -match 'ExecuteScriptAsync\(@"|ExecuteScriptAsync\(\$@"|const s
 }
 
 if ($commandFile -notmatch 'CommandScriptTimeout' -or
-    $commandFile -notmatch 'WebViewScriptExecutor\.ExecuteBooleanAsync\([^;]*timeout\.Token\)' -or
+    $commandFile -notmatch 'WebViewScriptExecutor\.ExecuteBooleanAsync\([^;]*timeout\.Token, CommandScriptTimeout\)' -or
     $commandFile -notmatch 'CaptureAcceptedPageVersion' -or
     $commandFile -notmatch 'IsStillCurrentWebViewCommandTarget\(CoreWebView2 coreWebView, int pageVersion\)' -or
     $commandFile -notmatch 'IsCurrentAcceptedPageVersion\(pageVersion\)') {
     throw 'WebViewService command script execution must have a bounded timeout and reject stale WebView/page results after awaits.'
 }
 
-if ($commandFile -notmatch 'public async Task StopAsync\(\)[\s\S]*?var coreWebView = GetCoreWebView\(\)[\s\S]*?var pageVersion = _messageOwnership\.CaptureAcceptedPageVersion\(\)[\s\S]*?StopCurrentNavigation\(coreWebView\)[\s\S]*?TryAbortActiveRunAsync\(coreWebView, pageVersion\)[\s\S]*?InjectStopCommandAsync\(coreWebView, pageVersion\)[\s\S]*?IsStillCurrentWebViewCommandTarget\(coreWebView, pageVersion\)[\s\S]*?StopCurrentNavigation\(coreWebView\)' -or
+if ($commandFile -notmatch 'public async Task StopAsync\(\)[\s\S]*?var pageVersion = _messageOwnership\.CaptureAcceptedPageVersion\(\)[\s\S]*?if \(pageVersion == 0\)\s*\{\s*StopCurrentNavigation\(coreWebView\);\s*return;\s*\}[\s\S]*?await TryAbortActiveRunAsync\(coreWebView, pageVersion\)' -or
+    ([regex]::Matches($commandFile, 'StopCurrentNavigation\(coreWebView\)')).Count -ne 1 -or
+    $commandFile -match 'InjectStopCommandAsync' -or
     $commandFile -notmatch 'private void StopCurrentNavigation\(CoreWebView2 coreWebView\)[\s\S]*?ReferenceEquals\(coreWebView, _coreWebView\)[\s\S]*?coreWebView\.Stop\(\)[\s\S]*?CancelActiveNavigation\(\)' -or
-    $commandFile -notmatch 'private async Task<bool> InjectStopCommandAsync\(CoreWebView2 coreWebView, int pageVersion\)' -or
     $commandFile -notmatch 'private async Task<bool> TryAbortActiveRunAsync\(CoreWebView2 coreWebView, int pageVersion\)') {
-    throw 'WebViewService StopAsync fallback must stay bound to the original WebView/page target instead of stopping a newer page after stale command rejection.'
+    throw 'WebViewService StopAsync must issue one run-owned transaction; native navigation Stop is only allowed before page ownership exists.'
 }
 
 $statusInspector = Get-Content -LiteralPath (Join-Path $repoRoot 'src/Harness/Services/WebViewStatusInspector.cs') -Raw

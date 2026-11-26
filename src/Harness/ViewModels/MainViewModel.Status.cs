@@ -71,7 +71,18 @@ public partial class MainViewModel
 
     private void OnControlUiSnapshotUpdated(ControlUiProbeSnapshot snapshot)
     {
-        DispatchUiUpdate(() => ApplyControlUiSnapshot(snapshot));
+        var environment = _selectedEnvironment;
+        var pageVersion = _messageOwnership.CaptureAcceptedPageVersion();
+        DispatchUiUpdate(() =>
+        {
+            if (_isDisposed || !ReferenceEquals(environment, _selectedEnvironment) ||
+                (pageVersion != 0 && !_messageOwnership.IsCurrentAcceptedPageVersion(pageVersion)))
+            {
+                return;
+            }
+
+            ApplyControlUiSnapshot(pageVersion == 0 ? snapshot with { CanAbortRun = false } : snapshot);
+        });
     }
 
     private void OnRecoveryStateChanged(RecoveryState state)
@@ -100,6 +111,10 @@ public partial class MainViewModel
     {
         ConnectionState = state;
         IsLoading = state == ConnectionState.Loading;
+        if (state is not ConnectionState.Connected and not ConnectionState.Loading)
+        {
+            SetHostedStopAvailability(false);
+        }
         ShowRetryButton = state is ConnectionState.Error or ConnectionState.AuthFailed;
 
         RefreshResourceScheduling();
@@ -116,6 +131,7 @@ public partial class MainViewModel
 
     private void ApplyControlUiSnapshot(ControlUiProbeSnapshot snapshot)
     {
+        ApplyHostedStopAvailability(snapshot);
         ApplyModelSummary(snapshot);
         var accessSummary = _statusPresenter.FormatAccessSummary(snapshot, CurrentStatusBrushes, DefaultAccessSummary);
         AccessSummaryText = accessSummary.Text;

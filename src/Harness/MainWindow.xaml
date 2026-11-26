@@ -91,7 +91,7 @@
             </VisualStateManager.VisualStateGroups>
 
             <Grid.RowDefinitions>
-                <RowDefinition Height="37" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -101,7 +101,7 @@
 
         <Grid x:Name="AppTitleBar"
               Grid.Row="0"
-              Height="37"
+              MinHeight="37"
               Margin="0,-1,0,0"
               Background="Transparent"
               VerticalAlignment="Top">
@@ -124,7 +124,7 @@
                 <TextBlock x:Name="AppTitleText"
                            Text="Harness"
                            VerticalAlignment="Center"
-                           FontSize="13"
+                           helpers:AppTypography.BaseSize="13"
                            FontWeight="SemiBold" />
             </StackPanel>
 
@@ -328,7 +328,7 @@
                     ToolTipService.ToolTip="{x:Bind ViewModel.LatencyTooltipText, Mode=OneWay}">
                 <TextBlock HorizontalAlignment="Center"
                            VerticalAlignment="Center"
-                           FontSize="11"
+                           helpers:AppTypography.BaseSize="11"
                            FontWeight="SemiBold"
                            Foreground="{x:Bind ViewModel.LatencySummaryBrush, Mode=OneWay}"
                            Text="{x:Bind ViewModel.LatencySummaryText, Mode=OneWay}" />
@@ -481,9 +481,9 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Spacing="3">
                                         <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.PanelTitle}"
-                                                   Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                                   helpers:AppTypography.BaseSize="20" Style="{ThemeResource SubtitleTextBlockStyle}" />
                                         <TextBlock Text="{x:Bind ViewModel.GatewayStatusText, Mode=OneWay}"
-                                                   FontSize="12"
+                                                   helpers:AppTypography.BaseSize="12"
                                                    TextWrapping="Wrap"
                                                    AutomationProperties.LiveSetting="Polite"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -519,7 +519,7 @@
                                             Command="{x:Bind ViewModel.NewGatewaySessionCommand}"
                                             IsEnabled="{x:Bind ViewModel.CanCreateGatewaySession, Mode=OneWay}"
                                             HorizontalAlignment="Stretch"
-                                            Style="{ThemeResource AccentButtonStyle}" />
+                                            helpers:AppTypography.BaseSize="14" Style="{ThemeResource AccentButtonStyle}" />
                                     <Button Grid.Column="1"
                                             Command="{x:Bind ViewModel.RefreshGatewayCommand}"
                                             AutomationProperties.Name="{x:Bind helpers:ShellGatewayLocalization.Refresh}"
@@ -563,7 +563,7 @@
                                                            FontWeight="SemiBold"
                                                            TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding Subtitle}"
-                                                           FontSize="12"
+                                                           helpers:AppTypography.BaseSize="12"
                                                            TextTrimming="CharacterEllipsis"
                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                             </StackPanel>
@@ -581,7 +581,7 @@
                                                TextAlignment="Center"
                                                TextWrapping="Wrap" />
                                     <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.NoSessionsHint}"
-                                               FontSize="12"
+                                               helpers:AppTypography.BaseSize="12"
                                                TextAlignment="Center"
                                                TextWrapping="Wrap"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -608,11 +608,11 @@
                                                TextTrimming="CharacterEllipsis"
                                                ToolTipService.ToolTip="{x:Bind ViewModel.GatewaySessionTitle, Mode=OneWay}" />
                                     <TextBlock Text="{x:Bind ViewModel.GatewaySessionMetadataText, Mode=OneWay}"
-                                               FontSize="12" TextWrapping="Wrap"
+                                               helpers:AppTypography.BaseSize="12" TextWrapping="Wrap"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <TextBlock Text="{x:Bind ViewModel.GatewayRunText, Mode=OneWay}"
                                                TextWrapping="Wrap"
-                                               FontSize="12"
+                                               helpers:AppTypography.BaseSize="12"
                                                AutomationProperties.LiveSetting="Polite"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <Button Content="{x:Bind helpers:ShellGatewayLocalization.StopRun}"
@@ -630,7 +630,7 @@
                                     <TextBlock Text="{x:Bind ViewModel.GatewayCurrentModelNotice, Mode=OneWay}"
                                                Visibility="{x:Bind ShowWhen(ViewModel.HasGatewayCurrentModelNotice), Mode=OneWay}"
                                                TextWrapping="Wrap"
-                                               FontSize="12"
+                                               helpers:AppTypography.BaseSize="12"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <ComboBox ItemsSource="{x:Bind ViewModel.GatewayThinkingLevels}"
                                               SelectedItem="{x:Bind ViewModel.SelectedGatewayThinkingLevel, Mode=TwoWay}"
@@ -679,7 +679,7 @@
                         <FontIcon Glyph="&#xE774;" FontSize="40"
                                   Foreground="{ThemeResource SystemControlHighlightAccentBrush}" />
                         <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.WelcomeTitle}"
-                                   Style="{ThemeResource TitleTextBlockStyle}"
+                                   helpers:AppTypography.BaseSize="28" Style="{ThemeResource TitleTextBlockStyle}"
                                    TextAlignment="Center"
                                    TextWrapping="Wrap" />
                         <TextBlock Text="{x:Bind helpers:ShellGatewayLocalization.WelcomeHint}"
@@ -689,7 +689,7 @@
                         <Button Content="{x:Bind helpers:ShellGatewayLocalization.Configure}"
                                 Click="OnConfigureGatewayClick"
                                 HorizontalAlignment="Center"
-                                Style="{ThemeResource AccentButtonStyle}" />
+                                helpers:AppTypography.BaseSize="14" Style="{ThemeResource AccentButtonStyle}" />
                     </StackPanel>
                     <ProgressRing x:Name="LoadingRing"
                                   Width="40"

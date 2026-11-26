@@ -59,6 +59,8 @@ public sealed record ControlUiProbeSnapshot(
 
     public bool FocusedInputHasText { get; init; }
 
+    public bool CanAbortRun { get; init; }
+
     public bool IsBusyStale { get; init; }
 
     public int BusyStaleSeconds { get; init; }

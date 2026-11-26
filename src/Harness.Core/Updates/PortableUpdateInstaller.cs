@@ -22,12 +22,12 @@ public static class PortableUpdateInstaller
             if (current.Version != plan.CurrentVersion) { throw new PortableUpdateException("InstallationChanged"); }
             await PreserveUserFilesAsync(plan.Installation, payload, current, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
-            SaveResult(job, plan, "Replacing", backup);
+            SaveResult(job, plan, "Replacing", backup, required: true);
             Directory.Move(plan.Installation, backup);
             movedOld = true;
             Directory.Move(payload, plan.Installation);
             installedNew = true;
-            SaveResult(job, plan, "Starting", backup);
+            SaveResult(job, plan, "Starting", backup, required: true);
             if (!await startAndVerify(Path.Combine(plan.Installation, "Harness.exe")).ConfigureAwait(false))
             {
                 throw new PortableUpdateException("StartupFailed");
@@ -75,10 +75,12 @@ public static class PortableUpdateInstaller
         }
     }
 
-    private static PortableUpdateResult SaveResult(string job, PortableUpdatePlan plan, string state, string backup, string? code = null)
+    private static PortableUpdateResult SaveResult(string job, PortableUpdatePlan plan, string state, string backup, string? code = null, bool required = false)
     {
         var result = new PortableUpdateResult(state, plan.Version, backup, code);
-        PortableUpdatePaths.WriteJson(Path.Combine(job, "result.json"), result);
+        var path = Path.Combine(job, "result.json");
+        if (required) { PortableUpdatePaths.WriteJson(path, result); }
+        else { PortableUpdatePaths.TryWriteResult(path, result); }
         return result;
     }
 }

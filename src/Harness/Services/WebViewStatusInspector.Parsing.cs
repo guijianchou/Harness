@@ -42,6 +42,8 @@ internal sealed partial class WebViewStatusInspector
         var isBusy = root.TryGetProperty("isBusy", out var busyProperty) &&
             busyProperty.ValueKind is JsonValueKind.True or JsonValueKind.False &&
             busyProperty.GetBoolean();
+        var canAbortRun = root.TryGetProperty("canAbortRun", out var abortProperty) &&
+            abortProperty.ValueKind == JsonValueKind.True;
         var inputFocused = root.TryGetProperty("inputFocused", out var inputFocusedProperty) &&
             inputFocusedProperty.ValueKind is JsonValueKind.True or JsonValueKind.False &&
             inputFocusedProperty.GetBoolean();
@@ -65,6 +67,7 @@ internal sealed partial class WebViewStatusInspector
         return new ControlUiProbeSnapshot(phase, summary, detail, url, shellDetected, isBusy, inputFocused, workState, currentModel)
         {
             FocusedInputHasText = focusedInputHasText,
+            CanAbortRun = canAbortRun,
             IsBusyStale = isBusyStale,
             BusyStaleSeconds = busyStaleSeconds,
             ActivitySignature = activitySignature,

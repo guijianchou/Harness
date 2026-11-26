@@ -26,10 +26,11 @@ if($Current) {
   }
 }
 $bridge = $scripts['HostedUiBridge.Script.js']
-$bridge = $bridge.Replace('__OPENCLAW_BRIDGE_STRINGS_JSON__', '{}').Replace('__OPENCLAW_OWNER_TOKEN_JSON__', '"synthetic"').Replace('__HARNESS_BACKEND_PROFILE_JSON__', '{"appStateElement":"openclaw-app","commandGlobals":[]}')
+$bridge = $bridge.Replace('__OPENCLAW_BRIDGE_STRINGS_JSON__', '{}').Replace('__OPENCLAW_OWNER_TOKEN_JSON__', '"synthetic"').Replace('__HARNESS_BACKEND_PROFILE_JSON__', '{"kind":"OpenClaw","appStateElement":"openclaw-app","commandGlobals":[]}')
 $parts = @{
  '__HARNESS_LABEL_VOCABULARY_SCRIPT__'='LabelVocabulary'; '__OPENCLAW_HOST_MESSAGING_SCRIPT__'='HostMessaging'; '__OPENCLAW_MUTATION_FILTER_SCRIPT__'='MutationFilter';
  '__OPENCLAW_MODEL_RESOLVER_SCRIPT__'='ModelResolver'; '__OPENCLAW_DOM_UTILITIES_SCRIPT__'='DomUtilities'; '__OPENCLAW_MODEL_DOM_FALLBACK_SCRIPT__'='ModelDomFallback';
+ '__HARNESS_BACKEND_ADAPTER_SCRIPT__'='BackendAdapter';
  '__OPENCLAW_ACTIVITY_STATE_SCRIPT__'='ActivityState'; '__OPENCLAW_PHASE_CLASSIFIER_SCRIPT__'='PhaseClassifier'; '__OPENCLAW_STATUS_INSPECTION_SCRIPT__'='StatusInspection'; '__OPENCLAW_COMMAND_DISPATCH_SCRIPT__'='CommandDispatch'
 }
 foreach($entry in $parts.GetEnumerator()) { $bridge = $bridge.Replace($entry.Key, $scripts['HostedUiBridge.'+$entry.Value+'.js']) }

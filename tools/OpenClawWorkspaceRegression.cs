@@ -42,6 +42,7 @@ public static partial class OpenClawWorkspaceRegression
         try
         {
             await ToolbarStopAvailabilityAsync();
+            await HostedToolbarStopAvailabilityAsync();
             await StopTerminalBeforeAcknowledgementAsync();
             await OldHistoryAfterSelectionAsync();
             await ModelAndReasoningPatchAsync();
@@ -92,9 +93,13 @@ public static partial class OpenClawWorkspaceRegression
         fixture.View.SetLoading(false);
         Check(!fixture.View.CanStop, "Ending page loading restores native Stop availability");
         fixture.View.UseGenericBackend();
-        Check(fixture.View.CanStop, "Generic hosted pages retain their existing Stop behavior");
+        Check(!fixture.View.CanStop, "Loaded ordinary Web pages do not expose agent Stop");
         await fixture.View.StopFromToolbar();
-        Check(fixture.View.BrowserStopCount == 2, "Generic toolbar Stop routes to the hosted browser");
+        Check(fixture.View.BrowserStopCount == 1, "A stale ordinary Web Stop click cannot invoke page commands");
+        fixture.View.SetLoading(true);
+        Check(fixture.View.CanStop, "Ordinary Web navigation can still be stopped");
+        await fixture.View.StopFromToolbar();
+        Check(fixture.View.BrowserStopCount == 2, "Ordinary Web Stop cancels browser navigation");
     }
 
     private static async Task StopTerminalBeforeAcknowledgementAsync()
@@ -889,7 +894,6 @@ namespace Microsoft.UI.Xaml
 
 namespace Harness.Models
 {
-    public enum HostedBackendKind { OpenClaw, Generic }
     internal sealed class RegressionEnvironment
     {
         public bool IsPlaceholder => false;
@@ -897,7 +901,7 @@ namespace Harness.Models
         public RegressionConnection OpenClawConnection { get; } = new();
         public string GatewayUrl => "https://fixture.invalid/";
     }
-    internal sealed class RegressionConnection { public bool Enabled => true; }
+    internal sealed class RegressionConnection { public bool Enabled { get; set; } = true; }
 }
 
 namespace Harness.Helpers
@@ -918,7 +922,7 @@ namespace Harness.ViewModels
         private readonly RegressionRuntime _runtime = new();
         private readonly RegressionWebView _webViewService = new();
         private readonly CancellationTokenSource _lifetimeCts = new();
-        private readonly Harness.Models.RegressionEnvironment _selectedEnvironment = new();
+        private Harness.Models.RegressionEnvironment _selectedEnvironment = new();
         private bool _isDisposed;
         private bool _isLoading;
         public List<string> ChangedProperties { get; } = [];

@@ -242,6 +242,10 @@ public sealed partial class MainWindow
             {
                 ViewModel.SetContentZoom(App.Configuration.Settings.ZoomFactor);
             }
+            if (saveResult.LiveShellSettingsChange.DidChangeTypography)
+            {
+                ApplyTypography(App.Configuration.Settings);
+            }
         }
     }
 

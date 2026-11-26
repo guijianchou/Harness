@@ -42,15 +42,18 @@ static async Task<int> RunAsync(string[] arguments)
             {
                 lease.Dispose();
                 lease = null;
-                try { PortableUpdatePaths.WriteJson(PortableUpdatePaths.ResultFile(plan.Installation), new PortableUpdateResult("Starting", plan.Version, Path.Combine(job, "backup"))); }
-                catch (IOException) { }
+                PortableUpdatePaths.TryWriteResult(PortableUpdatePaths.ResultFile(plan.Installation),
+                    new PortableUpdateResult("Starting", plan.Version, Path.Combine(job, "backup")));
                 var healthy = false;
                 try { healthy = await StartAndVerifyAsync(executable, job, plan.Version); }
                 catch (Exception) { /* Reacquire exclusive ownership before attempting any rollback. */ }
                 if (!healthy)
                 {
                     try { lease = PortableUpdatePaths.AcquireLease(plan.Installation, true); }
-                    catch (IOException ex) { throw new PortableUpdateException("RecoveryRequired", ex); }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                    {
+                        throw new PortableUpdateException("RecoveryRequired", error);
+                    }
                 }
                 return healthy;
             }, executable =>
@@ -60,13 +63,12 @@ static async Task<int> RunAsync(string[] arguments)
                 try
                 {
                     var result = JsonSerializer.Deserialize<PortableUpdateResult>(File.ReadAllText(Path.Combine(job, "result.json")), PortablePackage.JsonOptions);
-                    if (result is not null) { PortableUpdatePaths.WriteJson(PortableUpdatePaths.ResultFile(plan.Installation), result); }
+                    if (result is not null) { PortableUpdatePaths.TryWriteResult(PortableUpdatePaths.ResultFile(plan.Installation), result); }
                 }
-                catch (IOException) { }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or System.Security.SecurityException) { }
                 Start(executable, null)?.Dispose();
             }, timeout.Token);
-            try { PortableUpdatePaths.WriteJson(PortableUpdatePaths.ResultFile(plan.Installation), result); }
-            catch (IOException) { }
+            PortableUpdatePaths.TryWriteResult(PortableUpdatePaths.ResultFile(plan.Installation), result);
             return result.State == "Completed" ? 0 : 1;
         }
         finally { lease?.Dispose(); }
@@ -79,10 +81,12 @@ static async Task<int> RunAsync(string[] arguments)
             try
             {
                 var result = new PortableUpdateResult("Failed", plan.Version, Path.Combine(job, "backup"), code);
-                PortableUpdatePaths.WriteJson(Path.Combine(job, "result.json"), result);
-                PortableUpdatePaths.WriteJson(PortableUpdatePaths.ResultFile(plan.Installation), result);
+                PortableUpdatePaths.TryWriteResult(Path.Combine(job, "result.json"), result);
+                PortableUpdatePaths.TryWriteResult(PortableUpdatePaths.ResultFile(plan.Installation), result);
                 // Only restart after the initiating process exited; it may still show the helper error.
-                if (!Process.GetProcessesByName("Harness").Any(process => IsTargetProcess(process, plan.Installation)))
+                // A failed rollback must never fall through to launching the unconfirmed new version.
+                if (PortablePackage.ReadManifest(plan.Installation).Version == plan.CurrentVersion &&
+                    !Process.GetProcessesByName("Harness").Any(process => IsTargetProcess(process, plan.Installation)))
                 {
                     Start(Path.Combine(plan.Installation, "Harness.exe"), null)?.Dispose();
                 }

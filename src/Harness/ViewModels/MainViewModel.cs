@@ -21,6 +21,7 @@ public partial class MainViewModel : INotifyPropertyChanged, IDisposable
         _autoRefresh = runtime.Configuration.Settings.AutoRefresh;
         _webViewService.SetAutoRefresh(_autoRefresh);
         _webViewService.SetContentZoom(runtime.Configuration.Settings.ZoomFactor);
+        _webViewService.SetContentTypography(runtime.Configuration.Settings.AppFontFamily, runtime.Configuration.Settings.AppFontSize);
         _hostedUiBridge = new HostedUiBridge(runtime.Logger, _messageOwnership);
         InitializeCommands();
         InitializeGatewayCommands();

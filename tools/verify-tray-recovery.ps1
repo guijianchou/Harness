@@ -6,7 +6,7 @@ $options = [Microsoft.CodeAnalysis.CSharp.CSharpParseOptions]::Default.WithLangu
 $sources = [Collections.Generic.List[Microsoft.CodeAnalysis.SyntaxTree]]::new()
 foreach ($selection in @(
     @{ Path = 'src/Harness/Services/TrayIconService.cs'; Type = 'namespace Harness.Services { internal sealed partial class TrayIconService {'; Methods = @('TryAddIcon', 'OnWindowMessage', 'EnsureAvailable', 'UpdateStatus') },
-    @{ Path = 'src/Harness/MainWindow.Tray.cs'; Type = 'namespace Harness { internal sealed partial class MainWindow {'; Methods = @('OnTrayAvailabilityLost', 'HideMainWindowToTray') },
+    @{ Path = 'src/Harness/MainWindow.Tray.cs'; Type = 'namespace Harness { internal sealed partial class MainWindow {'; Methods = @('OnTrayAvailabilityLost', 'HideMainWindowToTray', 'UpdateTrayStatus') },
     @{ Path = 'src/Harness/MainWindow.Lifecycle.cs'; Type = 'namespace Harness { internal sealed partial class MainWindow {'; Methods = @('OnAppWindowClosing') }
 )) {
     $tree = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText((Get-Content -LiteralPath (Join-Path $repoRoot $selection.Path) -Raw), $options)

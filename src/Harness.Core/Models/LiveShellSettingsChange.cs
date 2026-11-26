@@ -23,11 +23,16 @@ public sealed record LiveShellSettingsChange(
 
     public bool DidChangeZoomFactor => Before.ZoomFactor != After.ZoomFactor;
 
+    public bool DidChangeTypography =>
+        !string.Equals(Before.AppFontFamily, After.AppFontFamily, StringComparison.Ordinal) ||
+        Before.AppFontSize != After.AppFontSize;
+
     public bool HasChanges =>
         DidChangeAlwaysOnTop ||
         DidChangeGlobalHotkey ||
         DidChangeAllowMultipleInstances ||
         DidChangeAutoRefresh ||
         DidChangeAppTheme ||
-        DidChangeZoomFactor;
+        DidChangeZoomFactor ||
+        DidChangeTypography;
 }

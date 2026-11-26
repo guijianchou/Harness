@@ -14,7 +14,8 @@ internal static class WebViewScriptExecutor
         WebViewMessageOwnership ownership,
         int pageVersion,
         string expression,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? executionTimeout = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!ownership.TryCaptureTokens(pageVersion, out var ownerToken, out var pageToken))
@@ -50,7 +51,8 @@ internal static class WebViewScriptExecutor
             kind = "harness-command-result",
             commandId,
             nativeOwnerToken = ownerToken,
-            nativePageToken = pageToken
+            nativePageToken = pageToken,
+            deadlineUnixMs = DateTimeOffset.UtcNow.Add(executionTimeout ?? TimeSpan.FromSeconds(3)).ToUnixTimeMilliseconds()
         });
         coreWebView.WebMessageReceived += handler;
         try

@@ -11,6 +11,8 @@ public partial class SettingsViewModel
 {
     private int _themeIndex;
     private double _zoomPercent = 100;
+    private int _fontFamilyIndex = 1;
+    private double _fontSize = 14;
     private bool _launchAtStartup;
     private bool _startMinimized;
     private bool _notifyOnRunCompleted;
@@ -18,6 +20,8 @@ public partial class SettingsViewModel
     private bool _forwardPageNotifications;
     private bool _didEditTheme;
     private bool _didEditZoomPercent;
+    private bool _didEditFontFamily;
+    private bool _didEditFontSize;
     private bool _didEditLaunchAtStartup;
     private bool _didEditStartMinimized;
     private bool _didEditNotifyOnRunCompleted;
@@ -73,6 +77,29 @@ public partial class SettingsViewModel
         set => SetAppearanceValue(ref _zoomPercent, value, ref _didEditZoomPercent);
     }
 
+    public IReadOnlyList<string> FontFamilyOptions { get; } = (string[])
+    ["Noto Sans SC", "System UI"];
+
+    public int FontFamilyIndex
+    {
+        get => _fontFamilyIndex;
+        set
+        {
+            if (value is < 0 or > 1)
+            {
+                return;
+            }
+
+            SetAppearanceValue(ref _fontFamilyIndex, value, ref _didEditFontFamily);
+        }
+    }
+
+    public double FontSize
+    {
+        get => _fontSize;
+        set => SetAppearanceValue(ref _fontSize, value, ref _didEditFontSize);
+    }
+
     public bool LaunchAtStartup
     {
         get => _launchAtStartup;
@@ -107,6 +134,9 @@ public partial class SettingsViewModel
     {
         _themeIndex = settings.AppTheme switch { "Light" => 1, "Dark" => 2, _ => 0 };
         _zoomPercent = settings.ZoomFactor * 100;
+        _fontFamilyIndex = settings.AppFontFamily == "Noto Sans SC" ? 0 : 1;
+        _fontSize = double.IsFinite(settings.AppFontSize) && settings.AppFontSize is >= 10 and <= 32 &&
+            settings.AppFontSize == Math.Truncate(settings.AppFontSize) ? settings.AppFontSize : 14;
         _launchAtStartup = settings.LaunchAtStartup;
         _startMinimized = settings.StartMinimized;
         _notifyOnRunCompleted = settings.NotifyOnRunCompleted;
@@ -124,6 +154,16 @@ public partial class SettingsViewModel
         if (_didEditZoomPercent)
         {
             settings.ZoomFactor = ZoomPercent / 100;
+        }
+
+        if (_didEditFontFamily)
+        {
+            settings.AppFontFamily = FontFamilyOptions[FontFamilyIndex];
+        }
+
+        if (_didEditFontSize)
+        {
+            settings.AppFontSize = FontSize;
         }
 
         if (_didEditLaunchAtStartup)
@@ -152,11 +192,29 @@ public partial class SettingsViewModel
         }
     }
 
+    private void ResetCommittedAppearanceEdits()
+    {
+        _didEditTheme = false;
+        _didEditZoomPercent = false;
+        _didEditFontFamily = false;
+        _didEditFontSize = false;
+        _didEditStartMinimized = false;
+        _didEditNotifyOnRunCompleted = false;
+        _didEditNotifyOnlyWhenUnfocused = false;
+        _didEditForwardPageNotifications = false;
+    }
+
     private bool TryValidateAppearanceSettings()
     {
         if (!double.IsFinite(ZoomPercent) || ZoomPercent is < 50 or > 200)
         {
             ValidationMessage = StringResources.SettingsZoomInvalid;
+            return false;
+        }
+
+        if (!double.IsFinite(FontSize) || FontSize is < 10 or > 32 || FontSize != Math.Truncate(FontSize))
+        {
+            ValidationMessage = StringResources.SettingsFontSizeInvalid;
             return false;
         }
 

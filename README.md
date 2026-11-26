@@ -2,16 +2,19 @@
 
 **Language:** English | [简体中文](readme_zh.md)
 
-**Current version:** 5.3.11
+**Current version:** 5.3.12
 
 Lightweight Windows-native shell for hosted agent Control UIs, built with WinUI 3 and WebView2.
 
-Harness is a thin desktop shell for a remote agent gateway's web Control UI. It targets deployments running on a VPS and exposed through Cloudflare Tunnel, a reverse proxy, or another public HTTPS origin.
+Harness targets remote management of **Hermes Agent and OpenClaw Gateways on a VPS**. Gateway protocols determine the native features; see [remote management scope and official contracts](docs/gateway-management.md). OpenClaw has a partial native integration today; Hermes native Gateway integration is not yet implemented. Other sites, including DeepSeek, run as ordinary web apps.
 
 | Backend | Status |
 |---|---|
 | OpenClaw Gateway | Hosted Web UI supported; optional native Gateway v4 controls require deployment testing |
-| DeepSeek Harness | Web UI test passed |
+| Hermes Agent | Gateway integration scope documented; current code only provides auxiliary web adaptation |
+| Other web apps | Generic browser hosting; no agent-specific model detection or run commands |
+
+Select the application type under Settings → Environments. Auto detect recognizes supported agent pages and otherwise uses ordinary web hosting. Existing DeepSeek profiles migrate to Generic without changing their URL or browser profile. See [Hermes and backend support](docs/hermes-integration.md) for supported interfaces and validation boundaries.
 
 An optional OpenClaw Gateway v4 connection now adds native session browsing, empty-session creation, model selection, precise run cancellation, and run notifications while retaining the hosted web workspace. Enable it per environment in Settings. See [OpenClaw integration](docs/openclaw-integration.md) for authentication, Cloudflare Access, compatibility boundaries, and validation; the new native path still requires testing against your deployment.
 
@@ -21,9 +24,9 @@ An optional OpenClaw Gateway v4 connection now adds native session browsing, emp
 
 This project began as **OpenClaw Manager**, a WebView2 + WinUI 3 client written specifically for OpenClaw's Control UI. Window chrome, tray, global hotkey, per-environment session isolation, heartbeat, navigation recovery, diagnostics, and logging are shared hosted-UI shell features. Backend profiles, the page bridge, and the optional native OpenClaw Gateway connection provide product-specific behavior.
 
-Renaming the app to **Harness** marks the shift from "an OpenClaw client" to "a general client for hosted agent Control UIs", with OpenClaw and DeepSeek Harness as the first two intended backends.
+Renaming the app to **Harness** marked the shift from an OpenClaw client to a general hosted web workspace. Dedicated agent support now focuses on Hermes Agent and OpenClaw.
 
-The rename shipped in 5.3.0. Harness now supports backend profiles and has passed a manual hosted Web UI test with DeepSeek Harness. Version 5.3.8 also adds optional OpenClaw Gateway v4 controls alongside the hosted workspace.
+The rename shipped in 5.3.0. DeepSeek Harness previously passed a manual hosted Web UI test and remains usable as an ordinary web app. Version 5.3.8 added optional OpenClaw Gateway v4 controls alongside the hosted workspace.
 
 ### What changed in the 5.3.0 rename
 
@@ -66,19 +69,22 @@ This project keeps the existing hosted web experience, but wraps it in a native 
 
 It is best suited for users who:
 
-- run an OpenClaw Gateway or DeepSeek Harness remotely
+- run a Hermes Agent web interface or OpenClaw Gateway locally or remotely
 - access it through Cloudflare Tunnel or a reverse proxy
 - want a lightweight Windows-native client instead of keeping a browser tab open
 
-## Current 5.3.11 Notes
+## Current 5.3.12 Notes
 
-Release date: **2026-11-25**. This release protects OpenClaw session settings and subscriptions, improves update feedback and GitHub rate-limit handling, and makes tray and browser-profile failures recoverable. See the [5.3.11 release notes](docs/releases/5.3.11.md).
+Release date: **2026-11-26**. This release adds Hermes web adaptation and font preferences, and strengthens profile isolation, stop ownership, Settings saves, tray exit, and portable-update recovery. See the [5.3.12 release notes](docs/releases/5.3.12.md).
 
-- Show unavailable OpenClaw models as read-only information and enable Apply only for valid pending edits. An unchanged selection cannot silently clear model or thinking overrides; explicitly choosing Default still clears them.
-- Keep Gateway session subscriptions tied to their connection during page changes. Late acknowledgements reconcile the active target, and uncertain subscription timeouts or cancellation retire the connection before rebuilding its subscriptions.
-- Keep update checking, download, verification, and restart feedback in one responsive About card, with inline retry/cancel actions and a download bar only while downloading.
-- Respect GitHub rate-limit retry times, distinguish access denial from rate limiting, merge concurrent checks, and reuse successful check results for five minutes while Harness is running.
-- Confirm tray registration before hiding the window; keep Harness accessible and show a warning when registration fails. Browser-profile access denial now has an explicit error and diagnostics, with manual retry available. See the local-build guidance below for Low integrity workspace outputs.
+- Reserve dedicated Agent behavior for Hermes Agent and OpenClaw. Other sites, including existing DeepSeek environments, use Generic web hosting. Hermes support covers the official `hermes webapp` interface; native Hermes Gateway management remains a documented design, not an implemented feature.
+- Choose System UI or bundled Noto Sans SC and a 10–32 px base size in Settings > Appearance. Apply saved preferences to native controls and hosted content without downloading fonts; preserve icons, code fonts, and separate web zoom.
+- Verify WebView2's effective profile folder before creating a controller; reject policy or environment overrides that would share another profile. Keep HTTP probes stateless and single-instance activation pipe names aligned with the Windows session scope.
+- Keep Stop tied to the original page, session, and run, including delayed fallbacks and timeouts. Preserve the active environment through renames and stop later saves from overwriting settings already committed elsewhere.
+- Keep the window accessible when the tray is unavailable and allow a second close within 15 seconds to exit. Prevent diagnostic exports from overwriting each other.
+- Restart the restored version even if update-result reporting fails. Normalize only generated apphosts and the update's three staged EXEs to Medium integrity; preserve directory labels and DACLs. Include x86 testhost handling.
+
+Real Hermes/OpenClaw VPS login, proxy behavior, streaming, and server-side cancellation have not been validated in this release work. Existing OpenClaw native features and the Hermes webpage adapter have automated regression coverage; they do not imply complete remote Gateway management.
 
 ### Earlier changes
 
@@ -144,7 +150,7 @@ The `5.3.8` release added the following:
 ### This project is
 
 - A WinUI 3 + WebView2 remote management shell
-- A Windows-native entry point for hosted agent Control UI sessions, verified with OpenClaw Gateway and DeepSeek Harness Web UI
+- A Windows-native workspace with dedicated Hermes Agent and OpenClaw integration and ordinary web app hosting
 - A thin client that enhances the existing web UI with native UX
 
 ### This project is not
@@ -291,9 +297,9 @@ dotnet restore Harness.sln --locked-mode
 dotnet build Harness.sln -c Debug -p:Platform=x64 --no-restore
 ```
 
-The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.11\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
+The app project selects the Windows runtime for the chosen platform and verifies native dependencies after building. Run `bin\Debug\5.3.12\net10.0-windows10.0.26100.0\win-x64\Harness.exe` for local x64 testing. The older output without the `win-x64` directory is incomplete and must not be used. Debug builds require .NET 10 and WebView2 Runtime on the machine.
 
-If the workspace has a Windows Low integrity label, its build outputs can inherit that label. Even launching the EXE from Explorer then runs Harness at Low integrity, which prevents writing its normal browser data and logs and can prevent tray registration. Package the entire build output as a ZIP and extract it into a normal user test directory outside that workspace before running it. Keep the workspace permissions and existing browser profiles intact. Use `icacls <path>` to inspect labels when diagnosing this combination of failures.
+If the workspace has a Windows Low integrity label, its build outputs can inherit that label. Even launching the EXE from Explorer can then run Harness at Low integrity, preventing writes to its normal browser data and logs and potentially preventing tray registration. The current Windows build and publish targets set Medium integrity on the Harness and updater apphosts; test builds also normalize the test hosts. Update preparation applies the same label to the three staged apphosts before handing off to the updater. These operations change only executable integrity labels, preserving directory permissions, DACLs, and browser data. Use `icacls <path>` to inspect labels when diagnosing this combination of failures. For manual deployment, copy or extract the complete build output into a normal user directory.
 
 ### Code Style
 
@@ -322,7 +328,7 @@ git diff --check
 
 VS2026 manual debug remains required for real WebView2, Gateway, Cloudflare Tunnel, tray, hotkey, and compact-mode behavior.
 
-The DeepSeek Harness Web UI has passed the current manual web test.
+The DeepSeek Harness Web UI previously passed a manual web test; it is now classified as an ordinary web app. Hermes web adaptation is included in 5.3.12 and still requires validation with your deployed official web interface; native Hermes Gateway management is not implemented.
 
 Manual debug should explicitly cover:
 
@@ -375,11 +381,11 @@ dotnet restore Harness.sln --locked-mode
 pwsh -NoProfile -File tools/publish-release.ps1 -OutputRoot artifacts/release
 ```
 
-The script creates a new version directory such as `artifacts/release/5.3.11`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
+The script creates a new version directory such as `artifacts/release/5.3.12`, validates the published files, and produces a ZIP and SHA-256 checksum. It refuses to overwrite an existing version directory; choose another `OutputRoot` for a repeat build.
 
 Portable builds from this source include **Settings > About > Check for updates**, verified downloads, and **Save settings and restart to update**. The updater keeps the installation path and AppData, preserves extra user files, and rolls back if the new app fails startup. Existing published 5.3.8 packages require one manual upgrade to 5.3.9, which includes the updater. See [portable updates and recovery](docs/portable-updates.md).
 
-Pushing a numeric version tag such as `5.3.11` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
+Pushing a numeric version tag such as `5.3.12` (without a `v` prefix) triggers [.github/workflows/release.yml](.github/workflows/release.yml). The tag must match the project version and have release notes in `docs/releases/<version>.md`. The workflow runs validation, packages the release, and publishes the ZIP and SHA-256 checksum to GitHub Releases.
 
 ### First Launch
 

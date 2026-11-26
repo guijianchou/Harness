@@ -76,24 +76,57 @@ public static class TrayRecoveryRegression
         window.LoseTray();
         Check(window.Shown == 1, "Closing window is not resurrected by recovery");
 
-        var close = new Harness.MainWindow { Hidden = false };
         Harness.App.Configuration.Settings.SystemTray = true;
-        Check(close.RequestClose() && !close.Hidden && close.Saved == 0 && close.DeferredExitChecks == 0,
-            "Close-to-tray with no tray service keeps the visible window open instead of exiting");
-        Check(close.WarningCount == 1, "A failed close-to-tray attempt explains why the main window remains open");
+        var missing = new Harness.MainWindow { Hidden = false };
+        Check(missing.RequestClose() && !missing.Hidden && missing.Saved == 0 && missing.DeferredExitChecks == 0,
+            "The first close with no tray service keeps the visible window open");
+        Check(missing.WarningCount == 1 && missing.LastWarning == "TrayUnavailableCloseWarning",
+            "The first failed close explains the repeated-close exit option");
+        Check(!missing.RequestClose() && !missing.Hidden && missing.DeferredExitChecks == 1,
+            "A repeated close with no tray service exits without requiring a settings change");
+
+        var stale = new Harness.MainWindow { Hidden = false };
+        var staleTray = new TrayIconService { FailModify = true, FailAdd = true };
+        stale.AttachTray(staleTray);
+        Check(stale.RequestClose() && !stale.Hidden && stale.Saved == 0 && !staleTray.IsAvailable,
+            "A stale available flag cannot hide the window when shell recovery fails");
+        Check(staleTray.Calls.SequenceEqual(new uint[] { 1, 0 }), "The first close attempts shell recovery only once");
+        staleTray.Calls.Clear();
+        Check(!stale.RequestClose() && staleTray.Calls.SequenceEqual(new uint[] { 0 }),
+            "The confirmed close retries shell registration once before exiting");
+
+        var close = new Harness.MainWindow { Hidden = false };
         var closeTray = new TrayIconService { FailModify = true, FailAdd = true };
         close.AttachTray(closeTray);
-        Check(close.RequestClose() && !close.Hidden && close.Saved == 0 && !closeTray.IsAvailable,
-            "A stale available flag cannot hide the window when shell recovery fails");
+        Check(close.RequestClose(), "A failed close starts a pending exit confirmation");
         closeTray.FailModify = false;
         closeTray.FailAdd = false;
-        Check(close.RequestClose() && close.Hidden && close.Saved == 1,
-            "Close-to-tray hides only after the shell accepts a live registration");
+        Check(close.RequestClose() && close.Hidden && close.Saved == 1 && close.DeferredExitChecks == 0,
+            "A recovered tray hides the window on the next close instead of confirming exit");
         closeTray.FailModify = true;
         closeTray.FailAdd = true;
         closeTray.UpdateStatus("WAIT");
         Check(!close.Hidden && close.Shown == 1, "A hidden window is restored when its status update detects a lost icon");
-        Check(close.WarningCount == 3, "Restoring a hidden window also reports tray unavailability");
+        Check(close.WarningCount == 2 && close.LastWarning == "TrayUnavailableWarning",
+            "Restoring a hidden window reports tray unavailability without asking to exit");
+        Check(close.RequestClose() && close.DeferredExitChecks == 0,
+            "Successful close-to-tray cleared the previous exit confirmation before a new failure");
+
+        closeTray.FailModify = false;
+        closeTray.FailAdd = false;
+        close.RefreshTrayStatus();
+        Check(closeTray.IsAvailable && !close.Hidden, "A background status update can recover the tray without hiding the window");
+        closeTray.FailModify = true;
+        closeTray.FailAdd = true;
+        Check(close.RequestClose() && close.DeferredExitChecks == 0,
+            "Background tray recovery clears a pending exit confirmation");
+
+        var hotkey = new Harness.MainWindow { Hidden = false };
+        hotkey.Hide();
+        Check(hotkey.LastWarning == "TrayUnavailableWarning" && hotkey.RequestClose() && hotkey.DeferredExitChecks == 0,
+            "A failed hotkey hide does not count as the first close confirmation");
+        Check(hotkey.LastWarning == "TrayUnavailableCloseWarning", "Only a close request explains the exit confirmation");
+
         Harness.App.Configuration.Settings.SystemTray = false;
         Check(!close.RequestClose() && close.DeferredExitChecks == 1, "Disabling close-to-tray retains the normal exit path");
         Harness.App.Configuration.Settings.SystemTray = true;
@@ -102,6 +135,16 @@ public static class TrayRecoveryRegression
         var saving = new Harness.MainWindow { DeferExit = true, Hidden = false };
         saving.RequestExplicitExit();
         Check(saving.RequestClose() && saving.DeferredExitChecks == 1 && !saving.Hidden, "Explicit exit still waits for a pending settings save");
+        var confirmedSaving = new Harness.MainWindow { DeferExit = true, Hidden = false };
+        Check(confirmedSaving.RequestClose() && confirmedSaving.DeferredExitChecks == 0,
+            "The first unavailable-tray close does not start exit while settings are saving");
+        Check(confirmedSaving.RequestClose() && confirmedSaving.DeferredExitChecks == 1 && !confirmedSaving.Hidden,
+            "The confirmed unavailable-tray exit waits for the pending settings save");
+        confirmedSaving.AttachTray(new TrayIconService());
+        confirmedSaving.RefreshTrayStatus();
+        confirmedSaving.DeferExit = false;
+        Check(!confirmedSaving.RequestClose() && !confirmedSaving.Hidden && confirmedSaving.DeferredExitChecks == 2,
+            "A confirmed exit remains an exit after save completion even if the tray recovered");
         Console.WriteLine($"Tray recovery regression passed: {checks} checks; Windows shell unchanged.");
     }
 }
@@ -179,10 +222,12 @@ namespace Harness
         public int DeferredExitChecks;
         public bool DeferExit;
         public int WarningCount => ViewModel.WarningCount;
+        public string? LastWarning => ViewModel.LastWarning;
         public bool Hidden { get => _isWindowHidden; set => _isWindowHidden = value; }
         public bool Closing { set => _isClosing = value; }
         public void LoseTray() => OnTrayAvailabilityLost();
         public void Hide() => HideMainWindowToTray();
+        public void RefreshTrayStatus() => UpdateTrayStatus();
         public void AttachTray(TrayIconService tray)
         {
             _trayIconService = tray;
@@ -206,7 +251,9 @@ namespace Harness
         private sealed class FakeViewModel
         {
             public int WarningCount;
-            public void ShowShellWarning(string message) => WarningCount++;
+            public string? LastWarning;
+            public string WorkStatusText => "WAIT";
+            public void ShowShellWarning(string message) { WarningCount++; LastWarning = message; }
         }
     }
 }

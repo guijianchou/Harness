@@ -71,6 +71,9 @@
   <data name="WebViewProfileAccessDenied" xml:space="preserve">
     <value>当前 Harness 进程无法访问浏览器数据目录：{0}。请关闭 Harness 后重新打开同一个 Harness.exe 重试。若问题仍然存在，可在设置中导出诊断包。</value>
   </data>
+  <data name="WebViewProfilePathMismatch" xml:space="preserve">
+    <value>WebView2 采用了不同的浏览器数据目录。为保持环境隔离，已停止加载。预期目录：{0}。实际目录：{1}。请检查 WEBVIEW2_USER_DATA_FOLDER 环境变量和 WebView2 用户数据目录策略，然后重启 Harness。</value>
+  </data>
   <data name="DevTools" xml:space="preserve">
     <value>开发者工具</value>
   </data>
@@ -124,7 +127,7 @@
     <value>离线</value>
   </data>
   <data name="StatusConfigureGateway" xml:space="preserve">
-    <value>请在设置中配置 Gateway URL</value>
+    <value>请在设置中配置 Web 应用地址</value>
   </data>
   <data name="StatusHeartbeatFailed" xml:space="preserve">
     <value>网关心跳丢失，正在刷新...</value>
@@ -270,16 +273,16 @@
     <value>例如：Production</value>
   </data>
   <data name="SettingsControlUiUrlPlaceholder" xml:space="preserve">
-    <value>https://your-gateway.example.com</value>
+    <value>https://your-app.example.com</value>
   </data>
   <data name="SettingsControlUiUrl" xml:space="preserve">
-    <value>Control UI URL</value>
+    <value>Web 应用地址</value>
   </data>
   <data name="SettingsBackend" xml:space="preserve">
     <value>后端类型</value>
   </data>
   <data name="SettingsBackendHint" xml:space="preserve">
-    <value>决定延迟探针路径与页内桥行为。自动检测适用于任意托管 Control UI；选择 OpenClaw Gateway 才会启用其状态桥与 MODEL 显示。</value>
+    <value>识别受支持的 Hermes Agent 与 OpenClaw 页面，其他页面按普通 Web 应用打开。如需启用可选的 Gateway 原生控制，请明确选择 OpenClaw。</value>
   </data>
   <data name="SettingsBackendAuto" xml:space="preserve">
     <value>自动检测</value>
@@ -287,11 +290,20 @@
   <data name="SettingsBackendOpenClaw" xml:space="preserve">
     <value>OpenClaw Gateway</value>
   </data>
-  <data name="SettingsBackendDeepSeek" xml:space="preserve">
-    <value>DeepSeek Harness</value>
+  <data name="SettingsBackendHermes" xml:space="preserve">
+    <value>Hermes Agent</value>
   </data>
   <data name="SettingsBackendGeneric" xml:space="preserve">
-    <value>通用 Control UI</value>
+    <value>普通 Web 应用</value>
+  </data>
+  <data name="SettingsBackendOpenClawHint" xml:space="preserve">
+    <value>支持 OpenClaw Control UI 的状态、模型和运行控制。启用下方可选的 Gateway 连接后，可使用原生会话与模型选择。</value>
+  </data>
+  <data name="SettingsBackendHermesHint" xml:space="preserve">
+    <value>填写您部署的 Hermes Agent 网页界面地址。受支持的 Hermes 页面提供模型、运行状态和停止控制；其他前端按普通 Web 应用打开。</value>
+  </data>
+  <data name="SettingsBackendGenericHint" xml:space="preserve">
+    <value>承载任意 Web 应用，提供独立登录、刷新、托盘和快捷键。不启用 Agent 模型识别及运行命令。</value>
   </data>
   <data name="SettingsControlUiUrlHint1" xml:space="preserve">
     <value>请填写公开托管的 Control UI 页面地址（`http://` 或 `https://`），不要填写 Gateway WebSocket URL。如果你通过 Cloudflare Tunnel 或其他反向代理访问，这里应当是浏览器最终访问的公网 origin。</value>
@@ -405,7 +417,7 @@
     <value>关于</value>
   </data>
   <data name="AboutDescription" xml:space="preserve">
-    <value>连接 OpenClaw Gateway 与 DeepSeek Harness 的原生 Windows 工作空间。</value>
+    <value>专门支持 Hermes Agent 与 OpenClaw，并承载普通 Web 应用的原生 Windows 工作空间。</value>
   </data>
   <data name="AboutGitHubProfile" xml:space="preserve">
     <value>GitHub 项目主页</value>
@@ -590,7 +602,13 @@
   </data>
 
   <data name="BridgeGatewayUiLoaded" xml:space="preserve">
-    <value>Gateway UI 已加载。</value>
+    <value>网页已加载。</value>
+  </data>
+  <data name="BridgeWebAuthRequiredSummary" xml:space="preserve">
+    <value>需要登录。</value>
+  </data>
+  <data name="BridgeWebAuthRequiredDetail" xml:space="preserve">
+    <value>请在托管网页中完成登录。</value>
   </data>
   <data name="BridgePageLoading" xml:space="preserve">
     <value>页面加载中。</value>
@@ -1013,6 +1031,21 @@
   <data name="SettingsZoomDescription" xml:space="preserve">
     <value>将网页内容缩放至 50%–200%，程序工具栏大小不变。</value>
   </data>
+  <data name="SettingsFontTitle" xml:space="preserve">
+    <value>字体</value>
+  </data>
+  <data name="SettingsFontDescription" xml:space="preserve">
+    <value>两种字体均支持中英文，保存后生效。</value>
+  </data>
+  <data name="SettingsFontSizeTitle" xml:space="preserve">
+    <value>字号（px）</value>
+  </data>
+  <data name="SettingsFontSizeDescription" xml:space="preserve">
+    <value>基础字号范围为 10–32 px，默认为 14 px，保存后生效。</value>
+  </data>
+  <data name="SettingsFontSizeInvalid" xml:space="preserve">
+    <value>请输入 10–32 px 范围内的整数字号。</value>
+  </data>
   <data name="SettingsApplyHint" xml:space="preserve">
     <value>点击“保存并关闭”后，更改才会生效。</value>
   </data>
@@ -1312,5 +1345,8 @@
   </data>
   <data name="TrayUnavailableWarning" xml:space="preserve">
     <value>Windows 未能显示 Harness 托盘图标，已保留主窗口，方便你继续访问。可以再次尝试关闭，或在设置中关闭“系统托盘”后退出程序。</value>
+  </data>
+  <data name="TrayUnavailableCloseWarning" xml:space="preserve">
+    <value>Windows 未能显示 Harness 托盘图标，已保留主窗口。请在 15 秒内再次关闭；如果托盘仍不可用，Harness 将退出。</value>
   </data>
 </root>

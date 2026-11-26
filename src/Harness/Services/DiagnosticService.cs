@@ -247,13 +247,7 @@ public class DiagnosticService
 
     private static HttpClient CreateHttpClient()
     {
-        return new HttpClient(new HttpClientHandler
-        {
-            AllowAutoRedirect = false,
-        })
-        {
-            Timeout = TimeSpan.FromSeconds(10),
-        };
+        return StatelessProbeHttpClient.Create(TimeSpan.FromSeconds(10));
     }
 
     private static bool IsLoopbackLike(Uri uri)

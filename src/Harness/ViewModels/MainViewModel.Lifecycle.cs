@@ -10,6 +10,8 @@ public partial class MainViewModel
 {
     public void SetContentZoom(double factor) => _webViewService.SetContentZoom(factor);
 
+    public void SetContentTypography(string? family, double size) => _webViewService.SetContentTypography(family, size);
+
     private void SubscribeToServiceEvents()
     {
         _webViewService.ConnectionStateChanged += OnConnectionStateChanged;

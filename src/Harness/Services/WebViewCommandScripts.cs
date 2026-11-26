@@ -14,7 +14,8 @@ internal static class WebViewCommandScripts
 
     public static string StopInjection => StopInjectionScript.Value;
 
-    public static string AbortRun => AbortRunScript.Value;
+    public static string AbortRun => AbortRunScript.Value
+        .Replace("__HARNESS_STOP_INJECTION_SCRIPT__", StopInjection, StringComparison.Ordinal);
 
     public static string WrapAsync(string expression, string messageJson) => ExecuteAsyncScript.Value
         .Replace("__HARNESS_COMMAND_MESSAGE_JSON__", messageJson, StringComparison.Ordinal)

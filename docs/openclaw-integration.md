@@ -1,14 +1,14 @@
 # OpenClaw 原生 Gateway 集成
 
-适用版本：**Harness 5.3.11**（2026-11-25）。当前 Release 面向 **Windows 11 24H2（版本 26100）及以上**，更早的 Windows 版本尚未验证。
+适用版本：**Harness 5.3.12**（2026-11-26）。当前 Release 面向 **Windows 11 24H2（版本 26100）及以上**，更早的 Windows 版本尚未验证。
 
 Harness 保留 WebView2 中的 OpenClaw Control UI，用独立的 .NET WebSocket 连接补充原生会话控制。聊天渲染、输入、附件、文件和网页中的工具界面继续由上游页面负责。更换 Chromium 嵌入方案不会带来这些 Gateway 能力，因此本次没有更换浏览器内核，也没有打包 Chromium。
 
 自包含 Release 包含 .NET 和 Windows App SDK，但 **WebView2 Runtime 仍是外部依赖**，需要系统已安装或另行安装；SDK 随构建引入并不等于打包浏览器运行时。
 
-## 当前工作区预览
+## 当前集成功能
 
-以下更新在本地预览中提供，尚未发布为新的 GitHub Release：
+以下功能包含在当前版本中；自动回归不代替真实部署的端到端验收：
 
 - 会话搜索交给 Gateway 执行，分页保持相同查询，旧搜索的迟到回包不能覆盖新查询。
 - 切换期间的结束事件会保留并安排补刷；临时读请求失败按有限退避重试，保留快照并暂时禁用依赖新鲜状态的写操作。
@@ -92,7 +92,7 @@ pwsh -STA -File tools/verify-native-webview.ps1 -OutputDirectory artifacts/nativ
 
 Core 测试使用真实回环 TCP/WebSocket 服务端，覆盖握手字段、签名绑定、并发回包、超时后晚到响应、断线及代次、事件缺口、协议版本拒绝、错误脱敏、精确停止、空值补丁、消息大小、入口授权响应及路径/运行目标策略。它们不等同于对部署中的 OpenClaw、Cloudflare 登录或真实会话进行端到端验收。交付时应分别报告 Core 测试、Windows 构建、原生 WebView 回归和真实服务联调结果。
 
-Debug 程序位于 `bin/Debug/5.3.11/net10.0-windows10.0.26100.0/win-x64/Harness.exe`。交付前需检查输出中的 Windows App Runtime 原生 DLL 和 `Harness.pri`；编译成功本身不证明依赖完整或程序已通过启动验证。
+Debug 程序位于 `bin/Debug/5.3.12/net10.0-windows10.0.26100.0/win-x64/Harness.exe`。交付前需检查输出中的 Windows App Runtime 原生 DLL 和 `Harness.pri`；编译成功本身不证明依赖完整或程序已通过启动验证。
 
 5.3.8 对 bridge 的 DOM 探测进行了有界文本采样、模型控件命中后提前返回和变更检查合并，并停止仅因已连接运行的可见输出静默而触发的自动重同步/刷新。性能验证使用包含 **1000 条消息**的合成 WebView2 页面，衡量 bridge 探测开销，不代表真实登录页面输入、滚动或折叠的交互帧率。实际 VPS、Cloudflare Access、设备批准、会话切换、流式输出及断线恢复仍需用户在自己的部署中完成端到端测试。
 

@@ -93,13 +93,13 @@ public static partial class DiagnosticBundleService
         string outputDirectory,
         DiagnosticRuntimeInfo runtimeInfo)
     {
-        var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmm");
-        var fileName = $"harness-diagnostics-{timestamp}.zip";
+        var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
+        var fileName = $"harness-diagnostics-{timestamp}-{Guid.NewGuid():N}.zip";
         var outputPath = Path.Combine(outputDirectory, fileName);
 
         Directory.CreateDirectory(outputDirectory);
 
-        using var zipStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
+        using var zipStream = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write);
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Create);
 
         // 1. Redacted settings

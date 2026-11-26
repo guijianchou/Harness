@@ -1,6 +1,6 @@
 const openClawModelDomFallback = (() => {
-  // Primary providers: openclaw and deepseek (full support)
-  // Generic fallback: common LLM keywords for other providers
+  // Model names are read only inside an enabled OpenClaw integration. Model
+  // providers (including DeepSeek) are independent of the hosted application.
   const modelPattern = /\b(?:openclaw|deepseek|gpt|o\d|claude|gemini|qwen|llama|mistral|glm|yi|command|grok|codex|kimi|moonshot)[a-z0-9._:+/-]*\b/i;
 
   // Relaxed pattern for generic provider fallback - matches common model naming patterns
@@ -219,35 +219,7 @@ const openClawModelDomFallback = (() => {
         .forEach((el) => pushCandidate(dom.textOf(el), 150, el, 'dom:openclaw-model-label'));
       if (candidates.length > 0) return bestCandidate();
 
-      // Priority 2: DeepSeek's model control is the button whose accessible
-      // name contains "Select model". Other triggerLabel elements, such as
-      // Settings, are unrelated controls and must not be considered.
-      Array.from(document.querySelectorAll('button[aria-label], [role="button"][aria-label]'))
-        .filter((el) => /\bselect\s+model\b/i.test(el.getAttribute('aria-label') || '') &&
-          !isStatusProbeExcludedElement(el) && dom.isVisible(el))
-        .forEach((el) => {
-          const ariaLabel = el.getAttribute('aria-label') || '';
-          if (!/\bselect\s+model\b/i.test(ariaLabel)) return;
-
-          const currentModelMatch = ariaLabel.match(/\bcurrent\s+(.+?)(?=\s*,\s*reasoning\s+effort\b|$)/i);
-          if (currentModelMatch) {
-            pushCandidate(currentModelMatch[1], 148, el, 'dom:deepseek-model-aria');
-            return;
-          }
-
-          const label = el.querySelector?.('[class*="triggerLabel"], [class*="trigger-label"]');
-          if (label && !isStatusProbeExcludedElement(label) && dom.isVisible(label)) {
-            pushCandidate(dom.textOf(label), 145, label, 'dom:deepseek-model-label');
-            return;
-          }
-
-          const title = el.getAttribute('title') || '';
-          const titleModel = title.split(/\s*[·|]\s*/, 1)[0];
-          if (titleModel) pushCandidate(titleModel, 142, el, 'dom:deepseek-model-title');
-        });
-      if (candidates.length > 0) return bestCandidate();
-
-      // Priority 3: Generic data attributes
+      // Lower-priority model controls inside the selected OpenClaw page.
       Array.from(document.querySelectorAll('[data-current-model], [data-selected-model], [data-model-name]'))
         .filter((el) => !isStatusProbeExcludedElement(el) && dom.isVisible(el))
         .forEach((el) => pushCandidate(dom.textOf(el), 120, el, 'dom:data-model'));
@@ -286,6 +258,7 @@ const openClawModelDomFallback = (() => {
     ];
 
     const readCurrentModel = () => {
+      if (profile?.kind !== 'OpenClaw') return emptyModelResult();
       for (const readModel of MODEL_SOURCE_READERS) {
         const result = readModel();
         if (result?.value) return result;
@@ -295,19 +268,7 @@ const openClawModelDomFallback = (() => {
     };
 
     const readCurrentEffort = () => {
-      // Try to read effort from DeepSeek Harness UI
-      // Look for aria-label containing "reasoning effort"
-      const buttons = Array.from(document.querySelectorAll('button[aria-label*="reasoning effort"], button[aria-label*="Reasoning effort"]'));
-      for (const button of buttons) {
-        if (!isStatusProbeExcludedElement(button) && dom.isVisible(button)) {
-          const ariaLabel = button.getAttribute('aria-label') || '';
-          const match = ariaLabel.match(/reasoning\s+effort\s+(\w+)/i);
-          if (match) {
-            return { value: match[1], source: 'dom:effort-label' };
-          }
-        }
-      }
-
+      if (profile?.kind !== 'OpenClaw') return emptyModelResult();
       // Try to read from data attributes
       const effortElements = Array.from(document.querySelectorAll('[data-effort], [data-reasoning-effort]'));
       for (const el of effortElements) {

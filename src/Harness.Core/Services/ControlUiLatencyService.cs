@@ -22,6 +22,8 @@ public sealed class ControlUiLatencyService : IDisposable
     private Task? _probeTask;
     private string? _currentHost;
     private string? _currentUrl;
+    private Uri? _currentProbeUri;
+    private Uri? _currentRootFallbackUri;
     private Uri? _resolvedProbeUri;
     private ControlUiLatencySnapshot _lastSuccessSnapshot = ControlUiLatencySnapshot.Unknown;
     private ControlUiLatencySnapshot _lastPublishedSnapshot = ControlUiLatencySnapshot.Unknown;
@@ -33,7 +35,7 @@ public sealed class ControlUiLatencyService : IDisposable
     }
 
     public ControlUiLatencyService(IAppLogger logger)
-        : this(new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, TimeSpan.FromSeconds(ProbeIntervalSeconds), disposeHttpClient: true, logger)
+        : this(StatelessProbeHttpClient.Create(TimeSpan.FromSeconds(5)), TimeSpan.FromSeconds(ProbeIntervalSeconds), disposeHttpClient: true, logger)
     {
     }
 
@@ -74,7 +76,8 @@ public sealed class ControlUiLatencyService : IDisposable
             if (_probeCts is not null &&
                 !_probeCts.IsCancellationRequested &&
                 string.Equals(_currentUrl, controlUiUrl, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(_currentHost, host, StringComparison.OrdinalIgnoreCase))
+                string.Equals(_currentHost, host, StringComparison.OrdinalIgnoreCase) &&
+                _currentProbeUri == probeUri && _currentRootFallbackUri == rootUri)
             {
                 return;
             }
@@ -87,6 +90,8 @@ public sealed class ControlUiLatencyService : IDisposable
         {
             _currentUrl = controlUiUrl;
             _currentHost = host;
+            _currentProbeUri = probeUri;
+            _currentRootFallbackUri = rootUri;
             _resolvedProbeUri = null;
             _lastSuccessSnapshot = ControlUiLatencySnapshot.Unknown;
             _lastPublishedSnapshot = ControlUiLatencySnapshot.Unknown;
@@ -125,6 +130,8 @@ public sealed class ControlUiLatencyService : IDisposable
             _probeRunId++;
             _currentUrl = null;
             _currentHost = null;
+            _currentProbeUri = null;
+            _currentRootFallbackUri = null;
             _resolvedProbeUri = null;
             _lastSuccessSnapshot = ControlUiLatencySnapshot.Unknown;
             _lastPublishedSnapshot = ControlUiLatencySnapshot.Unknown;
@@ -435,10 +442,15 @@ public sealed class ControlUiLatencyService : IDisposable
     {
         var builder = new UriBuilder(controlUiUri)
         {
-            Query = string.Empty,
             Fragment = string.Empty,
         };
 
+        if (string.IsNullOrWhiteSpace(probePath))
+        {
+            return builder.Uri;
+        }
+
+        builder.Query = string.Empty;
         var basePath = builder.Path;
         if (string.IsNullOrWhiteSpace(basePath) || basePath == "/")
         {
@@ -449,9 +461,7 @@ public sealed class ControlUiLatencyService : IDisposable
             basePath += "/";
         }
 
-        builder.Path = string.IsNullOrWhiteSpace(probePath)
-            ? basePath
-            : $"{basePath}{probePath.TrimStart('/')}";
+        builder.Path = $"{basePath}{probePath.TrimStart('/')}";
         return builder.Uri;
     }
 

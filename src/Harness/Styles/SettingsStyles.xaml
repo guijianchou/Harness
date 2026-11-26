@@ -2,21 +2,22 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:helpers="using:Harness.Helpers"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls">
 
     <Style x:Key="SettingsPageTitleStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="28" />
+        <Setter Property="helpers:AppTypography.BaseSize" Value="28" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="AutomationProperties.HeadingLevel" Value="Level1" />
     </Style>
     <Style x:Key="SettingsDescriptionStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="14" />
+        <Setter Property="helpers:AppTypography.BaseSize" Value="14" />
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
     <Style x:Key="SettingsSectionStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="14" />
+        <Setter Property="helpers:AppTypography.BaseSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="Margin" Value="0,12,0,0" />
@@ -30,6 +31,7 @@
         <Setter Property="Padding" Value="16" />
     </Style>
     <Style x:Key="SettingsCardStyle" TargetType="controls:SettingsCard">
+        <Setter Property="helpers:AppTypography.BaseSize" Value="14" />
         <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
         <Setter Property="BorderThickness" Value="1" />
@@ -39,6 +41,7 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
     <Style x:Key="SettingsExpanderStyle" TargetType="Expander">
+        <Setter Property="helpers:AppTypography.BaseSize" Value="14" />
         <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
         <Setter Property="CornerRadius" Value="8" />
@@ -46,6 +49,7 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
     <Style x:Key="SettingsListItemStyle" TargetType="ListViewItem">
+        <Setter Property="helpers:AppTypography.BaseSize" Value="14" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="Margin" Value="0,2" />
